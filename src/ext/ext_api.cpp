@@ -1489,6 +1489,35 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
         WriteBytes(buf, legal, sizeof(legal));
     }
+
+    // 20. The ordnance in flight: "CMSL", written ONLY while a battle is live,
+    //     after CMBT. OrionLayer, open fix 55.
+    //
+    //     Missiles, torpedoes and fighters live in MOX::missile (300 x
+    //     s_missile, 0x1A bytes each — sizes.h asserts it); an entry is live
+    //     while its type is above 0 (the loop in COMBINIT::Tactical_Combat).
+    //     Each live entry as the struct holds it, with its index — the index
+    //     is what missile_field[] and a missile's target refer to.
+    if (g_combat_live && MOX::missile != nullptr) {
+        int16_t live = 0;
+        for (int i = 0; i < 300; i++) {
+            if (MOX::missile[i].type > 0) ++live;
+        }
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'M');
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'L');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, (int16_t)g_combat_serial);
+        Write8(buf, (uint8_t)sizeof(s_missile));
+        Write16(buf, live);
+        for (int16_t i = 0; i < 300; i++) {
+            if (MOX::missile[i].type > 0) {
+                Write16(buf, i);
+                WriteBytes(buf, &MOX::missile[i], sizeof(s_missile));
+            }
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
