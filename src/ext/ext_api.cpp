@@ -629,6 +629,85 @@ static void SerializeState(std::vector<uint8_t>& buf,
             }
         }
     }
+
+    // 12. The Ship Designer's design as it is being edited: "DSGN", written
+    //     ONLY while the designer is up, and LAST. OrionLayer, open fix 44.
+    //
+    //     The designer edits MOX::design, an s_current_design in the global
+    //     data segment (design_main.cpp:577), and writes it into the
+    //     player's ship_designs[] only on Build (Update_Player_Design,
+    //     design.cpp:755-801); until then nothing of the edit is on the wire.
+    //     The test is the game's own current_screen, never the reported id,
+    //     so the block also rides the sub-dialogs, which report their own
+    //     ids when open fix 45 is applied. With it: the slot being edited
+    //     and the refit flag, the two numbers the bottom line prints, the
+    //     design itself, the values Print_Current_Design computes at draw
+    //     time (design_main.cpp:7-95) and, per weapon row, the damage and
+    //     modification strings the engine formats (:124-171).
+    if (MOX::current_screen == SCREEN_DESIGN && MOX::design != nullptr) {
+        buf.push_back((uint8_t)'D');
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'G');
+        buf.push_back((uint8_t)'N');
+        const s_current_design* d = MOX::design;
+        Write8(buf, 1);                                   // block version
+        Write16(buf, MOX::temp_star_handle);             // design slot
+        Write8(buf, (uint8_t)MOX::refit_ship);
+        Write32(buf, (int32_t)DESIGN::Printed_Design_Cost());
+        Write32(buf, DESIGN::printed_space_avail);
+        WriteBytes(buf, d->name, 16);
+        Write16(buf, d->ship_size);
+        Write16(buf, d->picture_type);
+        Write16(buf, d->shield);
+        Write16(buf, d->ftl_type);
+        Write16(buf, d->computer_type);
+        Write16(buf, d->armor_type);
+        Write16(buf, d->fuel_type);
+        Write32(buf, d->hull_space);
+        Write32(buf, d->space_used);
+        Write32(buf, d->total_cost);
+        Write16(buf, (int16_t)TECHDATA::drives[d->ftl_type].warp_speed);
+        Write16(buf, (int16_t)DESIGN::Current_Design_Combat_Speed(MOX::design));
+        Write16(buf, DESIGN::Current_Design_Structural_Points());
+        Write16(buf, DESIGN::Current_Design_Armor_Absorption());
+        Write16(buf, DESIGN::Shield_Strength());
+        Write16(buf, DESIGN::Current_Shield_Damage_Points_Blocked());
+        Write16(buf, (int16_t)TECHDATA::computers[d->computer_type].bonus);
+        s_ship_design tmpl;
+        DESIGN::Build_Design_Template(&tmpl);
+        int16_t atk = 0, def = 0, evade = 0;
+        INITSHIP::Get_Design_Combat_Bonuses(tmpl, &atk, &def, &evade);
+        Write16(buf, def);
+        Write16(buf, evade);
+        char text[128];
+        auto write_text = [&]() {
+            size_t n = strnlen(text, sizeof(text));
+            Write8(buf, (uint8_t)n);
+            WriteBytes(buf, text, n);
+        };
+        for (int16_t i = 0; i < 8; i++) {
+            Write16(buf, d->weapon_type[i]);
+            Write16(buf, d->weapon_count[i]);
+            Write8(buf, (uint8_t)d->weapon_firing_arc[i]);
+            Write16(buf, (int16_t)d->weapon_specials[i]);
+            Write32(buf, d->weapon_cost[i]);
+            Write32(buf, d->weapon_space[i]);
+            Write8(buf, (uint8_t)d->weapon_ammo[i]);
+            text[0] = '\0';
+            if (d->weapon_type[i] != WEAPON_NO_WEAPONS) {
+                DESIGN::Design_Weapon_Damage_String(i, text, sizeof(text), -1, -1);
+            }
+            write_text();
+            text[0] = '\0';
+            if (d->weapon_type[i] != WEAPON_NO_WEAPONS) {
+                DESIGN::Weapon_Mod_String((int16_t)d->weapon_specials[i], text, sizeof(text));
+            }
+            write_text();
+        }
+        for (int16_t i = 0; i < 8; i++) {
+            Write16(buf, d->special_devices[i]);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
