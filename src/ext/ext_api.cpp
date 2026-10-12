@@ -493,6 +493,26 @@ static void SerializeState(std::vector<uint8_t>& buf,
             Write16(buf, COLONY::colony_satellites[i]);
         }
     }
+
+    // 8. The colony screen's status word: "CEVT", written ONLY while
+    //    SCREEN_COLONY is up, and LAST. OrionLayer, open fix 37.
+    //
+    //    Draw_Info_Name_And_Pop prints Blockaded, Plague or Pop Boom at
+    //    (0,0) (colony_main.cpp:831-853). Blockaded is the star's bit, on
+    //    the wire; the other two are EVENTS::Event_Check_Plague and
+    //    Event_Check_Population_Boom over EVENTS::event_data, which is
+    //    not. Their two answers for the shown colony, one byte each, 0xFF
+    //    while the handle is not a colony (the first tick, COLS).
+    if (current_screen == SCREEN_COLONY) {
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'E');
+        buf.push_back((uint8_t)'V');
+        buf.push_back((uint8_t)'T');
+        const int16_t h = COLONY::colony_handle;
+        const bool ok = h >= 0 && h < MOX::NUM_COLONIES;
+        Write8(buf, ok ? (uint8_t)(EVENTS::Event_Check_Plague(h) != 0) : (uint8_t)0xFF);
+        Write8(buf, ok ? (uint8_t)(EVENTS::Event_Check_Population_Boom(h) != 0) : (uint8_t)0xFF);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
