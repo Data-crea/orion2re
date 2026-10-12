@@ -239,6 +239,81 @@ static void SerializeState(std::vector<uint8_t>& buf,
             n = MOX::ship_node[n].next_node;
         }
     }
+
+    // 3. The fleet screen's view state: "FLTS", written ONLY while
+    //    SCREEN_FLEET is up, and LAST, so nothing above it moves and a
+    //    client that stops after FSEL is unaffected. OrionLayer, open
+    //    fix 27.
+    //
+    //    NOTHING IN THIS BLOCK IS REACHABLE ANY OTHER WAY. Every value
+    //    is a MOX or FLT1 global (mox.cpp:109-188, flt1.cpp:5-12) that
+    //    SerializeState never touched, and the one that matters most —
+    //    WHICH ships the screen is showing, in the order it shows them
+    //    — cannot be rebuilt from what is already sent. FSEL carries
+    //    the node table but only box 2's chain, which is -1 here
+    //    because the fleet screen closes that box; and walking the node
+    //    table instead does not work, because Remove_Non_Detected_Ships
+    //    (shipstak.cpp:200-250) unlinks nodes of foreign stacks while
+    //    Delete_Ship_Node (:5-11) leaves their ship_idx in place, so a
+    //    client walking the table names ships the player cannot see.
+    //
+    //    The list is written in DISPLAY order, which is the order
+    //    Build_Fltscrn_Big_Icon_Fields left in fltscrn_big_icon
+    //    (flt2.cpp:207-268, including the officer move-to-front at
+    //    :263-265) — the same order Get_Fltscrn_Big_Icon_XY turns into
+    //    grid positions. It is a snapshot of an array, not a rebuild.
+    if (current_screen == SCREEN_FLEET) {
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'T');
+        buf.push_back((uint8_t)'S');
+
+        int16_t stack = MOX::small_ship_stack_ptr;
+        int16_t head = -1;
+        if (stack >= 0 && stack < MOX::ship_stack_count) {
+            head = MOX::ship_stack_start[stack];
+        } else {
+            stack = -1;
+        }
+        Write16(buf, stack);
+        Write16(buf, head);
+        Write16(buf, MOX::fltscrn_stack_owner);
+
+        int16_t icons = MOX::n_fltscrn_big_icons;
+        if (icons < 0) icons = 0;
+        if (icons > SHIP_LIST_CAPACITY) icons = SHIP_LIST_CAPACITY;
+        Write16(buf, icons);
+        Write16(buf, MOX::n_fltscrn_big_icons_added);
+        Write16(buf, (int16_t)MOX::n_fltscrn_rows);
+
+        // first_visible_row lives in the scroll bar the screen points
+        // MOX::scroll_bar at (flt1.cpp:1245-1248); the pointer is null
+        // until the first list is built, and 0 is then the truth.
+        Write16(buf, MOX::scroll_bar ? MOX::scroll_bar->first_visible_row
+                                      : (int16_t)0);
+        Write16(buf, MOX::n_big_icons_selected);
+        Write16(buf, MOX::scanned_big_ship);
+        Write16(buf, MOX::scanned_small_ship);
+
+        // The two filter radios. Their STATUS is what the screen reads
+        // (flt2.cpp:130-146); the fields carry it by pointer and it is
+        // not in the field list.
+        Write16(buf, MOX::fltscrn_support_button_status);
+        Write16(buf, MOX::fltscrn_combat_button_status);
+        Write8(buf, FLT1::relocate_button_mode);
+        Write8(buf, FLT1::merging_relocations);
+
+        Write16(buf, icons);
+        for (int16_t i = 0; i < icons; i++) {
+            if (MOX::fltscrn_big_icon) {
+                Write16(buf, MOX::fltscrn_big_icon[i].ship_idx);
+                Write8(buf, (uint8_t)(MOX::fltscrn_big_icon[i].selected != 0));
+            } else {
+                Write16(buf, (int16_t)-1);
+                Write8(buf, (uint8_t)0);
+            }
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
