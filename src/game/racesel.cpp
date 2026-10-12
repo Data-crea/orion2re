@@ -236,8 +236,17 @@ namespace RACESEL {
             // the caller does not. newgame.cpp reloads its own screen
             // and carries on, which would leave the API reporting a
             // screen that is gone for as long as the player stays there.
+            //
+            // A SYNTHETIC id, not SCREEN_RACE: 6 is the Races screen, which
+            // Screen_Control runs (mox2.cpp) and the galaxy map's RACES
+            // button selects, and a client routing on the id could not tell
+            // the two apart (OrionLayer open fix 22). 51 lies past the
+            // engine's SCREEN enum, whose last value is 43
+            // (SCREEN_SHOW_COMMAND_POINTS, orion2_consts.h), and next to
+            // Custom Race's synthetic 50 below.
+            constexpr int16_t EXT_SCREEN_RACE_SELECTION = 51;
             const int16_t ext_saved_screen = MOX::current_screen;
-            MOX::current_screen = SCREEN_RACE;
+            MOX::current_screen = EXT_SCREEN_RACE_SELECTION;
 #endif
         Draw_Race_Selection_Screen();
         palstore::Darken_Palette(100);
@@ -487,7 +496,7 @@ namespace RACESEL {
         raceopt::Convert_Player_To_Flags(player);
         raceopt::Reload_Racial_Option_Screen();
 #ifdef ORION2RE_EXT
-        // OrionLayer: Custom Race is a sub-screen of SCREEN_RACE without its
+        // OrionLayer: Custom Race is a sub-screen of race selection without its
         // own screen ID. Report a synthetic ID (50) while this screen is
         // active so external clients can route to it; restore on cancel.
         const int16_t ext_saved_screen = MOX::current_screen;
@@ -668,7 +677,7 @@ namespace RACESEL {
                     fields::Deactivate_Auto_Function();
                     allocate::Pop_Block(MOX::screen_seg);
 #ifdef ORION2RE_EXT
-                    MOX::current_screen = ext_saved_screen;   // back to SCREEN_RACE
+                    MOX::current_screen = ext_saved_screen;   // back to race selection
 #endif
                     return 0;
                 }
