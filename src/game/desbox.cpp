@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 45. ScreenOverride for the three sub-dialogs.
+#endif
 
 namespace DESBOX {
 
@@ -118,6 +121,10 @@ namespace DESBOX {
     }
 
     void __cdecl Special_Systems_Box() {
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 45. The special-system picker reports a synthetic 56 (ext_api.h); the game still reads SCREEN_DESIGN.
+        const ext::ScreenOverride ext_screen_guard(56);
+#endif
         char msg42[120];
         char msg41[200];
         char msg42_base[200];
@@ -1224,6 +1231,10 @@ namespace DESBOX {
     }
 
     void __cdecl Generic_Replacement_Box() {
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 45. The shield / computer picker reports a synthetic 54 (ext_api.h); the game still reads SCREEN_DESIGN.
+        const ext::ScreenOverride ext_screen_guard(54);
+#endif
         uint8_t redraw_flag = 1;
         bool first_time = true;
         bool done = false;
@@ -1314,6 +1325,10 @@ namespace DESBOX {
     }
 
     void __cdecl Weapons_Replacement_Box() {
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 45. The weapon picker reports a synthetic 55 (ext_api.h); the game still reads SCREEN_DESIGN.
+        const ext::ScreenOverride ext_screen_guard(55);
+#endif
         char front_arc_text[30];
         char rear_arc_text[30];
         char beam_arc_text[30];

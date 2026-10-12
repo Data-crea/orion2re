@@ -33,6 +33,10 @@ extern int16_t g_pending_field;
 /// race selection) would MOVE them: textbox.cpp:44 picks the description
 /// box's x from it and textbox.cpp:284 its colour group. This changes what
 /// is SENT and nothing the game reads.
+///
+/// OrionLayer, open fix 45. The Ship Designer's three sub-dialogs (desbox.cpp) run
+/// under SCREEN_DESIGN as well and report 54 (shield or computer), 55
+/// (weapon) and 56 (special system), so a client can tell which is open.
 extern int16_t g_screen_override;
 
 /// Sets `g_screen_override` while it lives and restores the previous value

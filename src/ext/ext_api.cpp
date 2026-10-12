@@ -708,6 +708,114 @@ static void SerializeState(std::vector<uint8_t>& buf,
             Write16(buf, d->special_devices[i]);
         }
     }
+
+    // 13. The Ship Designer's open sub-dialog: "DSBX", written ONLY while one
+    //     of the three reports its synthetic id (54, 55, 56 — ext_api.h), and
+    //     LAST. OrionLayer, open fix 45.
+    //
+    //     Each picker builds its list into MOX::design_choice_items (length
+    //     scroll_bar->total_rows) and keeps its state in DESBOX's globals;
+    //     none of it is on the wire. Per row the numbers the picker prints,
+    //     by THE SAME CALLS WITH THE SAME ARGUMENTS as its drawing:
+    //     Print_Shield_Data (desbox.cpp:2395-2402), Print_Computer_Data
+    //     (:2502-2504), Print_Special_System_Data (System_Added_Cost_And_
+    //     Space_, :2821), Print_Main_Weapon_Box (:2203-2221, the chosen
+    //     row with the current arcs, rack and mods, every other with the
+    //     defaults) — and for a weapon its damage string, as the engine
+    //     formats it (:2279).
+    if (current_screen >= 54 && current_screen <= 56 &&
+        MOX::scroll_bar != nullptr && MOX::design != nullptr) {
+        buf.push_back((uint8_t)'D');
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'B');
+        buf.push_back((uint8_t)'X');
+        const s_current_design* d = MOX::design;
+        Write8(buf, 1);                                   // block version
+        Write8(buf, (uint8_t)(current_screen - 53));      // 1, 2 or 3
+        Write16(buf, MOX::design_screen_replacement_type);
+        Write16(buf, MOX::design_screen_replacement_slot);
+        Write16(buf, MOX::design_screen_replacement_item);
+        Write16(buf, MOX::scroll_bar->first_visible_row);
+        Write16(buf, MOX::scroll_bar->visible_rows);
+        Write16(buf, DESBOX::field_item_chosen);
+        Write16(buf, DESBOX::field_item_scanned);
+        Write16(buf, (int16_t)DESBOX::weapon_replacement_mods);
+        Write16(buf, DESBOX::weapon_replacement_arcs);
+        Write16(buf, (int16_t)DESBOX::weapon_replacement_rack);
+        Write8(buf, DESBOX::beam_filter_button_status);
+        Write8(buf, DESBOX::missile_filter_button_status);
+        Write8(buf, DESBOX::bomb_filter_button_status);
+        Write8(buf, DESBOX::special_filter_button_status);
+        for (int i = 0; i < WEAPON_MOD_COUNT; i++) {
+            Write16(buf, MOX::weapon_mod_field_status[i]);
+        }
+        //     Which modifications the weapon picker offers, bit i per mod —
+        //     the test Add_Replacement_Weapon_Fields adds a field by
+        //     (desbox.cpp:475-478); the fields alone do not say which mod
+        //     each is. OrionLayer, open fix 45.
+        uint16_t offered = 0;
+        if (current_screen == 55 && DESBOX::field_item_chosen > -1) {
+            for (int16_t i = 1; i < WEAPON_MOD_COUNT; i++) {
+                if (DESBOX::Mod_Allowed_On_Weapon_Type((uint8_t)i) &&
+                    DESBOX::Should_Add_Mod(i)) {
+                    offered |= (uint16_t)(1u << i);
+                }
+            }
+        }
+        Write16(buf, (int16_t)offered);
+        int16_t n = MOX::scroll_bar->total_rows;
+        if (n < 0) n = 0;
+        if (n > 40) n = 40;
+        Write16(buf, n);
+        char text[128];
+        for (int16_t row = 0; row < n; row++) {
+            const int16_t item = MOX::design_choice_items[row];
+            int32_t cost = 0, space = 0;
+            int16_t extra = 0;
+            text[0] = '\0';
+            if (current_screen == 54 && item > 0 &&
+                MOX::design_screen_replacement_type == TECH_APPLICATION_TYPE_SHIELD) {
+                const int16_t lvl = DESIGN::Tech_Level(MOX::PLAYER_NUM, TECHDATA::shields[item].tech_app_id);
+                cost = DESIGN::Cost_Given_M_Level(TECHDATA::shields[item].cost_per_ship_type[d->ship_size], lvl);
+                space = static_cast<int16_t>(DESIGN::Space_Given_M_Level(TECHDATA::shields[item].space_per_ship_type[d->ship_size], lvl, 0));
+            } else if (current_screen == 54 && item > 0) {
+                const int16_t lvl = DESIGN::Tech_Level(MOX::PLAYER_NUM, TECHDATA::computers[item].tech_app_id);
+                cost = DESIGN::Cost_Given_M_Level(DESIGN::Computer_Cost(item), lvl);
+                extra = (int16_t)TECHDATA::computers[item].bonus;
+            } else if (current_screen == 56 && item > 0) {
+                int16_t c16 = 0, s16 = 0;
+                DESBOX::System_Added_Cost_And_Space(row, &c16, &s16);
+                cost = c16;
+                space = s16;
+            } else if (current_screen == 55) {
+                const int16_t weapon = DESBOX::Weapon_Index(row);
+                if (weapon > 0 && row > 0) {
+                    const bool chosen = DESBOX::field_item_chosen > -1 &&
+                                        DESBOX::field_item_chosen == row;
+                    const int16_t ammo = DESIGN::Weapon_Needs_Racks(weapon) != 0
+                        ? DESIGN::Missile_Rack_Quantity(chosen ? (int16_t)DESBOX::weapon_replacement_rack : 1)
+                        : 0;
+                    const int16_t arc = chosen ? DESBOX::weapon_replacement_arcs : (int16_t)WEAPON_FIRING_ARC_FORWARD;
+                    const int16_t mods = chosen ? (int16_t)DESBOX::weapon_replacement_mods : 0;
+                    cost = DESIGN::Weapon_Cost(weapon, 1, arc, ammo, mods);
+                    space = DESIGN::Weapon_Space(MOX::PLAYER_NUM, weapon, 1, arc, ammo, mods);
+                }
+                if (weapon > 0) {
+                    DESIGN::Design_Weapon_Damage_String(weapon, text, sizeof(text), DESBOX::field_item_chosen, row);
+                }
+                extra = weapon;
+            }
+            Write16(buf, item);
+            Write8(buf, (uint8_t)MOX::design_choice_item_selected[row]);
+            Write8(buf, (uint8_t)d->replacement_item_unlocked[row]);
+            Write32(buf, cost);
+            Write32(buf, space);
+            Write16(buf, extra);
+            const size_t len = strnlen(text, sizeof(text));
+            Write8(buf, (uint8_t)len);
+            WriteBytes(buf, text, len);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
