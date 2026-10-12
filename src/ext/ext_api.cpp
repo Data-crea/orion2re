@@ -150,6 +150,87 @@ static void WriteInputField(std::vector<uint8_t>& buf, int16_t field,
     }
 }
 
+// OrionLayer, open fix 91. The invasion's TPOP tails: kind 10, the colony
+// combat popup's counts and fields; kind 11, the ground combat's sides and
+// its last drawn frame; both end with the frame's explosions. The layout is
+// the table above SerializeState's "TPOP" block.
+static void WriteInvasionFlics(std::vector<uint8_t>& buf) {
+    const InvasionFrame& f = g_invasion.shown;
+    Write8(buf, f.n_flics);
+    for (int i = 0; i < f.n_flics; i++) {
+        Write8(buf, f.flics[i].picture);
+        Write16(buf, f.flics[i].frame);
+        Write16(buf, f.flics[i].x);
+        Write16(buf, f.flics[i].y);
+    }
+}
+
+static void WriteInvasionTail(std::vector<uint8_t>& buf, uint8_t kind) {
+    if (kind == 10) {
+        const s_colony_combat_popup_data* p = g_invasion.popup;
+        for (int i = 0; i < UNIT_COUNT; i++) {
+            Write16(buf, p != nullptr ? p->attacker_unit_counts[i] : (int16_t)0);
+        }
+        for (int i = 0; i < UNIT_COUNT; i++) {
+            Write16(buf, p != nullptr ? p->defender_unit_counts[i] : (int16_t)0);
+        }
+        // [16]-[18] are the bombing's (mode 1); Add_Colony_Combat_Fields
+        // leaves them as they were in mode 0 (mainpups.cpp:2836-2876).
+        for (int idx : {6, 12, 13, 14, 15, 16, 17, 18}) {
+            const bool bombing_only = idx >= 16 && MAINPUPS::g_state != 1;
+            Write16(buf, p != nullptr && !bombing_only ? MAINPUPS::mp_fields[idx]
+                                                       : (int16_t)-1000);
+        }
+        WriteInvasionFlics(buf);
+        return;
+    }
+    for (int side = 0; side < 2; side++) {
+        const s_invasion_side_info* info = g_invasion.sides[side];
+        for (int i = 0; i < UNIT_COUNT; i++) {
+            Write16(buf, info != nullptr ? info->unit_counts[i] : (int16_t)0);
+            Write16(buf, info != nullptr ? (int16_t)(uint8_t)info->unit_hps[i] : (int16_t)0);
+            Write16(buf, info != nullptr
+                             ? (int16_t)(info->unit_strengths[i] -
+                                         info->combat_modifiers.difficulty_bonus)
+                             : (int16_t)0);
+        }
+        const uint8_t n = info != nullptr ? g_invasion.n_lines[side] : (uint8_t)0;
+        Write8(buf, n);
+        for (int i = 0; i < n; i++) {
+            const GroundLine& line = g_invasion.lines[side][i];
+            const size_t len = strnlen(line.label, sizeof(line.label));
+            Write16(buf, (int16_t)len);
+            WriteBytes(buf, line.label, len);
+            Write16(buf, line.value);
+        }
+    }
+    const InvasionFrame& f = g_invasion.shown;
+    Write16(buf, (int16_t)g_invasion.frames);
+    Write8(buf, f.n_sprites);
+    for (int i = 0; i < f.n_sprites; i++) {
+        const GroundSprite& u = f.sprites[i];
+        Write8(buf, (uint8_t)u.side);
+        Write8(buf, u.state);
+        Write8(buf, (uint8_t)u.type);
+        Write8(buf, (uint8_t)u.frame);
+        Write16(buf, u.x);
+        Write16(buf, u.y);
+    }
+    Write8(buf, f.n_beams);
+    for (int i = 0; i < f.n_beams; i++) {
+        const GroundBeam& b = f.beams[i];
+        Write8(buf, (uint8_t)b.side);
+        Write16(buf, b.x1);
+        Write16(buf, b.y1);
+        Write16(buf, b.x2);
+        Write16(buf, b.y2);
+        for (int k = 0; k < 10; k++) {
+            Write16(buf, b.colour[k]);
+        }
+    }
+    WriteInvasionFlics(buf);
+}
+
 // ── State snapshot ───────────────────────────────────────
 
 static void SerializeState(std::vector<uint8_t>& buf,
@@ -1058,6 +1139,20 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //      9    33  colony landing (COLLAND::Colony_Landing_Screen)
     //                                                        [0] planet [1] colony [2] star [3] dismiss field
     //                                                          title = "colony built on" line
+    //     10    68  colony combat popup (MAINPUPS::Colony_Combat_Popup: the invasion choice, mode 0, and
+    //               the bombing, mode 1; open fix 91)        [0] colony [1] mode [2] bombardment result
+    //                                                          [3] has a Stellar Converter [4] pops [5] buildings
+    //                                                          [6] best shield building [7] attacker [8] defender
+    //                                                          [9] box x [10] box y [11] mind control 0 not offered
+    //                                                          1 can 2 cannot [12] bombing state (the popup's
+    //                                                          var_1C) [13] the first pop's figure
+    //                                                          title = the title line as last printed
+    //     11    69  ground combat (COLGCBT::Colony_Combat_Screen; open fix 91)
+    //                                                        [0] colony [1] attacker [2] defender [3] attacker's
+    //                                                          current troop type [4] defender's [5] fast
+    //                                                          [6] the defender has Battleoids [7] g_ctr
+    //                                                          [8] top_line [9] frames drawn (low 15 bits)
+    //                                                          title = the title line as last printed
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:
@@ -1072,6 +1167,22 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //       ship field, int16 ship) per ship slot; -1000 / -1 when empty.
     //     - 8 also: COMBFIND::target: 5 x int16 colony, int16 count,
     //       15 x int16 player, int16 count.
+    //     - 10 (open fix 91): 4 x int16 the attacker's unit counts, 4 x
+    //       int16 the defender's (as the popup shows them), 8 x int16 the
+    //       fields mp_fields[6] (close), [12] (invade), [13] (bomb), [14]
+    //       (destroy), [15] (mind control), [16] (drop all), [17] (cease
+    //       fire), [18] (bomb, mode 1) — -1000 when not added; then the
+    //       frame's explosions as kind 11 writes them.
+    //     - 11 (open fix 91): per side (attacker, defender) 4 x (int16
+    //       count, int16 hits, int16 combat as Print_Troop_Totals prints
+    //       it: strength less the difficulty bonus), uint8 n lines, per
+    //       line int16 length + the label raw, int16 the value; then the
+    //       frame as last drawn: uint16 frames, uint8 n units, per unit
+    //       int8 side, uint8 state, int8 type, int8 frame, int16 x, y;
+    //       uint8 n beams, per beam int8 side, int16 x1, y1, x2, y2, 10 x
+    //       int16 the colour parameters; uint8 n explosions, per one uint8
+    //       picture (1 ground, 2 bomb, 3 biological, 0 other), int16
+    //       frame, x, y.
     if (g_turn_popup.kind != 0) {
         buf.push_back((uint8_t)'T');
         buf.push_back((uint8_t)'P');
@@ -1168,6 +1279,11 @@ static void SerializeState(std::vector<uint8_t>& buf,
                 Write16(buf, COMBFIND::target.player_targets[i]);
             }
             Write16(buf, COMBFIND::target.num_player_targets);
+        }
+
+        // OrionLayer, open fix 91. The invasion's tails (kinds 10 and 11).
+        if (g_turn_popup.kind == 10 || g_turn_popup.kind == 11) {
+            WriteInvasionTail(buf, g_turn_popup.kind);
         }
     }
 
@@ -2927,6 +3043,72 @@ void TurnPopupGuard::end() {
     active = false;
     g_turn_popup = previous;
     g_screen_override = previous_screen;
+}
+
+// OrionLayer, open fix 91. The invasion on the wire (ext_api.h).
+InvasionView g_invasion = {};
+
+void Invasion_Frame_Begin() {
+    g_invasion.building.n_sprites = 0;
+    g_invasion.building.n_beams = 0;
+    g_invasion.building.n_flics = 0;
+    g_invasion.recording = true;
+}
+
+void Invasion_Frame_End() {
+    if (!g_invasion.recording) return;
+    g_invasion.recording = false;
+    g_invasion.shown = g_invasion.building;
+    g_invasion.frames++;
+}
+
+void Invasion_Sprite(int8_t side, uint8_t state, int8_t type, int8_t frame,
+                     int16_t x, int16_t y) {
+    InvasionFrame& f = g_invasion.building;
+    if (!g_invasion.recording || f.n_sprites >= INVASION_SPRITES) return;
+    f.sprites[f.n_sprites++] = {side, state, type, frame, x, y};
+}
+
+void Invasion_Beam(int8_t side, int16_t x1, int16_t y1, int16_t x2,
+                   int16_t y2, const int16_t colour[10]) {
+    InvasionFrame& f = g_invasion.building;
+    if (!g_invasion.recording || f.n_beams >= INVASION_BEAMS) return;
+    GroundBeam& b = f.beams[f.n_beams++];
+    b.side = side;
+    b.x1 = x1;
+    b.y1 = y1;
+    b.x2 = x2;
+    b.y2 = y2;
+    for (int k = 0; k < 10; k++) b.colour[k] = colour[k];
+}
+
+void Invasion_Flic(const s_animation_header* picture, int16_t frame,
+                   int16_t x, int16_t y) {
+    InvasionFrame& f = g_invasion.building;
+    if (!g_invasion.recording || f.n_flics >= INVASION_FLICS) return;
+    uint8_t kind = 0;
+    if (picture == COLGCBT::explosion_anim) kind = 1;
+    else if (picture == MAINPUPS::anims[25]) kind = 2;
+    else if (picture == MAINPUPS::anims[26]) kind = 3;
+    f.flics[f.n_flics++] = {kind, frame, x, y};
+}
+
+void Invasion_Summary_Begin(int side) {
+    if (side == 0 || side == 1) g_invasion.n_lines[side] = 0;
+}
+
+void Invasion_Summary_Line(int side, const char* label, int16_t value) {
+    if (side != 0 && side != 1) return;
+    uint8_t& n = g_invasion.n_lines[side];
+    if (n >= INVASION_LINES) return;
+    GroundLine& line = g_invasion.lines[side][n++];
+    snprintf(line.label, sizeof(line.label), "%s", label != nullptr ? label : "");
+    line.value = value;
+}
+
+void Invasion_Title(const char* text) {
+    snprintf(g_invasion.title, sizeof(g_invasion.title), "%s",
+             text != nullptr ? text : "");
 }
 
 // OrionLayer, open fix 51. The multiplayer step that takes input (ext_api.h).

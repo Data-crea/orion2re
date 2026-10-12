@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 91. The invasion's explosions on the wire.
+#endif
 
 namespace FLCQUEUE {
     int16_t n_queue_entries;
@@ -28,6 +31,9 @@ namespace FLCQUEUE {
         s_flic_queue_entry* entry = &flic_queue[entry_idx];
 
         animate::Set_Animation_Frame(entry->animation, entry->current_frame);
+#ifdef ORION2RE_EXT
+        ext::Invasion_Flic(entry->animation, entry->current_frame, entry->x, entry->y);  // OrionLayer, open fix 91.
+#endif
 
         if (entry->use_clipping != 0) {
             graphics::Set_Window(0, 0, 0x27F, 0x1DF);

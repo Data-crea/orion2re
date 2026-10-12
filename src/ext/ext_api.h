@@ -5,6 +5,11 @@
 #include <atomic>  // OrionLayer, open fix 43. The window flag is shared by two threads.
 #include <cstdint>
 
+// OrionLayer, open fix 91. The invasion's structures, by pointer only.
+struct s_animation_header;
+struct s_colony_combat_popup_data;
+struct s_invasion_side_info;
+
 namespace ext {
 
 /// Initialize the extension server. Call once at startup.
@@ -298,6 +303,75 @@ struct TurnPopupGuard {
     /// Restores the view and the reported id now; the destructor then does nothing.
     void end();
 };
+
+/// OrionLayer, open fix 91. The invasion on the wire: the colony combat popup (TPOP kind 10, id 68) and the ground combat (kind 11, id 69).
+///
+/// MAINPUPS::Colony_Combat_Popup (the invasion choice, and the bombing in
+/// mode 1) and COLGCBT::Colony_Combat_Screen (the ground combat) keep what
+/// they show in locals and statics under the turn's id (12), so a client saw
+/// neither. TurnPopupGuard reports their ids and numbers; InvasionView holds
+/// the rest: the popup's data, and the picture the ground combat's own
+/// drawing code drew last — every unit (side, kind, state, frame, place),
+/// every beam (its ends and Draw_CGCBT_Beam's colour parameters), every
+/// explosion of FLCQUEUE (picture, frame, place) — recorded by that code as
+/// it draws, between Invasion_Frame_Begin and Invasion_Frame_End, so a
+/// client shows the original's motion at the original's pace. The summary
+/// boxes' lines are recorded where Print_Data prints them (only on a full
+/// draw, so they are kept until the next). What is SENT, nothing the game
+/// reads.
+struct GroundSprite {
+    int8_t side;
+    uint8_t state;
+    int8_t type;
+    int8_t frame;
+    int16_t x;
+    int16_t y;
+};
+struct GroundBeam {
+    int8_t side;
+    int16_t x1, y1, x2, y2;
+    int16_t colour[10];    // Draw_CGCBT_Beam's p5..p14
+};
+struct GroundFlic {
+    uint8_t picture;       // 1 the ground explosion, 2 a bomb, 3 a biological bomb, 0 another
+    int16_t frame;
+    int16_t x;
+    int16_t y;
+};
+struct GroundLine {
+    char label[64];
+    int16_t value;
+};
+constexpr int INVASION_SPRITES = 96;
+constexpr int INVASION_BEAMS = 96;
+constexpr int INVASION_FLICS = 100;
+constexpr int INVASION_LINES = 12;
+struct InvasionFrame {
+    uint8_t n_sprites, n_beams, n_flics;
+    GroundSprite sprites[INVASION_SPRITES];
+    GroundBeam beams[INVASION_BEAMS];
+    GroundFlic flics[INVASION_FLICS];
+};
+struct InvasionView {
+    const s_colony_combat_popup_data* popup;   // while Colony_Combat_Popup runs
+    const s_invasion_side_info* sides[2];      // while Colony_Combat_Screen runs
+    uint8_t n_lines[2];
+    GroundLine lines[2][INVASION_LINES];
+    bool recording;
+    InvasionFrame building;                    // the frame being drawn
+    InvasionFrame shown;                       // the last frame drawn
+    uint16_t frames;                           // frames drawn so far
+    char title[200];                           // the title line as last printed
+};
+extern InvasionView g_invasion;
+void Invasion_Frame_Begin();
+void Invasion_Frame_End();
+void Invasion_Sprite(int8_t side, uint8_t state, int8_t type, int8_t frame, int16_t x, int16_t y);
+void Invasion_Beam(int8_t side, int16_t x1, int16_t y1, int16_t x2, int16_t y2, const int16_t colour[10]);
+void Invasion_Flic(const s_animation_header* picture, int16_t frame, int16_t x, int16_t y);
+void Invasion_Summary_Begin(int side);
+void Invasion_Summary_Line(int side, const char* label, int16_t value);
+void Invasion_Title(const char* text);
 
 /// OrionLayer, open fix 51. The multiplayer step that takes input: the
 /// screens behind the main menu's Multiplayer button report 15, 16, 17, 21,

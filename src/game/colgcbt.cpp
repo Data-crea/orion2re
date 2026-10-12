@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 91. The ground combat on the wire.
+#endif
 
 namespace COLGCBT {
 
@@ -193,6 +196,18 @@ namespace COLGCBT {
             COLONY::Make_Bldg_Array_For_Colony(COLONY::colony_handle, 1);
         }
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 91. The ground combat: id 69, TPOP kind 11, its sides and its frames.
+        const ext::TurnPopupGuard ext_popup_guard(69, 11, ext::g_invasion.title, nullptr);
+        ext::g_invasion.sides[0] = attacker;
+        ext::g_invasion.sides[1] = defender;
+        ext::g_invasion.n_lines[0] = ext::g_invasion.n_lines[1] = 0;
+        ext::g_invasion.title[0] = '\0';
+        ext_popup_guard.arg(0, colony_idx);
+        ext_popup_guard.arg(1, attacker->player_id);
+        ext_popup_guard.arg(2, defender->player_id);
+#endif
+
         mouse::Set_Mouse_List(&mouse_list_blank, 1);
         ERIC::Fast_Fade_Out();
         COLONY::Update_Colony_Palette();
@@ -233,6 +248,16 @@ namespace COLGCBT {
             Draw_Colony_Combat_Screen();
             RUSS::Mox_Sync_Update();
 
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 91. This pass's numbers.
+            ext_popup_guard.arg(3, (int16_t)(uint8_t)attacker->current_troop_type_idx);
+            ext_popup_guard.arg(4, (int16_t)(uint8_t)defender->current_troop_type_idx);
+            ext_popup_guard.arg(5, (int16_t)display_fast);
+            ext_popup_guard.arg(6, (int16_t)(MOX::player[defender->player_id].tech_applications[TECH_APP_BATTLEOIDS] == TECH_RESEARCH_STATUS_RESEARCHED));
+            ext_popup_guard.arg(7, g_ctr);
+            ext_popup_guard.arg(8, top_line);
+            ext_popup_guard.arg(9, (int16_t)(ext::g_invasion.frames & 0x7FFF));
+#endif
             int16_t input = ::fields::Get_Input();
             ::fields::Scan_Input();
 
@@ -267,6 +292,9 @@ namespace COLGCBT {
 
         MOX::current_screen = MOX::return_screen;
         COLONY::using_colony_screen_palette = 0;
+#ifdef ORION2RE_EXT
+        ext::g_invasion.sides[0] = ext::g_invasion.sides[1] = nullptr;  // OrionLayer, open fix 91.
+#endif
     }
 
     void __cdecl Set_Help_List() {
@@ -284,6 +312,9 @@ namespace COLGCBT {
             fonts::Print_Centered(0x82, row * 11 + 50, str);
 
             row++;
+#ifdef ORION2RE_EXT
+            ext::Invasion_Summary_Begin(0);  // OrionLayer, open fix 91.
+#endif
             Print_Best_Summary(g_attack_ptr, &row);
             Print_Race_Summary(g_attack_ptr, &row);
 
@@ -369,6 +400,9 @@ namespace COLGCBT {
 
             line_y_offset++;
 
+#ifdef ORION2RE_EXT
+            ext::Invasion_Summary_Begin(1);  // OrionLayer, open fix 91.
+#endif
             Print_Best_Summary(g_defend_ptr, &line_y_offset);
             Print_Race_Summary(g_defend_ptr, &line_y_offset);
 
@@ -564,6 +598,9 @@ namespace COLGCBT {
 
         if (unit->state != 0) {
             animate::Set_Animation_Frame(seg, unit->anim_frame);
+#ifdef ORION2RE_EXT
+            ext::Invasion_Sprite(unit->side, unit->state, unit->type, unit->anim_frame, unit->x, unit->y);  // OrionLayer, open fix 91.
+#endif
             animate::Draw(unit->x, unit->y, seg);
         }
 
@@ -641,6 +678,9 @@ namespace COLGCBT {
 
         char buffer[500];
         snprintf(buffer, sizeof(buffer), format_str, planet_name, race_name);
+#ifdef ORION2RE_EXT
+        ext::Invasion_Title(buffer);  // OrionLayer, open fix 91.
+#endif
 
         fonts::Print_Centered(319, 10, buffer);
     }
@@ -751,6 +791,9 @@ namespace COLGCBT {
             value);
 
         FMTPARA::Print_Formatted_Paragraph(x_pos + 9, y_pos, 0xF3, text_buf, 0);
+#ifdef ORION2RE_EXT
+        ext::Invasion_Summary_Line(g_attack_ptr == side_info ? 0 : 1, label, value);  // OrionLayer, open fix 91.
+#endif
 
         (*row)++;
     }
@@ -848,6 +891,9 @@ namespace COLGCBT {
 
     void __cdecl Draw_Colony_Combat_Screen() {
         uint32_t random_seed = game_random::Get_Random_Seed();
+#ifdef ORION2RE_EXT
+        ext::Invasion_Frame_Begin();  // OrionLayer, open fix 91.
+#endif
         video::Set_Page_Off();
 
         if (COLONY::full_draw != 0) {
@@ -875,6 +921,9 @@ namespace COLGCBT {
             char* race_name = MOX::player[g_attack_ptr->player_id].race_name;
             char* planet_name = HACCESS::Get_Planet_Name(MOX::colony[COLONY::colony_handle].planet);
             snprintf(buffer, sizeof(buffer), ESTRINGS::E_Strings(0x2F), planet_name, race_name);
+#ifdef ORION2RE_EXT
+            ext::Invasion_Title(buffer);  // OrionLayer, open fix 91.
+#endif
             fonts::Print_Centered(0x13F, 10, buffer);
 
         } else {
@@ -890,6 +939,9 @@ namespace COLGCBT {
         Draw_Troops();
         FLCQUEUE::Draw_Flic_Queue();
         video::Clip_Off();
+#ifdef ORION2RE_EXT
+        ext::Invasion_Frame_End();  // OrionLayer, open fix 91.
+#endif
 
         game_random::Set_Random_Seed(random_seed);
 
@@ -1446,6 +1498,13 @@ namespace COLGCBT {
             return;
         }
 
+#ifdef ORION2RE_EXT
+        {
+            // OrionLayer, open fix 91. The beam as drawn, with its colour parameters.
+            const int16_t ext_colour[10] = {p5, p6, p7, p8, p9, p10, p11, p12, p13, p14};
+            ext::Invasion_Beam((int8_t)side, x1, y1, x2, y2, ext_colour);
+        }
+#endif
         bolt::Bolt_Segment(x1, y1, x2, y2, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14);
     }
 

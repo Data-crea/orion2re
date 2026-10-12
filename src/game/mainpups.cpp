@@ -1373,11 +1373,42 @@ namespace MAINPUPS {
         game_random::Set_Random_Seed(MAINPUPS::g_data_ptr->random_seed);
         MAINPUPS::g_state = popup_mode;
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 91. The colony combat popup: id 68, TPOP kind 10, its data and fields.
+        const ext::TurnPopupGuard ext_popup_guard(68, 10, ext::g_invasion.title, nullptr);
+        ext::g_invasion.popup = popup_data;
+#endif
+
         while (true) {
             timer::Mark_Time();
             COLONY::full_draw = 1;
             MAINPUPS::Eric_Pop_Fields();
             MAINPUPS::Update_Colony_Combat_Fields(popup_mode, &var_1C);
+#ifdef ORION2RE_EXT
+            {
+                // OrionLayer, open fix 91. This pass's numbers.
+                const s_colony_combat_popup_data* d = MAINPUPS::g_data_ptr;
+                const int16_t a = d->attacker_player_id;
+                int16_t mind = 0;
+                if (MOX::player[a].traits[TRAIT_TELEPATHIC] != 0 && popup_mode != 2 && d->n_pops > 0) {
+                    mind = ERIC::Player_Can_Mind_Control_Colony(a, d->colony_idx) ? 1 : 2;
+                }
+                ext_popup_guard.arg(0, d->colony_idx);
+                ext_popup_guard.arg(1, popup_mode);
+                ext_popup_guard.arg(2, d->bombardment_result);
+                ext_popup_guard.arg(3, d->has_stellar_converter);
+                ext_popup_guard.arg(4, d->n_pops);
+                ext_popup_guard.arg(5, d->n_bldgs);
+                ext_popup_guard.arg(6, d->best_shield_bldg);
+                ext_popup_guard.arg(7, a);
+                ext_popup_guard.arg(8, d->defender_player_id);
+                ext_popup_guard.arg(9, g_x);
+                ext_popup_guard.arg(10, g_y);
+                ext_popup_guard.arg(11, mind);
+                ext_popup_guard.arg(12, var_1C);
+                ext_popup_guard.arg(13, (int16_t)((MOX::colony[d->colony_idx].pop[0] >> 7) & 3));
+            }
+#endif
 
             input_val = fields::Get_Input();
             scan_val = fields::Scan_Input();
@@ -1461,6 +1492,9 @@ namespace MAINPUPS {
             timer::Release_Time(1);
 
             if (done != 0) {
+#ifdef ORION2RE_EXT
+                ext::g_invasion.popup = nullptr;  // OrionLayer, open fix 91.
+#endif
                 MAINPUPS::Do_Popup_Cleanup();
                 FLCQUEUE::Allocate_Flic_Queue_And_Pointers();
                 sound::Stop_All_Sounds();
@@ -2678,6 +2712,9 @@ namespace MAINPUPS {
     }
 
     void __cdecl Draw_Colony_Combat_Popup() {
+#ifdef ORION2RE_EXT
+        ext::Invasion_Frame_Begin();  // OrionLayer, open fix 91. The bombing's explosions as drawn.
+#endif
         s_colors colors_cfg = {0};
         colors_cfg.colors[1] = 0x11;
         colors_cfg.colors[2] = 0x13;
@@ -2709,6 +2746,9 @@ namespace MAINPUPS {
                 snprintf(text_buffer, sizeof(text_buffer), ESTRINGS::E_Strings(337), planet_name);
             }
 
+#ifdef ORION2RE_EXT
+            ext::Invasion_Title(text_buffer);  // OrionLayer, open fix 91.
+#endif
             fonts::Print_Centered(x_center, g_y + 20, text_buffer);
 
             video::Copy_Off_To_Back();
@@ -2806,6 +2846,9 @@ namespace MAINPUPS {
         }
 
         FLCQUEUE::Draw_Flic_Queue();
+#ifdef ORION2RE_EXT
+        ext::Invasion_Frame_End();  // OrionLayer, open fix 91.
+#endif
     }
 
     void __cdecl Add_Colony_Combat_Fields(int16_t popup_mode, int16_t* combat_state_ptr) {
