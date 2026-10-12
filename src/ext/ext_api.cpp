@@ -1414,6 +1414,81 @@ static void SerializeState(std::vector<uint8_t>& buf,
             break;
         }
     }
+
+    // 19. The tactical battle's state: "CMBT", written ONLY while a battle is
+    //     live (open fix 52's gate), and LAST. OrionLayer, open fix 53.
+    //
+    //     Combat works on MOX::combat_data alone and writes the losses back
+    //     to ship[] only in End_Of_Combat (combinit.cpp), so nothing of a
+    //     battle was on the wire: not the units, whose turn it is, the view
+    //     origin every map click depends on, nor the legal moves. Every unit
+    //     is sent FIELD BY FIELD — the packed s_combat_data's bytes before its
+    //     picture pointer and after it (309 bytes; the offsets are asserted
+    //     here, the struct has no size assert of its own). The legal moves
+    //     are the cells Set_Legal_Moves marked 2000 (combat1.cpp), one bit
+    //     per cell, x-major (bit x * 68 + y). The same snapshot's CMEV (open
+    //     fix 56) carries every event recorded before this state.
+    if (g_combat_live && MOX::combat_data != nullptr) {
+        static_assert(offsetof(s_combat_data, ship_image_seg) == 198,
+                      "open fix 53: s_combat_data moved before its pointer");
+        static_assert(offsetof(s_combat_data, drive_max_hits) == 206,
+                      "open fix 53: s_combat_data moved after its pointer");
+        static_assert(sizeof(s_combat_data) == 317,
+                      "open fix 53: s_combat_data changed size");
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'M');
+        buf.push_back((uint8_t)'B');
+        buf.push_back((uint8_t)'T');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, (int16_t)g_combat_serial);
+        Write16(buf, MOX::combat_turn);
+        Write16(buf, MOX::combat_attacker_player);
+        Write16(buf, MOX::combat_defender_player);
+        Write16(buf, (int16_t)MOX::combat_init);
+        Write16(buf, MOX::auto_combat_flag[0]);
+        Write16(buf, MOX::auto_combat_flag[1]);
+        Write16(buf, MOX::cur_ship);
+        Write16(buf, MOX::cur_ptr);
+        Write16(buf, MOX::cur_combat_x);
+        Write16(buf, MOX::cur_combat_y);
+        Write16(buf, MOX::in_nebula_flag);
+        Write16(buf, MOX::cmbt_colony_id);
+        Write16(buf, MOX::skan_flag);
+        Write16(buf, MOX::board_flag);
+        Write16(buf, MOX::super_fast_flag);
+        // The turn order as Do_Combat_Turn built it, up to its -10
+        // terminator (-1 = acted or captured); none found, none sent.
+        int16_t order_n = 0;
+        while (order_n < 210 && MOX::ship_turn_order[order_n] != -10) {
+            ++order_n;
+        }
+        if (order_n >= 210) order_n = 0;
+        Write8(buf, (uint8_t)order_n);
+        for (int16_t i = 0; i < order_n; i++) {
+            Write16(buf, MOX::ship_turn_order[i]);
+        }
+        int16_t units = MOX::combat_total_ship_count;
+        if (units < 0) units = 0;
+        if (units > 210) units = 210;
+        Write16(buf, 309);                                // record size
+        Write16(buf, units);
+        for (int16_t i = 0; i < units; i++) {
+            const uint8_t* unit = reinterpret_cast<const uint8_t*>(&MOX::combat_data[i]);
+            WriteBytes(buf, unit, offsetof(s_combat_data, ship_image_seg));
+            WriteBytes(buf, unit + offsetof(s_combat_data, drive_max_hits),
+                       sizeof(s_combat_data) - offsetof(s_combat_data, drive_max_hits));
+        }
+        uint8_t legal[(COMBAT_GRID_WIDTH * COMBAT_GRID_HEIGHT + 7) / 8] = {};
+        for (int x = 0; x < COMBAT_GRID_WIDTH; x++) {
+            for (int y = 0; y < COMBAT_GRID_HEIGHT; y++) {
+                if (MOX::combat_grid[x][y] == 2000) {
+                    const int bit = x * COMBAT_GRID_HEIGHT + y;
+                    legal[bit >> 3] |= (uint8_t)(1u << (bit & 7));
+                }
+            }
+        }
+        WriteBytes(buf, legal, sizeof(legal));
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
