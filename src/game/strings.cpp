@@ -35,6 +35,7 @@ namespace strings {
         HAROLD::Load_H_Strings();
         RUSS::Load_Russ_Strings();
         ESTRINGS::Load_E_Strings();
+        COLSUM::colsum_strings_been_loaded = 0;
     }
 
     void __cdecl String_To_Lower(char* str) {

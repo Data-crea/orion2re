@@ -1,4 +1,5 @@
 #include "pch.h"
+#include <algorithm>
 
 namespace {
     uint32_t Bitmap_Bytes(uint32_t bit_count) {
@@ -12,32 +13,32 @@ namespace {
     }
 
     uint32_t Advanced_Civilization_Bytes(uint32_t star_count,
-                                           uint32_t planet_count) {
+        uint32_t planet_count) {
         const uint32_t player_size =
             4 * sizeof(int16_t) + planet_count +
             star_count * sizeof(s_adv_civ_player_star) +
             planet_count * sizeof(s_adv_civ_player_planet);
         return MAX_PLAYERS * player_size +
-               star_count * star_count * sizeof(int32_t) +
-               planet_count + star_count;
+            star_count * star_count * sizeof(int32_t) +
+            planet_count + star_count;
     }
 
     uint32_t Map_Generation_Bytes(uint32_t star_count,
-                                   uint32_t planet_count) {
+        uint32_t planet_count) {
         const uint32_t fixed_star_size =
             sizeof(s_star_data) - BITMAP(MAX_STARS);
         const uint32_t star_size = fixed_star_size + Bitmap_Bytes(star_count);
         return planet_count * sizeof(s_planet_data) +
-               star_count * star_size +
-               planet_count * sizeof(int16_t);
+            star_count * star_size +
+            planet_count * sizeof(int16_t);
     }
 
     uint32_t Planet_Summary_Bytes(uint32_t star_count,
-                                   uint32_t planet_count,
-                                   uint32_t ship_count) {
+        uint32_t planet_count,
+        uint32_t ship_count) {
         return 2 * planet_count * sizeof(s_plntsum_planet) +
-               ship_count * sizeof(s_plntsum_ship) +
-               star_count * sizeof(int16_t);
+            ship_count * sizeof(s_plntsum_ship) +
+            star_count * sizeof(int16_t);
     }
 
     uint32_t Fleet_Screen_Bytes(uint32_t ship_count) {
@@ -53,17 +54,17 @@ namespace {
     }
 
     uint32_t Capacity_Dependent_Screen_Bytes(uint32_t star_count,
-                                               uint32_t planet_count,
-                                               uint32_t colony_count,
-                                               uint32_t ship_count) {
+        uint32_t planet_count,
+        uint32_t colony_count,
+        uint32_t ship_count) {
         return Good_Star_Bytes(star_count) +
-               Advanced_Civilization_Bytes(star_count, planet_count) +
-               Map_Generation_Bytes(star_count, planet_count) +
-               Planet_Summary_Bytes(star_count, planet_count, ship_count) +
-               Fleet_Screen_Bytes(ship_count) +
-               Score_Population_Bytes(colony_count);
+            Advanced_Civilization_Bytes(star_count, planet_count) +
+            Map_Generation_Bytes(star_count, planet_count) +
+            Planet_Summary_Bytes(star_count, planet_count, ship_count) +
+            Fleet_Screen_Bytes(ship_count) +
+            Score_Population_Bytes(colony_count);
     }
-}
+} // namespace
 
 namespace allocate {
     uint32_t Global_Screen_Space() {
@@ -84,6 +85,9 @@ namespace allocate {
     s_mark_stack_entry mark_stack[MARK_STACK_COUNT];
 
     void* __cdecl Allocate_Space(uint32_t size) {
+        if (size > INT32_MAX - sizeof(s_alloc_header) - 3u) {
+            Allocation_Error(INT32_MAX);
+        }
         uint32_t padded_size = size;
 
         // Alignment logic: If size is odd, align it to the next 4-byte boundary.
@@ -173,13 +177,11 @@ namespace allocate {
     }
 
     void* __cdecl Allocate_Next_Block(void* block, uint32_t size) {
-        uint32_t aligned_size = size;
-
-        // Custom alignment: if the requested size is odd, align it to the next 4-byte boundary.
-        // Note: Even sizes (like 2 or 6) remain unaligned to 4-byte boundaries.
-        if ((size & 1) != 0) {
-            aligned_size = (size & 0xFFFFFFFCu) + 4u;
+        const uint64_t padded = (size & 1u) != 0 ? ((uint64_t)size + 3u) & ~UINT64_C(3) : size;
+        if (padded + sizeof(s_alloc_header) > INT32_MAX) {
+            Reallocation_Error(size, INT32_MAX, Get_Max_Block_Space(block));
         }
+        const uint32_t aligned_size = (uint32_t)padded;
 
         s_alloc_header* pool_header = (s_alloc_header*)block - 1;
 
@@ -187,13 +189,13 @@ namespace allocate {
         int32_t capacity = (int32_t)pool_header->size;
 
         // Total required space for the new sub-block includes a 12-byte internal header.
-        int32_t total_required =
-            (int32_t)(current_offset + aligned_size + sizeof(s_alloc_header));
+        const uint64_t total_required =
+            (uint64_t)current_offset + aligned_size + sizeof(s_alloc_header);
 
-        if (total_required > capacity) {
+        if (total_required > pool_header->size) {
             Reallocation_Error(
                 size,
-                (int32_t)(current_offset - pool_header->size + size),
+                (int32_t)std::min<uint64_t>(total_required - pool_header->size, INT32_MAX),
                 capacity);
         }
 
@@ -307,29 +309,24 @@ namespace allocate {
     void* __cdecl Allocate_Next_Block_No_Header(void* block_ptr, uint32_t size) {
         auto* pool_header = (s_alloc_header*)block_ptr - 1;
 
-        uint32_t aligned_size = size;
+        uint64_t aligned_size = size;
 
         // Alignment logic: if size is odd, align it to the next 4-byte boundary.
         // Even sizes are used as-is.
         if ((size & 1) != 0) {
-            aligned_size = (size & 0xFFFFFFFC) + 4;
+            aligned_size = ((uint64_t)size + 3u) & ~UINT64_C(3);
         }
 
         uint32_t current_offset = pool_header->current;
-        uint32_t next_offset = current_offset + aligned_size;
+        uint64_t next_offset = (uint64_t)current_offset + aligned_size;
 
-        if ((int32_t)pool_header->size < (int32_t)next_offset) {
+        if (next_offset > pool_header->size) {
             return nullptr;
         }
 
         void* new_block_ptr = (uint8_t*)block_ptr + current_offset;
 
-        pool_header->current = next_offset;
-
-        auto* sub_block_header = (s_alloc_header*)new_block_ptr;
-        sub_block_header->current = 0;
-        sub_block_header->size = size;
-        sub_block_header->reserved2 = 0;
+        pool_header->current = (uint32_t)next_offset;
 
         return new_block_ptr;
     }
