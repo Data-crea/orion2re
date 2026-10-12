@@ -898,6 +898,33 @@ static void SerializeState(std::vector<uint8_t>& buf,
             }
         }
     }
+
+    // 15. The generic message box that is up: "MSGB", written on ANY screen
+    //     while one is (the boxes run under their caller's id), and LAST.
+    //     OrionLayer, open fix 29.
+    //
+    //     TEXTBOX::Do_Text_Box and GENDRAW's exploding, warning and
+    //     confirmation boxes print a caller's string that exists nowhere
+    //     else — H_Message(n) formatted with values the engine computed —
+    //     so a client saw only their pixels. Sent as the box holds it: the
+    //     kind, the answer fields, a timed box's ticks, the title and the
+    //     text raw (FMTPARA codes and all), each with its length first.
+    if (g_message_box.kind != 0) {
+        buf.push_back((uint8_t)'M');
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'G');
+        buf.push_back((uint8_t)'B');
+        Write8(buf, 1);                                   // block version
+        Write8(buf, g_message_box.kind);
+        Write16(buf, g_message_box.field_a);
+        Write16(buf, g_message_box.field_b);
+        Write16(buf, g_message_box.ticks);
+        for (const char* str : {g_message_box.title, g_message_box.text}) {
+            const size_t len = str != nullptr ? strnlen(str, 4000) : 0;
+            Write16(buf, (int16_t)len);
+            WriteBytes(buf, str, len);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -1383,6 +1410,20 @@ ScreenOverride::ScreenOverride(int16_t id) : previous(g_screen_override) {
 
 ScreenOverride::~ScreenOverride() {
     g_screen_override = previous;
+}
+
+// OrionLayer, open fix 29. The generic message box that is up (ext_api.h).
+MessageBoxView g_message_box = {0, nullptr, nullptr, -1, -1, 0};
+
+MessageBoxGuard::MessageBoxGuard(uint8_t kind, const char* title,
+                                 const char* text, int16_t field_a,
+                                 int16_t field_b, int16_t ticks)
+    : previous(g_message_box) {
+    g_message_box = {kind, title, text, field_a, field_b, ticks};
+}
+
+MessageBoxGuard::~MessageBoxGuard() {
+    g_message_box = previous;
 }
 
 // OrionLayer, open fix 47. The running list field (ext_api.h).

@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 29. MessageBoxGuard.
+#endif
 
 namespace GENDRAW {
     s_colors message_text_colors = {{0xA0, 0xA3, 0xA3, 0xA5, 0xAB, 0xAB, 0xAB, 0xAB}};
@@ -103,6 +106,10 @@ namespace GENDRAW {
         message_box_y = 0x90;
         int mode = 4;
         first_field = fields::Add_Hidden_Field(0, 0, 0x27F, 0x1DF, "\x1B", 0x29);
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 29. The box on the wire while it takes input (ext_api.h).
+        const ext::MessageBoxGuard ext_box_guard(warning_box != 0 ? 4 : 3, nullptr, str, first_field, -1, 0);
+#endif
 
         s_colors font_colors;
         fonts::Set_Remap_Font_Style(4, &font_colors);
@@ -171,6 +178,10 @@ namespace GENDRAW {
 
         first_field = fields::Add_Hidden_Field(0xeb, 0x12e, 0x11e, 0x143, "Y", 0x29);
         int16_t second_field = fields::Add_Hidden_Field(0x159, 0x12e, 0x18c, 0x143, "N", 0x29);
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 29. The box on the wire while it takes input (ext_api.h).
+        const ext::MessageBoxGuard ext_box_guard(5, nullptr, text, first_field, second_field, 0);
+#endif
 
         for (int i = 0; i < 3; ++i) {
             image_seg[i] = (s_animation_header*)buffer::Buffer_Reload("confirm.lbx", i, (uint8_t*)MOX::global_cache_seg);

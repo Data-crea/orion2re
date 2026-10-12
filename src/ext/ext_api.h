@@ -78,6 +78,31 @@ struct ListFieldGuard {
     ~ListFieldGuard();
 };
 
+/// OrionLayer, open fix 29. The generic message box that is up: which kind,
+/// its title and text as the caller handed them (raw, FMTPARA codes and
+/// all), the field id of each answer and a timed box's ticks — the text
+/// otherwise reaches a client only as pixels. Set by MessageBoxGuard once
+/// the box's own fields are added (TEXTBOX::Do_Text_Box,
+/// GENDRAW::Message_Box_Exploding, GENDRAW::Confirmation_Box), restored
+/// when the box returns, so a box opened over another box shows and then
+/// gives back the one below. What is SENT, nothing the game reads.
+struct MessageBoxView {
+    uint8_t kind;          // 0 none, 1 text, 2 timed text, 3 message, 4 warning, 5 confirmation
+    const char* title;     // Do_Text_Box's, or nullptr
+    const char* text;
+    int16_t field_a;       // the dismiss field, or Yes
+    int16_t field_b;       // No, or -1
+    int16_t ticks;         // a timed box's input ticks, else 0
+};
+extern MessageBoxView g_message_box;
+
+struct MessageBoxGuard {
+    MessageBoxView previous;
+    MessageBoxGuard(uint8_t kind, const char* title, const char* text,
+                    int16_t field_a, int16_t field_b, int16_t ticks);
+    ~MessageBoxGuard();
+};
+
 /// The field id of the input Get_Input() is returning THIS CALL when it
 /// came from a client's ACTIVATE_FIELD, and 0 when it came from the mouse.
 ///

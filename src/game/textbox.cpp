@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 29. MessageBoxGuard.
+#endif
 
 namespace TEXTBOX {
     int16_t bottom_y;
@@ -245,7 +248,13 @@ namespace TEXTBOX {
         video::Copy_Off_To_Back();
 
         /* "\x1B" is fmtpara's color-attribute control byte; used here as a non-printing field label. */
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 29. The box on the wire while it takes input (ext_api.h).
+        const int16_t ext_dismiss = fields::Add_Hidden_Field(0, 0, 639, 479, "\x1B", 41);
+        const ext::MessageBoxGuard ext_box_guard(input_ticks > 0 ? 2 : 1, title, text, ext_dismiss, -1, input_ticks);
+#else
         fields::Add_Hidden_Field(0, 0, 639, 479, "\x1B", 41);
+#endif
 
         Text_Box_Get_Input(input_ticks);
 
