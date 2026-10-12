@@ -1458,11 +1458,16 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //     per cell, x-major (bit x * 68 + y). The same snapshot's CMEV (open
     //     fix 56) carries every event recorded before this state.
     if (g_combat_live && MOX::combat_data != nullptr) {
-        static_assert(offsetof(s_combat_data, ship_image_seg) == 198,
+        // Port onto orion2re v2.0.0: v2 widened x, y (int16), special_cooldown,
+        // stasis_source_idx and black_hole_source_idx (uint16): 322 bytes, the
+        // pointer at 202, the record 314 bytes (local: 317 / 198 / 309). The
+        // record size below is on the wire; the field offsets after name/
+        // ship_idx/owner differ from the local build's.
+        static_assert(offsetof(s_combat_data, ship_image_seg) == 202,
                       "open fix 53: s_combat_data moved before its pointer");
-        static_assert(offsetof(s_combat_data, drive_max_hits) == 206,
+        static_assert(offsetof(s_combat_data, drive_max_hits) == 210,
                       "open fix 53: s_combat_data moved after its pointer");
-        static_assert(sizeof(s_combat_data) == 317,
+        static_assert(sizeof(s_combat_data) == 322,
                       "open fix 53: s_combat_data changed size");
         buf.push_back((uint8_t)'C');
         buf.push_back((uint8_t)'M');
@@ -1499,7 +1504,7 @@ static void SerializeState(std::vector<uint8_t>& buf,
         int16_t units = MOX::combat_total_ship_count;
         if (units < 0) units = 0;
         if (units > 210) units = 210;
-        Write16(buf, 309);                                // record size
+        Write16(buf, (int16_t)(offsetof(s_combat_data, ship_image_seg) + sizeof(s_combat_data) - offsetof(s_combat_data, drive_max_hits)));  // record size (v2: 314)
         Write16(buf, units);
         for (int16_t i = 0; i < units; i++) {
             const uint8_t* unit = reinterpret_cast<const uint8_t*>(&MOX::combat_data[i]);
@@ -1507,11 +1512,16 @@ static void SerializeState(std::vector<uint8_t>& buf,
             WriteBytes(buf, unit + offsetof(s_combat_data, drive_max_hits),
                        sizeof(s_combat_data) - offsetof(s_combat_data, drive_max_hits));
         }
-        uint8_t legal[(COMBAT_GRID_WIDTH * COMBAT_GRID_HEIGHT + 7) / 8] = {};
-        for (int x = 0; x < COMBAT_GRID_WIDTH; x++) {
-            for (int y = 0; y < COMBAT_GRID_HEIGHT; y++) {
+        // Port onto v2: the grid is MOX::combat_grid_width x combat_grid_height
+        // (taller than 68 when a side has more than 100 ships). The wire keeps
+        // the original 81 x 68 bitmap; cells past it are not sent.
+        uint8_t legal[(ORIGINAL_COMBAT_GRID_WIDTH * ORIGINAL_COMBAT_GRID_HEIGHT + 7) / 8] = {};
+        const int legal_w = MOX::combat_grid_width < ORIGINAL_COMBAT_GRID_WIDTH ? MOX::combat_grid_width : ORIGINAL_COMBAT_GRID_WIDTH;
+        const int legal_h = MOX::combat_grid_height < ORIGINAL_COMBAT_GRID_HEIGHT ? MOX::combat_grid_height : ORIGINAL_COMBAT_GRID_HEIGHT;
+        for (int x = 0; x < legal_w; x++) {
+            for (int y = 0; y < legal_h; y++) {
                 if (MOX::combat_grid[x][y] == 2000) {
-                    const int bit = x * COMBAT_GRID_HEIGHT + y;
+                    const int bit = x * ORIGINAL_COMBAT_GRID_HEIGHT + y;
                     legal[bit >> 3] |= (uint8_t)(1u << (bit & 7));
                 }
             }
@@ -2261,6 +2271,28 @@ void Combat_Event(uint8_t type, int16_t a0, int16_t a1, int16_t a2, int16_t a3,
     ++g_combat_event_next;
 }
 
+// OrionLayer, open fix 65. The original's view kept round a commanded action, as a player's click keeps it.
+// A clicking player can only choose a cell inside the original's view, which
+// the game centres on the acting ship at its turn; a command can name any
+// legal cell. Move_Ship draws the moving ship at its view position, and
+// while it holds a tractor beam it redraws the whole battle first
+// (Draw_Main_Combat_Screen), which switches clipping off, so a ship partly
+// outside the view was drawn unclipped outside the frame buffer: SIGSEGV
+// (work order 197, the armed scratch game at Altair). So the view is centred
+// on the middle of the action with the game's own Snap_Center_Combat_Screen
+// before the action runs, and a move longer than the view less a ship's
+// margin (26 x 12 cells of 32 x 18) is refused (reason 10). The original
+// builds a missile's field only while the missile is inside its view
+// (combat1.cpp:436-455), so FIRE_MISSILE at one outside it centres the view
+// on the missile and rebuilds the battle's fields first (the game's own
+// Add_Tactical_Combat_Fields). Only the hidden original view moves;
+// nothing of the battle does.
+static bool Keep_Action_In_View_(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool refuse_long) {
+    if (refuse_long && (abs(x1 - x0) > 26 || abs(y1 - y0) > 12)) return false;
+    COMBINIT::Snap_Center_Combat_Screen((int16_t)((x0 + x1) / 2), (int16_t)((y0 + y1) / 2));
+    return true;
+}
+
 // OrionLayer, open fix 58. Take_Combat_Command: the command's storage is above ProcessInput (ext_api.h).
 void Combat_Command_Cell(int16_t* x, int16_t* y) {
     if (g_cmd_cell_valid) {
@@ -2273,8 +2305,8 @@ void Combat_Command_Cell(int16_t* x, int16_t* y) {
 static bool Combat_Unit_At_Anchor_(int16_t t) {
     if (t < 0 || t >= MOX::combat_total_ship_count) return false;
     const s_combat_data& u = MOX::combat_data[t];
-    return u.unit_status == 0 && u.x >= 0 && u.x < COMBAT_GRID_WIDTH &&
-           u.y >= 0 && u.y < COMBAT_GRID_HEIGHT && MOX::combat_grid[u.x][u.y] == t;
+    return u.unit_status == 0 && u.x >= 0 && u.x < MOX::combat_grid_width &&
+           u.y >= 0 && u.y < MOX::combat_grid_height && MOX::combat_grid[u.x][u.y] == t;
 }
 
 int16_t Take_Combat_Command(int16_t input_val) {
@@ -2317,11 +2349,12 @@ int16_t Take_Combat_Command(int16_t input_val) {
     switch (c.op) {
     case CCMD_MOVE:
         if (!free_mode) return refuse(5);
-        if (c.a < 0 || c.a >= COMBAT_GRID_WIDTH || c.b < 0 || c.b >= COMBAT_GRID_HEIGHT ||
+        if (c.a < 0 || c.a >= MOX::combat_grid_width || c.b < 0 || c.b >= MOX::combat_grid_height ||
             MOX::combat_grid[c.a][c.b] != 2000) return refuse(3);
+        if (!Keep_Action_In_View_(me.x, me.y, c.a, c.b, true)) return refuse(10);  // OrionLayer, open fix 65.
         return cell(c.a, c.b, MOX::space_field);
     case CCMD_FACE:
-        if (c.a < 0 || c.a >= COMBAT_GRID_WIDTH || c.b < 0 || c.b >= COMBAT_GRID_HEIGHT) return refuse(3);
+        if (c.a < 0 || c.a >= MOX::combat_grid_width || c.b < 0 || c.b >= MOX::combat_grid_height) return refuse(3);
         return cell(c.a, c.b, (int16_t)-MOX::space_field);
     case CCMD_FIRE:
     case CCMD_SELECT:
@@ -2347,9 +2380,14 @@ int16_t Take_Combat_Command(int16_t input_val) {
                 else if (w.active != -1) w.active = 0;
             }
         }
+        Keep_Action_In_View_(me.x, me.y, t.x, t.y, false);  // OrionLayer, open fix 65.
         return cell(t.x, t.y, MOX::space_field);
     }
     case CCMD_FIRE_MISSILE:
+        if (c.a >= 0 && c.a < 300 && MOX::missile[c.a].type > 0 && MOX::missile_field[c.a] < 1) {  // OrionLayer, open fix 65. A missile outside the view has no field: centre on it, rebuild the fields.
+            Keep_Action_In_View_(me.x, me.y, (int16_t)(MOX::missile[c.a].x / 20), (int16_t)(MOX::missile[c.a].y / 20), false);
+            COMBAT1::Add_Tactical_Combat_Fields();
+        }
         if (c.a < 0 || c.a >= 300 || MOX::missile[c.a].type <= 0 ||
             MOX::missile_field[c.a] < 1) return refuse(8);
         Combat_Event(CEV_COMMAND, c.op, 0, c.a, c.b);
@@ -2367,6 +2405,7 @@ int16_t Take_Combat_Command(int16_t input_val) {
             Combat_Event(CEV_COMMAND, c.op, 0, c.a, c.b);
             return MOX::board_button;
         }
+        Keep_Action_In_View_(me.x, me.y, MOX::combat_data[c.a].x, MOX::combat_data[c.a].y, false);  // OrionLayer, open fix 65.
         return cell(MOX::combat_data[c.a].x, MOX::combat_data[c.a].y, MOX::space_field);
     default:
         return refuse(9);
