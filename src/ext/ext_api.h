@@ -54,6 +54,28 @@ struct ScreenOverride {
 /// (DIP_SCRN::Diplomacy_Screen) and 58 when an AI asked for it
 /// (DIP_SCRN::Npc_Diplomacy_Screen), so a client can tell it is up.
 
+/// OrionLayer, open fix 47. The list fields::Get_List_Field is running: its title,
+/// its items (item_size apart), their count and their enable flags exist
+/// only as that call's arguments — the diplomacy audience's menus are such
+/// lists, and a client cannot tell them apart by their fields. Set by
+/// ListFieldGuard while the list takes input, restored when it returns;
+/// read by SerializeState. What is SENT, nothing the game reads.
+struct ListFieldView {
+    const char* title;
+    const char* items;
+    int32_t item_size;
+    int16_t count;
+    const uint8_t* flags;
+};
+extern ListFieldView g_list_field;
+
+struct ListFieldGuard {
+    ListFieldView previous;
+    ListFieldGuard(const char* title, const char* items, int32_t item_size,
+                   int16_t count, const uint8_t* flags);
+    ~ListFieldGuard();
+};
+
 /// The field id of the input Get_Input() is returning THIS CALL when it
 /// came from a client's ACTIVATE_FIELD, and 0 when it came from the mouse.
 ///

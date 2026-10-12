@@ -1537,6 +1537,9 @@ namespace fields {
 
         int16_t cur_y = y;
         int16_t y_step = font_height + font_vert_spacing;
+#ifdef ORION2RE_EXT
+        const char* ext_items = list_ptr;  // OrionLayer, open fix 47. The list's first item, before the walk moves list_ptr.
+#endif
 
         do {
             if (*list_ptr == '\0') {
@@ -1562,6 +1565,10 @@ namespace fields {
             list_ptr += item_size;
         } while (!eof);
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 47. The list on the wire while it takes input (ext_api.h).
+        const ext::ListFieldGuard ext_list_guard(help, ext_items, item_size, index, item_flags);
+#endif
         int16_t cur_font_style = fonts::Get_Current_Font_Style();
         s_colors* cur_font_color = fonts::Get_Current_Font_Color();
         s_colors* cur_highlight = fonts::Get_Current_Highlight_Color();

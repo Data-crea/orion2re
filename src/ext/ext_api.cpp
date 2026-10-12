@@ -439,6 +439,52 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
     }
 
+    // 5b. The diplomacy audience: "DIPL", written ONLY while it reports 57
+    //     or 58 (open fix 46), between INFS and COLS. OrionLayer, open fix 47.
+    //
+    //     The audience keeps everything in DIP_SCRN's globals and the list
+    //     field's arguments; none of it was serialized, and its menus are
+    //     lists of equal shape (Propose, Break and Offer are all eight rows
+    //     at the same place). Sent as the game holds them: which race, the
+    //     ambassador's mode (0 refused, 1 normal, 2 an AI proposal), the
+    //     statement id and the reply text AS THE ENGINE FORMATTED IT (the
+    //     variant is Random_, dip_scrn_main.cpp:603, so an id does not name
+    //     the text), and the menu taking input now — its title, and per
+    //     item the enable flag Get_List_Field honours and the words.
+    if (current_screen == 57 || current_screen == 58) {
+        buf.push_back((uint8_t)'D');
+        buf.push_back((uint8_t)'I');
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'L');
+        Write8(buf, 1);                                   // block version
+        Write8(buf, (uint8_t)(current_screen - 56));      // 1 player, 2 AI
+        Write8(buf, DIP_SCRN::current_ambassador);
+        Write8(buf, DIP_SCRN::ambassador_option);
+        Write16(buf, DIP_SCRN::response_message);
+        size_t len = strnlen(DIP_SCRN::diplomacy_message,
+                             sizeof(DIP_SCRN::diplomacy_message));
+        Write8(buf, (uint8_t)len);
+        WriteBytes(buf, DIP_SCRN::diplomacy_message, len);
+        const ListFieldView& list = g_list_field;
+        int16_t n = (list.items != nullptr && list.count > 0) ? list.count : 0;
+        if (n > 40) n = 40;
+        Write16(buf, n);
+        if (n > 0) {
+            len = list.title != nullptr ? strnlen(list.title, 255) : 0;
+            Write8(buf, (uint8_t)len);
+            WriteBytes(buf, list.title, len);
+            const size_t item_max = list.item_size > 255 ? 255
+                                                         : (size_t)list.item_size;
+            for (int16_t i = 0; i < n; i++) {
+                const char* item = list.items + (size_t)i * list.item_size;
+                Write8(buf, list.flags != nullptr ? list.flags[i] : 1);
+                len = strnlen(item, item_max);
+                Write8(buf, (uint8_t)len);
+                WriteBytes(buf, item, len);
+            }
+        }
+    }
+
     // 6. Which colony the colony screen and its build popup show: "COLS",
     //    written ONLY while SCREEN_COLONY or SCREEN_QUEUE_POPUP is up, and
     //    LAST. OrionLayer, open fix 35.
@@ -1296,6 +1342,20 @@ ScreenOverride::ScreenOverride(int16_t id) : previous(g_screen_override) {
 
 ScreenOverride::~ScreenOverride() {
     g_screen_override = previous;
+}
+
+// OrionLayer, open fix 47. The running list field (ext_api.h).
+ListFieldView g_list_field = {nullptr, nullptr, 0, 0, nullptr};
+
+ListFieldGuard::ListFieldGuard(const char* title, const char* items,
+                               int32_t item_size, int16_t count,
+                               const uint8_t* flags)
+    : previous(g_list_field) {
+    g_list_field = {title, items, item_size, count, flags};
+}
+
+ListFieldGuard::~ListFieldGuard() {
+    g_list_field = previous;
 }
 
 void Tick(int16_t current_screen) {
