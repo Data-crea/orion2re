@@ -572,6 +572,63 @@ static int Select_Ship_(int16_t ship_idx, int16_t selected) {
     return 0;
 }
 
+/// Select or deselect one ship ON THE FLEET SCREEN. OrionLayer, open
+/// fix 28 — the write half of 27, and a SEPARATE function from
+/// Select_Ship_ above because the two screens keep their selection in
+/// different arrays.
+///
+/// Open fix 21's Select_Ship_ cannot serve this screen on either of two
+/// counts: it refuses unless Moveable_Box_Selected(2), and the fleet
+/// screen closes that box; and it writes ship_node[].selected, which
+/// this screen never reads — it paints from fltscrn_big_icon[].selected
+/// (flt1.cpp:429).
+///
+/// Nor can a click do it. The per-ship toggle is painted in the DRAW
+/// pass, which tests mouse::Mouse_Button() for the LIVE button state
+/// (flt1.cpp:413-436); an injected click is a buffered event and the
+/// draw pass has already seen the button go up. ACTIVATE_FIELD on a big
+/// icon reaches Scan_Fltscrn_Big_Icons result 0, which only SCANS
+/// (flt2.cpp:924-928, flt1.cpp:615-620). Without this, ALL is the only
+/// way a selection can change, so a subset of a stack cannot be moved
+/// or scrapped from outside at all.
+///
+/// The checks are the original's own, in its order: the screen is up,
+/// the stack shown is ours (flt1.cpp:1185, :1193), painting is not
+/// switched off (relocate_button_mode != 1, flt1.cpp:413), and the ship
+/// is IN the list the screen built (flt2.cpp:207-268). The write is the
+/// single line ALL writes (Set_Fltscrn_Big_Icons, flt1.cpp:1610-1624).
+/// Nothing else is maintained here on purpose: the loop's own
+/// Update_Selection_Flags (flt1.cpp:811, :1069-1093) recounts
+/// n_big_icons_selected and mirrors fltscrn_icon_selection_status on
+/// the next iteration, which is exactly what it does after ALL.
+/// Returns 1 applied, 0 refused.
+static int Select_Fltscrn_Ship_(int16_t ship_idx, int16_t selected) {
+    if (MOX::current_screen != SCREEN_FLEET) {
+        return 0;
+    }
+    if (MOX::PLAYER_NUM != MOX::fltscrn_stack_owner) {
+        return 0;
+    }
+    if (FLT1::relocate_button_mode == 1) {
+        return 0;
+    }
+    if (MOX::fltscrn_big_icon == nullptr) {
+        return 0;
+    }
+    int16_t icons = MOX::n_fltscrn_big_icons;
+    if (icons > SHIP_LIST_CAPACITY) {
+        icons = SHIP_LIST_CAPACITY;
+    }
+    for (int16_t i = 0; i < icons; i++) {
+        if (MOX::fltscrn_big_icon[i].ship_idx == ship_idx) {
+            MOX::fltscrn_big_icon[i].selected =
+                (int8_t)(selected != 0 ? 1 : 0);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // ── Input injection ──────────────────────────────────────
 
 static void ProcessInput() {
@@ -654,9 +711,20 @@ static void ProcessInput() {
             break;
 
         case MSG_SELECT_SHIP:
-            // Open fix 21. From the drain loop like MSG_SET_JOBS; the
-            // fleet box reads ship_node[].selected when it next draws.
-            Select_Ship_(cmd.param1, cmd.param2);
+            // Open fix 21 for the galaxy map's fleet box, open fix 28
+            // for the fleet screen. ONE message id, because it is one
+            // question — "select this ship" — and two handlers, because
+            // the two screens keep the answer in different arrays. The
+            // branch is on the screen and not on which handler happens
+            // to succeed: a silent fall-through would make a refusal on
+            // one screen look like an attempt on the other.
+            // From the drain loop like MSG_SET_JOBS; whichever array is
+            // written, the screen reads it when it next draws.
+            if (MOX::current_screen == SCREEN_FLEET) {
+                Select_Fltscrn_Ship_(cmd.param1, cmd.param2);
+            } else {
+                Select_Ship_(cmd.param1, cmd.param2);
+            }
             break;
 
         case MSG_CANCEL_FIELD:
