@@ -4,6 +4,23 @@ namespace COLMOVE {
     int16_t cluster_colony_n = -1;
     uint8_t g_hacky_dont_draw_cluster_flag;
 
+#ifdef ORION2RE_EXT
+    bool _ext_suppress_refusal_help = false;
+#endif
+
+    // The four refusals in Give_Colonist_New_Job each answer with
+    // GENDRAW::Help. This is that call in ONE place instead of
+    // four, so the refusal LOGIC keeps its single home in that
+    // function and only the drawing became optional.
+    static void Refusal_Help_(const char* message) {
+#ifdef ORION2RE_EXT
+        if (_ext_suppress_refusal_help) {
+            return;
+        }
+#endif
+        GENDRAW::Help(message);
+    }
+
     void __cdecl Draw_Cluster(int16_t x, int16_t y) {
         if (cluster_colony_n != -1 && !COLONY::full_draw) {
             if (Get_First_Unemployed(cluster_colony_n) != -1) {
@@ -523,21 +540,21 @@ namespace COLMOVE {
         int16_t pop_state = COLONY::Pop_To_Pop_State(colony_idx, pop_idx);
 
         if ((pop_state == 3 || pop_state == 6) && (new_job == ECON_RESEARCH || new_job == ECON_INDUSTRY)) {
-            GENDRAW::Help(ESTRINGS::E_Strings(ESTR_THIS_COLONIST_IS_A_NATIVE_NATIVES_CAN_ONLY_FARM_OR_MINE));
+            Refusal_Help_(ESTRINGS::E_Strings(ESTR_THIS_COLONIST_IS_A_NATIVE_NATIVES_CAN_ONLY_FARM_OR_MINE));
             return 0;
         }
 
         if (pop_state == 4) {
             int16_t current_job = (int16_t)POP::Get_Prof(MOX::colony[colony_idx].pop[pop_idx]);
             if (current_job != new_job) {
-                GENDRAW::Help(ESTRINGS::E_Strings(ESTR_THIS_COLONIST_IS_AN_ANDROID_AND_CANNOT_BE_RECONFIGURED_FOR_ANOTHER_JOB));
+                Refusal_Help_(ESTRINGS::E_Strings(ESTR_THIS_COLONIST_IS_AN_ANDROID_AND_CANNOT_BE_RECONFIGURED_FOR_ANOTHER_JOB));
                 return 0;
             }
         }
 
         int16_t sum_colonists = COLONY::Sum_Colonists(colony_idx, new_job, -1, -1, 0, -1);
         if (sum_colonists >= 42) {
-            GENDRAW::Help(ESTRINGS::E_Strings(ESTR_NO_ROOM_FOR_ANOTHER_COLONIST_IN_THIS_JOB_FIELD));
+            Refusal_Help_(ESTRINGS::E_Strings(ESTR_NO_ROOM_FOR_ANOTHER_COLONIST_IN_THIS_JOB_FIELD));
             return 0;
         }
 
@@ -552,7 +569,7 @@ namespace COLMOVE {
             return 1;
         }
 
-        GENDRAW::Help(ESTRINGS::E_Strings(ESTR_NO_ROOM_FOR_ANOTHER_COLONIST_IN_THIS_JOB_FIELD));
+        Refusal_Help_(ESTRINGS::E_Strings(ESTR_NO_ROOM_FOR_ANOTHER_COLONIST_IN_THIS_JOB_FIELD));
         return 0;
     }
 

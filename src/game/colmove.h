@@ -6,6 +6,17 @@ namespace COLMOVE {
     extern uint8_t g_hacky_dont_draw_cluster_flag;
     extern bool native_population_transfer;
 
+#ifdef ORION2RE_EXT
+    // When set, Give_Colonist_New_Job still REFUSES exactly as it
+    // does otherwise and still returns 0 — it just does not open the
+    // message box on the way out. That box waits for a human
+    // (textbox.cpp:145-149) and the wait re-enters ext::Tick, so a
+    // refusal reached from the Extension API's own drain loop would
+    // stop the engine and recurse into itself. Nothing else reads
+    // this flag and it is never set outside ext::ProcessInput.
+    extern bool _ext_suppress_refusal_help;
+#endif
+
     // Draws the currently selected population cluster near the cursor.
     // @param x Screen-space X position for the cluster widget.
     // @param y Screen-space Y position for the cluster widget.
