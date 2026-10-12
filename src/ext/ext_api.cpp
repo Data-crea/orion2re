@@ -2347,6 +2347,106 @@ static int Set_Jobs_(int16_t colony_idx, const uint8_t* pairs,
     return moved;
 }
 
+// ── Colonists to another colony at the star (OrionLayer, open fix 92.) ──
+
+/// Settle a list of pops of the colony screen's colony in another colony
+/// of the player at the same star, or settle none.
+///
+/// **THE ORIGINAL'S PATH, WITHOUT ITS BOXES.** A cluster carried on the
+/// colony screen and clicked onto a planet of the system display goes to
+/// `COLMOVE::Send_Cluster(colony, -1)` (colony.cpp:1796-1800), which for
+/// every pop in hand asks `SETTLER::Pop_Tries_To_Settle` and, when it may,
+/// moves it with `SETTLER::Settle_Pop` (colmove.cpp:193-292). Both are
+/// called unchanged; what is not reached is what only a human can answer:
+/// the refusal's text box, the ETA and "no room" confirmations and the
+/// success notice (colmove.cpp:200-260, :330-470, :482-522), each a loop
+/// that would re-enter `ext::Tick` from inside this handler (fundament 52).
+///
+/// **SO ONLY WHAT NEEDS NO QUESTION IS DONE**, and a list with one pop
+/// that would need one is refused whole: every pop must settle at once
+/// (`can_settle`, no ETA — the same star — and room at the destination).
+/// A move to another star goes through the transport popup
+/// (`COLXPORT::Xport_Popup`, colony_main.cpp:1068-1076) and is not this
+/// command. All or nothing because a command has nobody to ask whether to
+/// go on (fundament 52's DEVIATION): both colonies are saved first and put
+/// back on a refusal.
+///
+/// Returns the number of pops settled, or -1 if the list was refused.
+static int Settle_Pops_(int16_t source_idx, int16_t dest_idx,
+                        const std::vector<uint8_t>& pops) {
+    if (source_idx < 0 || source_idx >= MOX::NUM_COLONIES ||
+            dest_idx < 0 || dest_idx >= MOX::NUM_COLONIES ||
+            source_idx == dest_idx || pops.empty()) {
+        return -1;
+    }
+    // Only from the colony screen, for the colony it shows — the one place
+    // the original offers this (colony.cpp:1796) — and only the local
+    // player's, as for MSG_SET_JOBS.
+    if (MOX::current_screen != SCREEN_COLONY ||
+            source_idx != COLONY::colony_handle) {
+        return -1;
+    }
+    s_colony& source = MOX::colony[source_idx];
+    s_colony& dest = MOX::colony[dest_idx];
+    if (source.owner != MOX::PLAYER_NUM || dest.owner != MOX::PLAYER_NUM) {
+        return -1;
+    }
+    // No cluster of the game's own in hand (see Set_Jobs_).
+    if (COLMOVE::cluster_colony_n != -1) {
+        return -1;
+    }
+    const int n_pops = (int)(uint8_t)source.n_pops;
+    bool listed[42] = {};
+    for (uint8_t idx : pops) {
+        if ((int)idx >= n_pops || listed[idx]) {
+            return -1;
+        }
+        listed[idx] = true;
+    }
+
+    const s_colony saved_source = source;
+    const s_colony saved_dest = dest;
+
+    // THE PICK-UP, as `Get_Cluster` does it (colmove.cpp:69-73): the
+    // listed pops lose their assigned bit, and the walk below takes the
+    // first such pop each time, as `Send_Cluster`'s loop does — because
+    // `Settle_Pop` moves the LAST pop into the slot it empties
+    // (settler.cpp:337-342), an index list would point at the wrong pops
+    // after the first one.
+    for (uint8_t idx : pops) {
+        source.pop[idx] &= ~POP::MASK_ASSIGNED;
+    }
+    COLMOVE::cluster_colony_n = source_idx;
+
+    int settled = 0;
+    bool refused = false;
+    int16_t pop_idx = COLMOVE::Get_First_Unemployed(source_idx);
+    while (pop_idx != -1) {
+        s_settler_settle_result result;
+        SETTLER::Pop_Tries_To_Settle(&source, pop_idx, &dest, &result);
+        if (result.can_settle == 0 || result.eta_turns != 0 ||
+                result.no_room_at_destination != 0) {
+            refused = true;
+            break;
+        }
+        SETTLER::Settle_Pop(&source, pop_idx, &dest);
+        settled++;
+        pop_idx = COLMOVE::Get_First_Unemployed(source_idx);
+    }
+    COLMOVE::cluster_colony_n = -1;
+
+    if (refused) {
+        source = saved_source;
+        dest = saved_dest;
+        return -1;
+    }
+    // ONCE, AFTER THE WHOLE LIST, both colonies — `Send_Cluster`'s own
+    // order (colmove.cpp:476-479).
+    COLONY::Col_Calc_Wrapper(source_idx);
+    COLONY::Col_Calc_Wrapper(dest_idx);
+    return settled;
+}
+
 // ── Fleet box selection (OrionLayer, open fix 21) ────────
 
 // Select or deselect ONE ship of the stack the fleet box shows, the
@@ -2648,6 +2748,10 @@ static void ProcessInput() {
                 up.button.down = false;
                 SDL_PushEvent(&up);
             }
+            break;
+
+        case MSG_SETTLE_POPS:
+            Settle_Pops_(cmd.param1, cmd.param2, cmd.pairs);  // OrionLayer, open fix 92.
             break;
 
         case MSG_SET_SPIES:

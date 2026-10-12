@@ -267,6 +267,18 @@ void Server::HandleClientMessage(Client& client) {
         }
         break;
     }
+    case MSG_SETTLE_POPS: {
+        // OrionLayer, open fix 92. int16 source, int16 destination, uint8 n (1..42), n pop indices — the whole list or nothing.
+        if (payload_len >= 5 && payload[4] > 0 && payload[4] <= 42 && payload_len == (size_t)5 + payload[4]) {
+            InputCommand cmd{};
+            cmd.type = MSG_SETTLE_POPS;
+            memcpy(&cmd.param1, payload, 2);
+            memcpy(&cmd.param2, payload + 2, 2);
+            cmd.pairs.assign(payload + 5, payload + 5 + payload[4]);
+            input_queue_.push_back(cmd);
+        }
+        break;
+    }
     case MSG_SET_SPIES: {
         // OrionLayer, open fix 64. The whole list (2 + 3n bytes, n <= 8), or nothing.
         if (payload_len >= 2 && payload[0] <= 8 && payload_len == (size_t)2 + 3 * payload[0]) {

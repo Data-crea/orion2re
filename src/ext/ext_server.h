@@ -50,6 +50,8 @@ constexpr uint16_t MSG_COMBAT_COMMAND = 0x88;
 constexpr uint16_t MSG_SET_SPIES      = 0x89;
 // OrionLayer, open fix 89. uint16: a key code as platform.cpp translates F1-F10 (0x3B00-0x4400), Alt+F1-F10 (0x6800-0x7100) and Alt+letter (scan << 8, 0x1000-0x3200); anything else is dropped.
 constexpr uint16_t MSG_INJECT_RAW_KEY = 0x8A;
+// OrionLayer, open fix 92. Colonists of the colony screen's colony to another colony at the same star: int16 source colony, int16 destination colony, uint8 n, n x uint8 pop index; all or nothing.
+constexpr uint16_t MSG_SETTLE_POPS = 0x8B;
 
 // Subscription flags (bitmask)
 constexpr uint16_t SUB_STATE         = 0x01;
