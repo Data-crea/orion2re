@@ -893,6 +893,7 @@ option(ORION2RE_EXT "Build with Extension API (TCP server for external clients)"
 if(ORION2RE_EXT AND TARGET orion2re_game_objects)
     target_sources(orion2re_game_objects PRIVATE
         src/ext/ext_api.cpp
+        src/ext/ext_layout.cpp  # OrionLayer, open fix 93.
         src/ext/ext_server.cpp)
     target_compile_definitions(orion2re_game_objects PRIVATE ORION2RE_EXT)
     target_include_directories(orion2re_game_objects PRIVATE ${CMAKE_SOURCE_DIR}/src)

@@ -2,6 +2,7 @@
 // Localhost only, no encryption, no compression.
 
 #include "ext_server.h"
+#include "ext_layout.h"
 
 #include <cstring>
 #include <algorithm>
@@ -185,10 +186,15 @@ void Server::HandleClientMessage(Client& client) {
             memcpy(&sub, payload + 2, 2);
             client.subscriptions = sub;
         }
-        // Send HELLO_REPLY
-        uint16_t reply[2] = { PROTO_VERSION, 0 };
+        // OrionLayer, open fix 93. HELLO_REPLY, then the layout of every raw record (CAP_LAYOUT):
+        // a client finds each member by name, so a record that grows or
+        // moves in the engine needs no change in the client.
+        uint16_t reply[2] = { PROTO_VERSION, CAP_LAYOUT };
         SendFrame(client.fd, MSG_HELLO_REPLY, 0,
                   client.sequence++, (uint8_t*)reply, sizeof(reply));
+        const std::vector<uint8_t>& layout = LayoutTable();
+        SendFrame(client.fd, MSG_LAYOUT, 0, client.sequence++,
+                  layout.data(), (uint32_t)layout.size());
         // OrionLayer: a (re)connecting client needs the current field
         // list right away, not on the next count change.
         fields_dirty_ = true;

@@ -25,6 +25,13 @@ constexpr uint16_t MSG_EVENT         = 0x13;
 // char[37] description, char[25] stardate, char[25] date).
 // See doc/ext_save_slots.patch.
 constexpr uint16_t MSG_SAVE_SLOTS    = 0x14;
+// OrionLayer, open fix 93. The records the wire carries as raw bytes, member by member: name, offset,
+// size (src/ext/ext_layout.h, docs/extension-api.md). Sent once, right after
+// HELLO_REPLY, when HELLO_REPLY's capabilities carry CAP_LAYOUT.
+constexpr uint16_t MSG_LAYOUT        = 0x15;
+
+// HELLO_REPLY's second word: what this server sends beyond protocol 1.
+constexpr uint16_t CAP_LAYOUT        = 0x0001;
 
 // Client → Server message types
 constexpr uint16_t MSG_HELLO         = 0x01;
