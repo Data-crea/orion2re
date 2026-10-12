@@ -94,7 +94,19 @@ namespace platform {
 
         void Publish_Present_Scaler_Config() {
             SDL_SetAtomicInt(&g_requested_present_scaler, (int)platform::g_present_scaler);
-            SDL_SetAtomicInt(&g_requested_vsync_enabled, platform::g_vsync_enabled != 0 ? 1 : 0);
+            int vsync_enabled = platform::g_vsync_enabled != 0 ? 1 : 0;
+#ifdef ORION2RE_EXT
+            // ORION2RE_NO_VSYNC=1 (OrionLayer open fix 31): present without
+            // waiting for the display, whatever interface.vsync_enabled says.
+            // A VSync present to a window the compositor is not drawing never
+            // completes; unattended runs set this. v2's own switch is the
+            // config key interface.vsync_enabled = false.
+            const char* no_vsync = SDL_getenv("ORION2RE_NO_VSYNC");
+            if (no_vsync != nullptr && no_vsync[0] != '\0' && no_vsync[0] != '0') {
+                vsync_enabled = 0;
+            }
+#endif
+            SDL_SetAtomicInt(&g_requested_vsync_enabled, vsync_enabled);
             Request_Present_Refresh();
         }
 
