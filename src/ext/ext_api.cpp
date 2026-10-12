@@ -1554,6 +1554,68 @@ static void SerializeState(std::vector<uint8_t>& buf,
             Write16(buf, u.structure_max);
         }
     }
+
+    // 22. What the acting unit's weapons can hit now: "CTGT", written ONLY
+    //     while a battle is live and a unit acts, after CRES.
+    //     OrionLayer, open fix 54.
+    //
+    //     The engine's own verdict, as CMBTFIRE::Fire_Ship takes it for each
+    //     weapon slot (cmbtfire.cpp): the target inside the slot's arc
+    //     (Get_Weapon_Arc of Relative_Bearing / _XY_), ammunition by the
+    //     slot's type (a torpedo fires with ammo 0, anything else needs ammo),
+    //     Weapon_In_Range and Target_Is_Legal_For_Weapon. All of them only
+    //     read (work order 194 read each and every helper they call: no write,
+    //     no random number). NOT in it: whether the player has the slot
+    //     switched on (`active`, CMBT has it) and the reload Fire_Ship does
+    //     on its way (shots_left / status, CMBT has both). Per unit, then per
+    //     live missile: one byte, bit k = slot k can hit it.
+    if (g_combat_live && MOX::combat_data != nullptr && MOX::missile != nullptr &&
+        MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count &&
+        MOX::combat_total_ship_count <= 210) {
+        const int16_t src = MOX::cur_ship;
+        const int16_t units = MOX::combat_total_ship_count;
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'T');
+        buf.push_back((uint8_t)'G');
+        buf.push_back((uint8_t)'T');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, (int16_t)g_combat_serial);
+        Write16(buf, src);
+        auto slot_mask = [&](int16_t target, int16_t flag, uint8_t arc) {
+            uint8_t mask = 0;
+            for (int16_t k = 0; k < 8; k++) {
+                const s_combat_weapon_slot& w = MOX::combat_data[src].weapons[k];
+                if (w.weapon_id == 0 || (arc & w.arc) == 0) continue;
+                const bool torpedo = TECHDATA::weapons[w.weapon_id].type == WEAPON_TYPE_TORPEDO;
+                if (torpedo ? w.ammo != 0 : w.ammo == 0) continue;
+                if (CMBTFIRE::Weapon_In_Range(k, src, target, flag, 0) != 0 &&
+                    CMBTFIRE::Target_Is_Legal_For_Weapon(w.weapon_id, w.specials, target, flag) != 0) {
+                    mask |= (uint8_t)(1u << k);
+                }
+            }
+            return mask;
+        };
+        Write16(buf, units);
+        for (int16_t t = 0; t < units; t++) {
+            uint8_t mask = 0;
+            if (t != src && MOX::combat_data[t].unit_status == 0 &&
+                (t != 0 || MOX::cmbt_colony_id != -1)) {
+                mask = slot_mask(t, 0, CMBTDRW1::Get_Weapon_Arc(CMBTDRW1::Relative_Bearing(src, t)));
+            }
+            Write8(buf, mask);
+        }
+        int16_t live = 0;
+        for (int i = 0; i < 300; i++) {
+            if (MOX::missile[i].type > 0) ++live;
+        }
+        Write16(buf, live);
+        for (int16_t m = 0; m < 300; m++) {
+            if (MOX::missile[m].type <= 0) continue;
+            Write16(buf, m);
+            Write8(buf, slot_mask(m, 1, CMBTDRW1::Get_Weapon_Arc(CMBTDRW1::Relative_Bearing_XY(
+                src, MOX::missile[m].x, MOX::missile[m].y))));
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
