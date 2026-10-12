@@ -1965,6 +1965,10 @@ namespace CMBTFIRE {
         }
 
         int16_t is_dead = Is_Combat_Ship_Dead(target_ship_idx);
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 74. The discharge as the beam shot it is drawn as: weapon 0x2E, no slot (-1), its damage past shields and absorbed, before the target's death.
+        ext::Combat_Event(ext::CEV_BEAM_SHOT, source_ship_idx, target_ship_idx, 0, -1, 0x2e, (int16_t)damage_result_flags, damage, shield_hit_result);
+#endif
 
         if (MOX::apply_damage_to_planet != 0 && MOX::super_fast_flag == 0) {
             if (CMBTDRW1::Ship_Completely_On_Screen(target_ship_idx) == 0) {
