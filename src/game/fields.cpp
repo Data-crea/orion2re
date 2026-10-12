@@ -170,6 +170,12 @@ namespace fields {
     int16_t __cdecl Get_Input() {
         platform::Check_Exit();
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 42. The client hears the screen during its input delay too; the delay still returns 0 below.
+        if (input_delay > 0) {
+            ext::Tick(MOX::current_screen);
+        }
+#endif
         if (input_delay > 0) {
             input_delay--;
             return 0;
