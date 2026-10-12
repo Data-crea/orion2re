@@ -175,7 +175,36 @@ enum CombatEventType : uint8_t {
     CEV_WEB_DAMAGE = 15,    // unit, past shields, absorbed
     CEV_CAPTURE = 16,       // attacker, defender, result (0x32 taken, 0x31 destroyed, 0x33 failed), marines, defenders left, owner after
     CEV_RAID = 17,          // attacker, target, raiders sent, raiders back, defenders left, damage
+    CEV_COMMAND = 18,       // op, result (0 taken, else why refused), a, b — OrionLayer, open fix 58.
 };
+
+/// OrionLayer, open fix 58. One command per battle action (decision 52), consumed where the human's input is read.
+///
+/// A client that sends MOVE as a click on the battle map depends on the
+/// original's view origin and on its cursor image (combat1.cpp: the map
+/// branch shifts the cell by `Get_Pointer_Image_Number`), and a right click
+/// (FACE) or a missile field outside the original's view cannot be sent at
+/// all. A command names the action and its cell or target. It is consumed
+/// in COMBAT1::Do_Combat_Turn right after the human's Get_Input: the
+/// command's input takes the click's place, and the map and face branches
+/// take the command's cell instead of the pointer's — everything after that
+/// is the original's own code (the network message, Move_Ship, Fire_Ship,
+/// Turn_To_Face, the bookkeeping, the confirm box of a stasis release, the
+/// board popup). Checked before: the battle's serial and the acting unit
+/// (a stale command is dropped), orders allowed now, and what the click
+/// branch itself relies on (a legal cell, a live enemy at its anchor, ...).
+/// Taken or refused, CEV_COMMAND says so.
+enum CombatCommandOp : uint8_t {
+    CCMD_MOVE = 1,          // a, b: the cell (Set_Legal_Moves marked it 2000)
+    CCMD_FIRE = 2,          // a: the target unit; b: slot mask, -1 = as switched (single player only)
+    CCMD_FIRE_MISSILE = 3,  // a: the missile (its field in the original's list)
+    CCMD_FACE = 4,          // a, b: the cell to face
+    CCMD_SELECT = 5,        // a: an own unit (not in initiative mode)
+    CCMD_REMOVE_STASIS = 6, // a: an enemy in stasis (the original's confirm box follows)
+    CCMD_BOARD = 7,         // a: the target (board mode, then the target; the board popup follows)
+};
+int16_t Take_Combat_Command(int16_t input_val);
+void Combat_Command_Cell(int16_t* x, int16_t* y);
 void Combat_Event(uint8_t type, int16_t a0 = 0, int16_t a1 = 0, int16_t a2 = 0,
                   int16_t a3 = 0, int16_t a4 = 0, int16_t a5 = 0,
                   int16_t a6 = 0, int16_t a7 = 0);

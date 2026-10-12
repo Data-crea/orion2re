@@ -41,6 +41,20 @@ static CombatEventRecord g_combat_events[1024];
 static uint32_t g_combat_event_next = 1;   // the number the next event gets
 static uint32_t g_combat_event_sent = 1;   // the first number not yet sent
 
+// OrionLayer, open fix 58. The battle command waiting to be consumed (ext_api.h).
+struct CombatCommand {
+    bool pending;
+    uint16_t serial;
+    int16_t unit;
+    uint8_t op;
+    int16_t a, b, c;
+};
+static CombatCommand g_combat_cmd = {};
+static CombatCommand g_board_target = {};   // BOARD's second step
+static bool g_cmd_cell_valid = false;
+static int16_t g_cmd_cell_x = 0;
+static int16_t g_cmd_cell_y = 0;
+
 // ── Pointer coordinates ──────────────────────────────────
 
 /// Convert a 640x480 game point to the window point that maps back
@@ -2136,6 +2150,22 @@ static void ProcessInput() {
             }
             break;
 
+        case MSG_COMBAT_COMMAND:
+            // OrionLayer, open fix 58. Kept for the battle's next human input; a later one replaces it.
+            if (cmd.pairs.size() >= 11) {
+                const uint8_t* p = cmd.pairs.data();
+                CombatCommand c = {};
+                c.pending = true;
+                memcpy(&c.serial, p, 2);
+                memcpy(&c.unit, p + 2, 2);
+                c.op = p[4];
+                memcpy(&c.a, p + 5, 2);
+                memcpy(&c.b, p + 7, 2);
+                memcpy(&c.c, p + 9, 2);
+                g_combat_cmd = c;
+            }
+            break;
+
         case MSG_CANCEL_FIELD:
             // Right-click on field (DOWN + UP)
             if (cmd.param1 >= 0 && cmd.param1 < fields::fields_count) {
@@ -2221,6 +2251,118 @@ void Combat_Event(uint8_t type, int16_t a0, int16_t a1, int16_t a2, int16_t a3,
     CombatEventRecord& e = g_combat_events[g_combat_event_next % 1024];
     e = {g_combat_event_next, g_combat_serial, type, {a0, a1, a2, a3, a4, a5, a6, a7}};
     ++g_combat_event_next;
+}
+
+// OrionLayer, open fix 58. Take_Combat_Command: the command's storage is above ProcessInput (ext_api.h).
+void Combat_Command_Cell(int16_t* x, int16_t* y) {
+    if (g_cmd_cell_valid) {
+        *x = g_cmd_cell_x;
+        *y = g_cmd_cell_y;
+        g_cmd_cell_valid = false;
+    }
+}
+
+static bool Combat_Unit_At_Anchor_(int16_t t) {
+    if (t < 0 || t >= MOX::combat_total_ship_count) return false;
+    const s_combat_data& u = MOX::combat_data[t];
+    return u.unit_status == 0 && u.x >= 0 && u.x < COMBAT_GRID_WIDTH &&
+           u.y >= 0 && u.y < COMBAT_GRID_HEIGHT && MOX::combat_grid[u.x][u.y] == t;
+}
+
+int16_t Take_Combat_Command(int16_t input_val) {
+    g_cmd_cell_valid = false;
+    if (!g_combat_live || MOX::combat_data == nullptr) {
+        g_combat_cmd.pending = g_board_target.pending = false;
+        return input_val;
+    }
+    const s_combat_data& me = MOX::combat_data[MOX::cur_ship];
+    if (g_board_target.pending) {                     // BOARD, step 2
+        const CombatCommand b = g_board_target;
+        g_board_target.pending = false;
+        if (b.serial == g_combat_serial && b.unit == MOX::cur_ship &&
+            MOX::board_flag != 0 && Combat_Unit_At_Anchor_(b.a)) {
+            g_cmd_cell_x = MOX::combat_data[b.a].x;
+            g_cmd_cell_y = MOX::combat_data[b.a].y;
+            g_cmd_cell_valid = true;
+            return MOX::space_field;
+        }
+        Combat_Event(CEV_COMMAND, CCMD_BOARD, 7, b.a, 0);   // board mode refused (already boarded)
+        return input_val;
+    }
+    if (!g_combat_cmd.pending) return input_val;
+    const CombatCommand c = g_combat_cmd;
+    g_combat_cmd.pending = false;
+    auto refuse = [&](int16_t why) {
+        Combat_Event(CEV_COMMAND, c.op, why, c.a, c.b);
+        return input_val;
+    };
+    auto cell = [&](int16_t x, int16_t y, int16_t input) {
+        g_cmd_cell_x = x;
+        g_cmd_cell_y = y;
+        g_cmd_cell_valid = true;
+        Combat_Event(CEV_COMMAND, c.op, 0, c.a, c.b);
+        return input;
+    };
+    if (c.serial != g_combat_serial || c.unit != MOX::cur_ship) return refuse(1);
+    if (MOX::order_info_flag != 1 || MOX::space_field < 1) return refuse(2);
+    const bool free_mode = MOX::board_flag + MOX::skan_flag <= 0;
+    switch (c.op) {
+    case CCMD_MOVE:
+        if (!free_mode) return refuse(5);
+        if (c.a < 0 || c.a >= COMBAT_GRID_WIDTH || c.b < 0 || c.b >= COMBAT_GRID_HEIGHT ||
+            MOX::combat_grid[c.a][c.b] != 2000) return refuse(3);
+        return cell(c.a, c.b, MOX::space_field);
+    case CCMD_FACE:
+        if (c.a < 0 || c.a >= COMBAT_GRID_WIDTH || c.b < 0 || c.b >= COMBAT_GRID_HEIGHT) return refuse(3);
+        return cell(c.a, c.b, (int16_t)-MOX::space_field);
+    case CCMD_FIRE:
+    case CCMD_SELECT:
+    case CCMD_REMOVE_STASIS: {
+        if (!free_mode) return refuse(5);
+        if (!Combat_Unit_At_Anchor_(c.a) || c.a == MOX::cur_ship) return refuse(4);
+        const s_combat_data& t = MOX::combat_data[c.a];
+        const bool enemy = t.owner != me.owner;
+        const bool stasis = CMBTMOV1::Ship_Is_In_Stasis(c.a) != 0;
+        if (c.op == CCMD_FIRE && (!enemy || stasis || t.special_status_flag == 4)) return refuse(4);
+        if (c.op == CCMD_SELECT && (enemy || MOX::combat_init != 0)) return refuse(4);
+        if (c.op == CCMD_REMOVE_STASIS && (!enemy || !stasis)) return refuse(4);
+        if (c.op == CCMD_FIRE && c.b != -1) {
+            // The mask as the eight weapon rows would leave it: a slot in the
+            // mask on, one out of it off for this shot (0, which the fire
+            // branch puts back to 1), one switched off for good (-1) left so.
+            // A network game learns the rows only from TOGGLE_WEAPON
+            // messages, so there the mask must be the rows' own.
+            if (MOX::net_flag != 0) return refuse(6);
+            for (int k = 0; k < 8; k++) {
+                s_combat_weapon_slot& w = MOX::combat_data[MOX::cur_ship].weapons[k];
+                if ((c.b >> k) & 1) w.active = 1;
+                else if (w.active != -1) w.active = 0;
+            }
+        }
+        return cell(t.x, t.y, MOX::space_field);
+    }
+    case CCMD_FIRE_MISSILE:
+        if (c.a < 0 || c.a >= 300 || MOX::missile[c.a].type <= 0 ||
+            MOX::missile_field[c.a] < 1) return refuse(8);
+        Combat_Event(CEV_COMMAND, c.op, 0, c.a, c.b);
+        return MOX::missile_field[c.a];
+    case CCMD_BOARD:
+        if (MOX::skan_flag != 0) return refuse(5);
+        if (!Combat_Unit_At_Anchor_(c.a) || MOX::combat_data[c.a].owner == me.owner) return refuse(4);
+        if (MOX::board_flag == 0) {
+            // Step 1 is the BOARD radio: the field engine writes the flag
+            // on a click, an activation does not — so it is written here,
+            // and the original's handler checks Already_Boarded.
+            MOX::board_flag = 1;
+            g_board_target = c;
+            g_board_target.pending = true;
+            Combat_Event(CEV_COMMAND, c.op, 0, c.a, c.b);
+            return MOX::board_button;
+        }
+        return cell(MOX::combat_data[c.a].x, MOX::combat_data[c.a].y, MOX::space_field);
+    default:
+        return refuse(9);
+    }
 }
 
 // OrionLayer, open fix 57. How the last battle ended (ext_api.h).

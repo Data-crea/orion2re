@@ -549,6 +549,9 @@ namespace COMBAT1 {
                                         input_val = MOX::done_button;
                                     } else {
                                         input_val = Get_Tactical_Input();
+#ifdef ORION2RE_EXT
+                                        input_val = ext::Take_Combat_Command(input_val);  // OrionLayer, open fix 58.
+#endif
                                     }
 
                                     for (int16_t m_idx = 0; m_idx < MAX_COMBAT_FLYERS; ++m_idx) {
@@ -828,6 +831,9 @@ namespace COMBAT1 {
                                     if ((int16_t)(input_val + MOX::space_field) == 0) {
                                         int16_t face_x = MOX::cur_combat_x + MOX::xpos / 2;
                                         int16_t face_y = MOX::cur_combat_y + MOX::ypos / 2;
+#ifdef ORION2RE_EXT
+                                        ext::Combat_Command_Cell(&face_x, &face_y);  // OrionLayer, open fix 58.
+#endif
                                         int8_t original_owner = MOX::combat_data[MOX::cur_ship].owner;
                                         if (MOX::net_flag != 0 && MOX::PLAYER_NUM != MOX::net_destination) {
                                             Send_Tactical_Combat_Message(MOX::net_destination, TACTICAL_NET_MSG_TURN_TO_FACE, face_x, face_y, 0);
@@ -856,6 +862,9 @@ namespace COMBAT1 {
                                             }
                                         }
 
+#ifdef ORION2RE_EXT
+                                        ext::Combat_Command_Cell(&tx, &ty);  // OrionLayer, open fix 58.
+#endif
                                         int16_t tgt_idx = -1;
                                         if (tx >= 0 && tx < MOX::combat_grid_width && ty >= 0 && ty < MOX::combat_grid_height) {
                                             tgt_idx = MOX::combat_grid[tx][ty];

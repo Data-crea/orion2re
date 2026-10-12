@@ -44,6 +44,8 @@ constexpr uint16_t MSG_SELECT_SHIP   = 0x85;
 constexpr uint16_t MSG_SHOW_WINDOW   = 0x86;
 // OrionLayer, open fix 61. A RIGHT click at (x, y) in 640x480 space: int16 x, int16 y.
 constexpr uint16_t MSG_INJECT_RIGHT_CLICK = 0x87;
+// OrionLayer, open fix 58. One battle action: uint16 serial, int16 unit, uint8 op, int16 a, int16 b, int16 c.
+constexpr uint16_t MSG_COMBAT_COMMAND = 0x88;
 
 // Subscription flags (bitmask)
 constexpr uint16_t SUB_STATE         = 0x01;

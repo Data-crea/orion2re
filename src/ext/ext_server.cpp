@@ -233,6 +233,16 @@ void Server::HandleClientMessage(Client& client) {
         }
         break;
     }
+    case MSG_COMBAT_COMMAND: {
+        // OrionLayer, open fix 58. The eleven bytes whole, or nothing.
+        if (payload_len >= 11) {
+            InputCommand cmd{};
+            cmd.type = MSG_COMBAT_COMMAND;
+            cmd.pairs.assign(payload, payload + 11);
+            input_queue_.push_back(cmd);
+        }
+        break;
+    }
     case MSG_CANCEL_FIELD: {
         if (payload_len >= 2) {
             InputCommand cmd{};
