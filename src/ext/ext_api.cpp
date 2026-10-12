@@ -478,7 +478,11 @@ static void SerializeFields(std::vector<uint8_t>& buf) {
 static bool SerializeSaveSlots(std::vector<uint8_t>& buf,
                                int16_t current_screen) {
     buf.clear();
-    if (current_screen != SCREEN_GAME) {
+    // OrionLayer change, Open Fix 34 (orionlayerv3 doc/orion2re_open_fixes.md):
+    // the main menu's Load dialog (screen_data 2) sends its save slots too.
+    const bool main_menu_load = current_screen == SCREEN_MAIN_MENU
+                                && MOX::screen_data == 2;
+    if (current_screen != SCREEN_GAME && !main_menu_load) {
         return false;
     }
     const int16_t screen_data = MOX::screen_data;
