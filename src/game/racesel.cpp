@@ -318,6 +318,7 @@ namespace RACESEL {
                             struct_::Copy_Structure(plr->traits, race_specials[i], sizeof(plr->traits));
                             plr->race = (uint8_t)i;
                             strlcpy(plr->race_name, MOX::race_names[i], sizeof(plr->race_name));
+                            old_race = static_cast<int16_t>(i);
                             fields::Deactivate_Auto_Function();
                             fields::Clear_Fields();
                             if (Racial_Option_Screen(plr) == 1) {
