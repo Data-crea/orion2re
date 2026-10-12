@@ -46,6 +46,8 @@ constexpr uint16_t MSG_SHOW_WINDOW   = 0x86;
 constexpr uint16_t MSG_INJECT_RIGHT_CLICK = 0x87;
 // OrionLayer, open fix 58. One battle action: uint16 serial, int16 unit, uint8 op, int16 a, int16 b, int16 c.
 constexpr uint16_t MSG_COMBAT_COMMAND = 0x88;
+// OrionLayer, open fix 64. The Races screen's spies: uint8 n, n x (uint8 player, uint8 spies, uint8 mission 1-3 or 0 kept), uint8 agent pool.
+constexpr uint16_t MSG_SET_SPIES      = 0x89;
 
 // Subscription flags (bitmask)
 constexpr uint16_t SUB_STATE         = 0x01;

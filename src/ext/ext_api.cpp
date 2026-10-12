@@ -2033,6 +2033,67 @@ static int Select_Fltscrn_Ship_(int16_t ship_idx, int16_t selected) {
 
 // ── Input injection ──────────────────────────────────────
 
+// OrionLayer, open fix 64. The Races screen's spies and missions set as one list, all or nothing.
+// The original moves spies by picking icons with the POINTER (a pick takes
+// as many as the pointer's x says, racescrn.cpp Draw_Icon_Group_Cursor)
+// and dropping them on another group; a mission is a multi-button written
+// on a mouse click; both reach the player record only when the screen is
+// left (Update_Spy_Stuff). A client cannot aim the pointer, and could not
+// see the result. Applied only while the screen is up and nothing is in
+// hand; every race the screen shows must be listed, no group above 63
+// (Move_Spy_Group_From_Mouse), the total kept, a mission 1-3 (or 0: kept).
+// Written into the screen's groups AND the record (the setters the
+// screen's own commit uses), so the snapshot shows it and the later commit
+// writes the same numbers.
+static void Set_Spies_(const std::vector<uint8_t>& p) {
+    using namespace RACESCRN;
+    if (MOX::current_screen != SCREEN_RACE || g_display_p == nullptr ||
+        g_agent_group_p == nullptr || g_mouse_group_p == nullptr ||
+        g_mouse_group_p->count != 0 || p.size() < 2) return;
+    const int n = p[0];
+    if ((int)p.size() != 2 + 3 * n) return;
+    int want[8], mission[8];
+    int eligible = 0, listed = 0, total_now = g_agent_group_p->count;
+    for (int i = 0; i < 8; ++i) want[i] = mission[i] = -1;
+    for (int i = 0; i < MOX::active_count && i < 8; ++i) {
+        const s_racescrn_race_display& d = g_display_p[i];
+        if (d.is_empty_slot || d.is_eliminated) continue;
+        ++eligible;
+        total_now += d.spy_icons_group.count;
+    }
+    const int agents = p[1 + 3 * n];
+    int total_req = agents;
+    if (agents > 63) return;
+    for (int k = 0; k < n; ++k) {
+        const int player = p[1 + 3 * k], spies = p[2 + 3 * k], m = p[3 + 3 * k];
+        int at = -1;
+        for (int i = 0; i < MOX::active_count && i < 8; ++i) {
+            const s_racescrn_race_display& d = g_display_p[i];
+            if (!d.is_empty_slot && !d.is_eliminated && d.player_idx == player) at = i;
+        }
+        if (at < 0 || want[at] >= 0 || spies > 63 || m > 3) return;
+        want[at] = spies;
+        mission[at] = m;
+        total_req += spies;
+        ++listed;
+    }
+    if (listed != eligible || total_req != total_now) return;
+    for (int i = 0; i < MOX::active_count && i < 8; ++i) {
+        if (want[i] < 0) continue;
+        s_racescrn_race_display& d = g_display_p[i];
+        d.spy_icons_group.count = (uint16_t)want[i];
+        Calculate_Icon_Group_Data(&d.spy_icons_group);
+        BILL::Set_My_Spy_Number(d.player_idx, (uint8_t)want[i]);
+        if (mission[i] > 0) {
+            d.agent_mission_idx = (int16_t)mission[i];
+            BILL::Set_My_Spy_Mission(d.player_idx, (int8_t)(mission[i] - 1));
+        }
+    }
+    g_agent_group_p->count = (uint16_t)agents;
+    Calculate_Icon_Group_Data(g_agent_group_p);
+    BILL::Set_My_Agent_Number((uint8_t)agents);
+}
+
 static void ProcessInput() {
     InputCommand cmd;
     while (g_server.PopInput(cmd)) {
@@ -2166,6 +2227,10 @@ static void ProcessInput() {
                 up.button.down = false;
                 SDL_PushEvent(&up);
             }
+            break;
+
+        case MSG_SET_SPIES:
+            Set_Spies_(cmd.pairs);  // OrionLayer, open fix 64.
             break;
 
         case MSG_COMBAT_COMMAND:

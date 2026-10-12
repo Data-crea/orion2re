@@ -247,6 +247,16 @@ void Server::HandleClientMessage(Client& client) {
         }
         break;
     }
+    case MSG_SET_SPIES: {
+        // OrionLayer, open fix 64. The whole list (2 + 3n bytes, n <= 8), or nothing.
+        if (payload_len >= 2 && payload[0] <= 8 && payload_len == (size_t)2 + 3 * payload[0]) {
+            InputCommand cmd{};
+            cmd.type = MSG_SET_SPIES;
+            cmd.pairs.assign(payload, payload + payload_len);
+            input_queue_.push_back(cmd);
+        }
+        break;
+    }
     case MSG_CANCEL_FIELD: {
         if (payload_len >= 2) {
             InputCommand cmd{};
