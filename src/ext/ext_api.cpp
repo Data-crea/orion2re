@@ -6,6 +6,7 @@
 #include "ext/ext_server.h"
 #include "game/newgame.h"
 #include "game/platform.h"
+#include "game/build_queue.h"  // OrionLayer, open fix 35. autobuild_settings, sent in "COLS".
 
 #include <vector>
 #include <cstring>
@@ -436,6 +437,36 @@ static void SerializeState(std::vector<uint8_t>& buf,
             buf.insert(buf.end(), (const uint8_t*)text,
                        (const uint8_t*)text + len);
         }
+    }
+
+    // 6. Which colony the colony screen and its build popup show: "COLS",
+    //    written ONLY while SCREEN_COLONY or SCREEN_QUEUE_POPUP is up, and
+    //    LAST. OrionLayer, open fix 35.
+    //
+    //    Both screens derive their colony on entry from MOX::screen_data
+    //    (the star) and COLONY::orbit_temp into COLONY::colony_handle
+    //    (colony_main.cpp:249-255, colbldg.cpp:462-469); none of the three
+    //    was serialized, and the game enters screen 1 from eight places,
+    //    some of them its own (reports, info, turn summary, landing), so a
+    //    client cannot know it. The pair is set by every caller BEFORE the
+    //    switch; the handle only once the screen has run, so the first tick
+    //    at the new id carries the previous handle — the pair and the handle
+    //    are both sent and a client uses the colony when they agree.
+    //    Also the screen's own modes, which no field shows:
+    //    COLONY::drawing_display (0 the screen, 2 a planet description),
+    //    COLONY::field_mode, and the autobuild setting that decides the
+    //    label and what [18] does (colony_main.cpp:961-974).
+    if (current_screen == SCREEN_COLONY || current_screen == SCREEN_QUEUE_POPUP) {
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'O');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'S');
+        Write16(buf, MOX::screen_data);
+        Write16(buf, COLONY::orbit_temp);
+        Write16(buf, COLONY::colony_handle);
+        Write8(buf, COLONY::drawing_display);
+        Write8(buf, COLONY::field_mode);
+        Write8(buf, BUILD_QUEUE::autobuild_settings.enabled);
     }
 }
 
