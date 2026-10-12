@@ -513,6 +513,30 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write8(buf, ok ? (uint8_t)(EVENTS::Event_Check_Plague(h) != 0) : (uint8_t)0xFF);
         Write8(buf, ok ? (uint8_t)(EVENTS::Event_Check_Population_Boom(h) != 0) : (uint8_t)0xFF);
     }
+
+    // 9. What the shown colony's current product costs, and how long it
+    //    takes: "CPRD", written ONLY while SCREEN_COLONY or
+    //    SCREEN_QUEUE_POPUP is up, and LAST. OrionLayer, open fix 38.
+    //
+    //    The colony screen draws the production bar over
+    //    COLCALC::Colony_Producing_Product_Cost (colony.cpp:967-978) and
+    //    "%d turn(s)" from Calculate_Current_Production_Turn_Count
+    //    (:980-994). production_spent and bought_outright are in s_colony
+    //    and on the wire; the cost is a function of source tables, the
+    //    player's ship designs and config values (colcalc.cpp:2576,
+    //    lander_ship_cost), and the turns follow from it. The two numbers
+    //    the screen draws are sent; -1 while the handle is not a colony.
+    if (current_screen == SCREEN_COLONY || current_screen == SCREEN_QUEUE_POPUP) {
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'R');
+        buf.push_back((uint8_t)'D');
+        const int16_t h = COLONY::colony_handle;
+        const bool ok = h >= 0 && h < MOX::NUM_COLONIES;
+        Write16(buf, ok ? MOX::colony[h].producing[0] : (int16_t)-1);
+        Write32(buf, ok ? COLCALC::Colony_Producing_Product_Cost(&MOX::colony[h]) : -1);
+        Write16(buf, ok ? COLONY::Calculate_Current_Production_Turn_Count(h) : (int16_t)-1);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
