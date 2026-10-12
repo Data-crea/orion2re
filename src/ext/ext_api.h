@@ -78,6 +78,12 @@ struct ListFieldGuard {
     ~ListFieldGuard();
 };
 
+/// OrionLayer, open fix 50. True while SCORE::Hall_Of_Fame_Screen takes input:
+/// set once it has read the file and sorted it, cleared when it leaves —
+/// SCORE::hi outlives the screen and the first tick at 14 comes before the
+/// file is read, so the pointer alone cannot say the table is current.
+extern bool g_hof_live;
+
 /// OrionLayer, open fix 29. The generic message box that is up: which kind,
 /// its title and text as the caller handed them (raw, FMTPARA codes and
 /// all), the field id of each answer and a timed box's ticks — the text

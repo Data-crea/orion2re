@@ -1089,6 +1089,46 @@ static void SerializeState(std::vector<uint8_t>& buf,
             Write16(buf, COMBFIND::target.num_player_targets);
         }
     }
+
+    // 17. The Hall of Fame: "HOFM", written ONLY while it takes input (it
+    //     reports 14 on both ways in), and LAST. OrionLayer, open fix 50.
+    //
+    //     SCORE::Hall_Of_Fame_Screen draws its ten entries from SCORE::hof
+    //     in the order Init sorted them (hi->sort_list, score descending)
+    //     and the difficulty words from ESTRINGS into difficulty_string —
+    //     none of it was serialized. Sent in the DISPLAY order, as the file
+    //     holds it: the record, the score, the race id, the difficulty and
+    //     its word as the engine loaded it, the player's and the race's
+    //     names; and the entry the screen flashes (a new record at game end).
+    if (current_screen == SCREEN_HALL_OF_FAME && g_hof_live && SCORE::hi != nullptr) {
+        buf.push_back((uint8_t)'H');
+        buf.push_back((uint8_t)'O');
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'M');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, SCORE::hof.version);
+        Write16(buf, SCORE::entry_to_flash);
+        Write8(buf, 10);
+        for (int i = 0; i < 10; i++) {
+            const int16_t r = SCORE::hi->sort_list[i][1];
+            const bool ok = r >= 0 && r < 10;
+            Write16(buf, r);
+            Write16(buf, ok ? SCORE::hof.scores[r] : 0);
+            Write16(buf, ok ? SCORE::hof.race_ids[r] : 0);
+            const int8_t d = ok ? SCORE::hof.difficulties[r] : 0;
+            Write8(buf, (uint8_t)d);
+            const char* strs[3] = {
+                ok ? SCORE::hof.player_names[r] : "",
+                ok ? SCORE::hof.race_names[r] : "",
+                (d >= 0 && d < GAME_DIFFICULTY_COUNT) ? SCORE::difficulty_string[d] : ""};
+            const size_t caps[3] = {20, 20, 15};
+            for (int k = 0; k < 3; k++) {
+                const size_t len = strnlen(strs[k], caps[k]);
+                Write8(buf, (uint8_t)len);
+                WriteBytes(buf, strs[k], len);
+            }
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -1575,6 +1615,9 @@ ScreenOverride::ScreenOverride(int16_t id) : previous(g_screen_override) {
 ScreenOverride::~ScreenOverride() {
     g_screen_override = previous;
 }
+
+// OrionLayer, open fix 50. The Hall of Fame takes input (ext_api.h).
+bool g_hof_live = false;
 
 // OrionLayer, open fix 29. The generic message box that is up (ext_api.h).
 MessageBoxView g_message_box = {0, nullptr, nullptr, -1, -1, 0};

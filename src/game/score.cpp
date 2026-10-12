@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 50. The Hall of Fame on the wire.
+#endif
 
 namespace SCORE {
     s_hof hof;
@@ -318,6 +321,12 @@ namespace SCORE {
 
         SCORE::hi->current_input_state = -1000;
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 50. 14 on both ways in (the end of a game runs this under its return screen) and the table on the wire while it takes input.
+        const ext::ScreenOverride ext_screen_guard(SCREEN_HALL_OF_FAME);
+        ext::g_hof_live = true;
+#endif
+
         do {
             SCORE::hi->prev_input_state = SCORE::hi->current_input_state;
             input_val = fields::Get_Input();
@@ -353,6 +362,9 @@ namespace SCORE {
 
         } while (!exit_screen);
 
+#ifdef ORION2RE_EXT
+        ext::g_hof_live = false;  // OrionLayer, open fix 50. The table is no longer the screen's.
+#endif
         ERIC::Fast_Fade_Out();
         MOX::current_screen = MOX::return_screen;
         fields::Clear_Fields();
