@@ -177,7 +177,7 @@ off on request).
 
 # orion2re
 
-This project is a restoration effort for the Master of Orion II game engine.
+This project is a restoration effort for the Master of Orion II game engine. Check our [documentation portal](https://moo2mod.com/redone/doc/) too.
 
 All rights to Master of Orion II, its assets, trademarks, and related intellectual property belong to their corresponding owners.
 
