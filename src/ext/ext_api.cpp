@@ -1616,6 +1616,33 @@ static void SerializeState(std::vector<uint8_t>& buf,
                 src, MOX::missile[m].x, MOX::missile[m].y))));
         }
     }
+
+    // 23. The galaxy map fleet box's scroll row: "FBSC", written ONLY while
+    //     the fleet box (moveable box 2) shows a stack, after CTGT (work
+    //     order 191's item 1). OrionLayer, open fix 59.
+    //
+    //     FLEETPOP builds its ship cells from fltpop_scroll_bar's
+    //     first_visible_row (fleetpop.cpp: first_fleet_movement_icon = row
+    //     * 3) and resets it when a new stack opens (Initialize_Scroll_Bar);
+    //     SerializeState sent only MOX::scroll_bar, a different bar. So a
+    //     client could not say which three rows of a stack past nine ships
+    //     the box shows. The row, the bar's rows, and its two buttons' fields.
+    if (current_screen == SCREEN_MAIN && MOVEBOX::Moveable_Box_Selected(2) &&
+        MOX::fleet_box_ship_stack >= 0 &&
+        MOX::fleet_box_ship_stack < MOX::ship_stack_count) {
+        const s_scroll_bar& bar = MOX::fltpop_scroll_bar;
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'B');
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'C');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, MOX::fleet_box_ship_stack);
+        Write16(buf, bar.first_visible_row);
+        Write16(buf, bar.visible_rows);
+        Write16(buf, bar.total_rows);
+        Write16(buf, bar.up_btn);
+        Write16(buf, bar.dn_btn);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
