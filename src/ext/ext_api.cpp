@@ -1980,6 +1980,43 @@ static void SerializeState(std::vector<uint8_t>& buf,
             }
         }
     }
+
+    // 32. The star system window on the map: "SYSW", written ONLY while
+    //     moveable box 0 shows on SCREEN_MAIN, after TXTF's place.
+    //     OrionLayer, open fix 90.
+    //
+    //     The window's star is moveable_box[0].id (Do_System_Popup,
+    //     mainscr.cpp:1151), set by a star click, by F5/F6
+    //     (Check_Function_Keys, mainscr.cpp:3082-3110) and on the way
+    //     back from a colony; it was on the wire nowhere, so a client knew
+    //     the window's star only from its own click. Its fleet bar
+    //     (Build_System_Popup_Ships, sys.cpp:2160-2193) is fifteen slots,
+    //     slot = owner, each a hidden field over the bar's picture
+    //     (Add_System_Display_Popup_Fields, sys.cpp:1845-1870) that only
+    //     MOX names. The star, whether the window shows its contents
+    //     (Draw_System_Display_Popup's test, sys.cpp:692), then per slot
+    //     the field (-1000 when unused) and the ship node. Read only;
+    //     nothing here changes the game.
+    if (current_screen == SCREEN_MAIN && MOVEBOX::Moveable_Box_Selected(0)) {
+        const int16_t sysw_star = MOX::moveable_box[0].id;
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'Y');
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'W');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, sysw_star);
+        Write8(buf, (sysw_star > -1 && sysw_star < MOX::NUM_STARS &&
+                     (MOX::look_at_colonies != '\0' ||
+                      SYS::Ok_To_View_System(sysw_star, MOX::PLAYER_NUM)))
+                        ? (uint8_t)1 : (uint8_t)0);
+        for (int i = 0; i < 15; i++) {
+            const bool used = MOX::system_display_ships[i].ship_idx > -1;
+            Write16(buf, used ? MOX::system_display_ships[i].button
+                              : (int16_t)-1000);
+            Write16(buf, used ? MOX::system_display_ships[i].ship_idx
+                              : (int16_t)-1);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
