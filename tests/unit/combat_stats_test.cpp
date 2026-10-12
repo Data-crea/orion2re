@@ -46,6 +46,7 @@ namespace {
     std::vector<s_draw_position> drawn_positions;
     s_help_box* active_help_list;
     int16_t active_help_box_count;
+    bool all_specials_set;
     char weapon_name[] = "Weapon";
     char weapon_name_plural[] = "Weapons";
 } // namespace
@@ -209,6 +210,9 @@ namespace MOX {
     int16_t cmbt_colony_id;
     int16_t combat_total_ship_count;
     int16_t cur_ship;
+    s_net_tactical_combat_message new_message;
+    int16_t msl_impact_warning_flag;
+    int16_t saved_msl_warn;
     int16_t order_info_flag;
     int16_t ship_status_display;
     s_help_box help_entry_list[50];
@@ -529,7 +533,11 @@ namespace KEN {
 
 namespace struct_ {
     int16_t __cdecl Test_Bit_Field(void*, uint16_t) {
-        return 0;
+        return all_specials_set ? 1 : 0;
+    }
+
+    void __cdecl Copy_Structure(void* dest, void* src, uint32_t size) {
+        memcpy(dest, src, size);
     }
 
     void __cdecl Set_Bit_Field(void* field, uint16_t bit) {
@@ -762,6 +770,51 @@ DOCTEST_TEST_CASE("combat help hides ship-specific entries without a current shi
     for (int j = 0; j < 8; ++j) {
         DOCTEST_CHECK(MOX::help_entry_list[9 + j].help_id == -1);
     }
+}
+
+DOCTEST_TEST_CASE("combat special help is limited to eight visible rows") {
+    MOX::order_info_flag = 1;
+    MOX::ship_status_display = 1;
+    MOX::combat_total_ship_count = 1;
+    MOX::cur_ship = 0;
+    all_specials_set = true;
+    for (int j = 0; j < 8; ++j) {
+        TECHDATA::specials[j].tech_app_id = 100 + j;
+    }
+    memset(MOX::help_entry_list, 0, sizeof(MOX::help_entry_list));
+    COMBAT1::Set_Combat_Help_Fields();
+    for (int j = 0; j < 8; ++j) {
+        DOCTEST_CHECK(MOX::help_entry_list[10 + j].help_id == 100 + j);
+    }
+    DOCTEST_CHECK(MOX::help_entry_list[18].help_id == 0x275);
+    DOCTEST_CHECK(active_help_box_count == 19);
+    all_specials_set = false;
+}
+
+DOCTEST_TEST_CASE("auto combat disable packet tolerates no selected ship") {
+    MOX::combat_total_ship_count = 2;
+    MOX::cur_ship = -1;
+    MOX::auto_combat = 1;
+    MOX::auto_combat_flag[0] = 1;
+    s_net_tactical_combat_message message = {};
+    message.viewport_x = 0;
+    CMBTMOV1::Tactical_Combat_Receive_Message(0, TACTICAL_NET_PACKET_AUTO_COMBAT_DISABLED, sizeof(message), &message);
+    DOCTEST_CHECK(MOX::auto_combat_flag[0] == 0);
+    DOCTEST_CHECK(MOX::auto_combat == 1);
+
+    MOX::auto_combat_flag[0] = 1;
+    message.viewport_x = -1;
+    CMBTMOV1::Tactical_Combat_Receive_Message(0, TACTICAL_NET_PACKET_AUTO_COMBAT_DISABLED, sizeof(message), &message);
+    message.viewport_x = 2;
+    CMBTMOV1::Tactical_Combat_Receive_Message(0, TACTICAL_NET_PACKET_AUTO_COMBAT_DISABLED, sizeof(message), &message);
+    DOCTEST_CHECK(MOX::auto_combat_flag[0] == 1);
+
+    message.viewport_x = 0;
+    MOX::cur_ship = 1;
+    MOX::combat_attacker_player = 0;
+    MOX::combat_data[1].owner = 0;
+    CMBTMOV1::Tactical_Combat_Receive_Message(0, TACTICAL_NET_PACKET_AUTO_COMBAT_DISABLED, sizeof(message), &message);
+    DOCTEST_CHECK(MOX::auto_combat == 0);
 }
 
 DOCTEST_TEST_CASE("current ship blip is skipped without a current ship") {

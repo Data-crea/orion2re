@@ -3051,14 +3051,14 @@ namespace COMBAT1 {
             }
         } else if (has_current_ship) {
             int special_count = 0;
-            for (int j = 0; j < 39; j++) {
+            for (int k = 0; k < 8; k++) {
+                MOX::help_entry_list[entry_idx + k].help_id = -1;
+            }
+            for (int j = 0; j < 39 && special_count < 8; j++) {
                 if (struct_::Test_Bit_Field(MOX::combat_data[MOX::cur_ship].special_device_flags, j) == 1) {
                     MOX::help_entry_list[entry_idx + special_count].help_id = TECHDATA::specials[j].tech_app_id;
                     special_count++;
                 }
-            }
-            for (int k = 0; k < 8; k++) {
-                MOX::help_entry_list[entry_idx + special_count + k].help_id = -1;
             }
         } else {
             for (int j = 0; j < 8; j++) {

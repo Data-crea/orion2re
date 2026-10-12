@@ -2708,7 +2708,9 @@ namespace CMBTDRW1 {
 
         uint8_t status_flag = MOX::combat_data[ship_idx].special_status_flag;
         if (status_flag == 4) {
-            if (MOX::combat_data[MOX::cur_ship].owner == MOX::PLAYER_NUM || MOX::game_type == 1) {
+            if (MOX::game_type == 1 ||
+                (MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count &&
+                    MOX::combat_data[MOX::cur_ship].owner == MOX::PLAYER_NUM)) {
                 bitmap::Outline_Bitmap(MOX::ship_bitmap, MOX::draw_ship_bitmap, 5, 0);
                 bitmap::Mask_Out_Bitmap_With_Bitmap(0, 0, MOX::ship_bitmap, MOX::draw_ship_bitmap, 0);
                 animate::Draw(x_offset + draw_x, y_offset + draw_y, MOX::ship_bitmap);
