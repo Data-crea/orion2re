@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"
+#endif
 
 namespace {
     /** Draws one application name inside the grouped technology list popup. */
@@ -156,6 +159,13 @@ namespace TECH {
 
         MOX::cur_plyr_ptr = &MOX::player[MOX::PLAYER_NUM];
         g_changing_tech = changing_tech;
+#ifdef ORION2RE_EXT
+        // OrionLayer: SELECT NEW RESEARCH at turn start runs under
+        // SCREEN_MAIN, so it reports a synthetic 53 on the wire (ext_api.h).
+        // CHANGE mode is Screen_Control's SCREEN_TECH_CHANGE (36) and keeps
+        // reporting that: -1 leaves the report alone.
+        const ext::ScreenOverride ext_screen_guard(changing_tech ? -1 : 53);
+#endif
 
         saved_current_field = MOX::cur_plyr_ptr->current_research_field;
 

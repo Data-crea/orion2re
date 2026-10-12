@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"
+#endif
 
 namespace SCIENCE {
     uint8_t finds_presented_by_scientist;
@@ -110,6 +113,16 @@ namespace SCIENCE {
     }
 
     void __cdecl Science_Room(char* intro_animation_name, uint16_t discovery_count, int16_t* discovery_data, char* footer_text) {
+#ifdef ORION2RE_EXT
+        // OrionLayer: this room runs under SCREEN_MAIN (Reports_Screen sets
+        // it, mainscr2.cpp) and nothing here writes current_screen, so a
+        // client cannot tell it from the galaxy map. Report a synthetic 52 —
+        // ON THE WIRE ONLY, because the room and the select list after it
+        // draw from the game's own value (ext_api.h). The same room shows
+        // stolen and artifact technology (report.cpp), which is the same
+        // dialog and reports the same id.
+        const ext::ScreenOverride ext_screen_guard(52);
+#endif
         MOX2::action_func_t saved_auto_function = nullptr;
         int16_t science_hot_key;
         uint16_t remaining_discoveries;

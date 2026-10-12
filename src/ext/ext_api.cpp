@@ -636,7 +636,25 @@ bool Init(uint16_t port) {
     return ok;
 }
 
+int16_t g_screen_override = -1;
+
+ScreenOverride::ScreenOverride(int16_t id) : previous(g_screen_override) {
+    if (id >= 0) {
+        g_screen_override = id;
+    }
+}
+
+ScreenOverride::~ScreenOverride() {
+    g_screen_override = previous;
+}
+
 void Tick(int16_t current_screen) {
+    // What the client is told. The override is the only difference; the
+    // game's own MOX::current_screen is untouched, because the dialogs it
+    // distinguishes draw themselves from it (ext_api.h).
+    if (g_screen_override >= 0) {
+        current_screen = g_screen_override;
+    }
     // Accept new connections
     g_server.AcceptClients();
 
