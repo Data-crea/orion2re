@@ -227,6 +227,18 @@ namespace RACESEL {
         fields::Assign_Auto_Function(Draw_Race_Selection_Screen, 2);
         old_race = 0;
         video::Set_Page_Off();
+#ifdef ORION2RE_EXT
+            // Race selection is not in Screen_Control's switch: it is
+            // CALLED, from newgame.cpp, netstart.cpp and hotpop.cpp, so
+            // MOX::current_screen still names the caller while this
+            // screen is up and no client can route to it. Saved as well
+            // as set, because the cancel path below has to put it back —
+            // the caller does not. newgame.cpp reloads its own screen
+            // and carries on, which would leave the API reporting a
+            // screen that is gone for as long as the player stays there.
+            const int16_t ext_saved_screen = MOX::current_screen;
+            MOX::current_screen = SCREEN_RACE;
+#endif
         Draw_Race_Selection_Screen();
         palstore::Darken_Palette(100);
         palette::Clear_Palette_Changes(0, 0xFF);
@@ -355,6 +367,9 @@ namespace RACESEL {
                     fields::Clear_Fields();
                     fields::Deactivate_Auto_Function();
                     allocate::Pop_Block(MOX::screen_seg);
+#ifdef ORION2RE_EXT
+                    MOX::current_screen = ext_saved_screen;   // back to the caller
+#endif
                     return 0;
                 }
                 custom_flag = 0;
@@ -471,6 +486,13 @@ namespace RACESEL {
         fields::Clear_Fields();
         raceopt::Convert_Player_To_Flags(player);
         raceopt::Reload_Racial_Option_Screen();
+#ifdef ORION2RE_EXT
+        // OrionLayer: Custom Race is a sub-screen of SCREEN_RACE without its
+        // own screen ID. Report a synthetic ID (50) while this screen is
+        // active so external clients can route to it; restore on cancel.
+        const int16_t ext_saved_screen = MOX::current_screen;
+        MOX::current_screen = 50;
+#endif
         memcpy(raceopt::cur_race_name, player_race_name, strlen(player_race_name) + 1);
         raceopt::Calculate_Picks();
 
@@ -645,6 +667,9 @@ namespace RACESEL {
                     fields::Clear_Fields();
                     fields::Deactivate_Auto_Function();
                     allocate::Pop_Block(MOX::screen_seg);
+#ifdef ORION2RE_EXT
+                    MOX::current_screen = ext_saved_screen;   // back to SCREEN_RACE
+#endif
                     return 0;
                 }
 
