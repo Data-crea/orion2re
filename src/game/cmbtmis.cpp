@@ -1417,6 +1417,7 @@ namespace CMBTMIS {
 
     void __cdecl Kill_Missile(int16_t missile_idx) {
 #ifdef ORION2RE_EXT
+        if (MOX::missile[missile_idx].type > WEAPON_NO_WEAPONS)  // OrionLayer, open fix 63. An empty slot killed again is no missile gone.
         ext::Combat_Event(ext::CEV_MISSILE_GONE, missile_idx, MOX::missile[missile_idx].type, MOX::missile[missile_idx].quantity, MOX::missile[missile_idx].x, MOX::missile[missile_idx].y);  // OrionLayer, open fix 56.
 #endif
         incoming_valid[missile_idx] = false;
