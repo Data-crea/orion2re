@@ -1903,6 +1903,41 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write8(buf, (uint8_t)(MOX::fleet_box.attack_btn_active != 0));
         Write16(buf, MOX::fleet_box_attack_button);
     }
+
+    // 30. The name box: "INBX", written ONLY while namestar's input box is
+    //     up, after FBTN's place. OrionLayer, open fix 87.
+    //
+    //     namestar::Input_Box_Popup (namestar.cpp:300-405) asks for a star's
+    //     name after the first colony at a star (Change_Star_Name_Popup:
+    //     colland.cpp:250, mainpups.cpp:809, report.cpp:185, :207), for the
+    //     home star's and the network game's. For its whole loop the auto
+    //     function is Draw_Input_Box_Popup (Setup_Input_Box_Popup, :143);
+    //     Restore_Auto_Function ends it (:403). Its two fields — an accept
+    //     button the source names cancel, and the continuous string field —
+    //     stand under no screen id of their own (the landing's 33, the map's
+    //     0), and neither the prompt nor the name it was opened with is in
+    //     the field list. The box's corner, its input field (the name it was
+    //     opened with, the typed text, as WriteInputField writes it), the
+    //     button, the prompt and whether the box is the animated one.
+    //     Read only; nothing here changes the game.
+    if (fields::auto_active_flag != 0 &&
+        fields::function == namestar::Draw_Input_Box_Popup) {
+        buf.push_back((uint8_t)'I');
+        buf.push_back((uint8_t)'N');
+        buf.push_back((uint8_t)'B');
+        buf.push_back((uint8_t)'X');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, namestar::input_box.x);
+        Write16(buf, namestar::input_box.y);
+        WriteInputField(buf, namestar::input_box.accept_field_id,
+                        namestar::input_box.max_input_chars,
+                        namestar::input_box.input_text,
+                        sizeof(namestar::input_box.input_text));
+        Write16(buf, namestar::input_box.cancel_field_id);
+        WriteStr8(buf, namestar::input_box.prompt_text,
+                  sizeof(namestar::input_box.prompt_text));
+        Write8(buf, (uint8_t)(namestar::input_box.show_cancel_anim != 0));
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
