@@ -1836,6 +1836,35 @@ static void ProcessInput() {
             g_hide_window = (cmd.param1 == 0);
             break;
 
+        case MSG_INJECT_RIGHT_CLICK:
+            // OrionLayer, open fix 61. INJECT_CLICK with the right button: a grid field reads the point (the battle map's turn-to-face, combat1.cpp:696-710).
+            {
+                // CANCEL_FIELD right-clicks a field's CENTRE, which is
+                // the whole answer for a button and the wrong one for a
+                // grid field: the game reads xpos/ypos from the point.
+                g_injected_mouse_pending = true;
+                float wx = 0.0f;
+                float wy = 0.0f;
+                Game_Point_To_Window_Point_((float)cmd.param1,
+                                            (float)cmd.param2,
+                                            &wx, &wy);
+                SDL_Event down{};
+                down.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+                down.button.button = SDL_BUTTON_RIGHT;
+                down.button.x = wx;
+                down.button.y = wy;
+                down.button.down = true;
+                SDL_PushEvent(&down);
+                SDL_Event up{};
+                up.type = SDL_EVENT_MOUSE_BUTTON_UP;
+                up.button.button = SDL_BUTTON_RIGHT;
+                up.button.x = wx;
+                up.button.y = wy;
+                up.button.down = false;
+                SDL_PushEvent(&up);
+            }
+            break;
+
         case MSG_CANCEL_FIELD:
             // Right-click on field (DOWN + UP)
             if (cmd.param1 >= 0 && cmd.param1 < fields::fields_count) {

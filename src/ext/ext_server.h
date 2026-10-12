@@ -42,6 +42,8 @@ constexpr uint16_t MSG_SET_JOBS      = 0x84;
 constexpr uint16_t MSG_SELECT_SHIP   = 0x85;
 // OrionLayer, open fix 43. Show (1) or hide (0) the engine's own window: uint8 show.
 constexpr uint16_t MSG_SHOW_WINDOW   = 0x86;
+// OrionLayer, open fix 61. A RIGHT click at (x, y) in 640x480 space: int16 x, int16 y.
+constexpr uint16_t MSG_INJECT_RIGHT_CLICK = 0x87;
 
 // Subscription flags (bitmask)
 constexpr uint16_t SUB_STATE         = 0x01;

@@ -222,6 +222,17 @@ void Server::HandleClientMessage(Client& client) {
         }
         break;
     }
+    case MSG_INJECT_RIGHT_CLICK: {
+        // OrionLayer, open fix 61. int16 x, int16 y; shorter is dropped, never guessed.
+        if (payload_len >= 4) {
+            InputCommand cmd{};
+            cmd.type = MSG_INJECT_RIGHT_CLICK;
+            memcpy(&cmd.param1, payload, 2);
+            memcpy(&cmd.param2, payload + 2, 2);
+            input_queue_.push_back(cmd);
+        }
+        break;
+    }
     case MSG_CANCEL_FIELD: {
         if (payload_len >= 2) {
             InputCommand cmd{};
