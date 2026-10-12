@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "ext/ext_api.h"
 #include "ext/ext_server.h"
+#include <cstdlib>  // OrionLayer, open fix 43. std::getenv
 #include "game/newgame.h"
 #include "game/platform.h"
 #include "game/build_queue.h"  // OrionLayer, open fix 35. autobuild_settings, sent in "COLS".
@@ -13,7 +14,12 @@
 
 namespace ext {
 
-bool g_hide_window = true;  // OrionLayer, open fix 41. Hidden before the window is first shown, not after (platform.cpp).
+// OrionLayer, open fix 43. Hidden from the start only when the starter asks (ORION2RE_HIDE_WINDOW, set by OrionLayer's tools and play.py); started on its own, the window shows as before fix 41.
+static bool Hide_Window_At_Start_() {
+    const char* value = std::getenv("ORION2RE_HIDE_WINDOW");
+    return value != nullptr && value[0] != '\0' && value[0] != '0';
+}
+std::atomic<bool> g_hide_window{Hide_Window_At_Start_()};
 int16_t g_pending_field = 0;
 int16_t g_activated_input = 0;
 bool g_injected_mouse_pending = false;
@@ -1279,6 +1285,11 @@ static void ProcessInput() {
             }
             break;
 
+        case MSG_SHOW_WINDOW:
+            // OrionLayer, open fix 43. Only the flag: the main thread shows or hides the window (platform.cpp).
+            g_hide_window = (cmd.param1 == 0);
+            break;
+
         case MSG_CANCEL_FIELD:
             // Right-click on field (DOWN + UP)
             if (cmd.param1 >= 0 && cmd.param1 < fields::fields_count) {
@@ -1316,7 +1327,7 @@ static void ProcessInput() {
 // ── Public API ───────────────────────────────────────────
 
 bool Init(uint16_t port) {
-    g_hide_window = true;
+    // OrionLayer, open fix 43. The window's visibility is the starter's and the client's, no longer forced here.
     g_last_screen = -99;
     g_last_stardate = -1;
     g_last_fields_count = -1;

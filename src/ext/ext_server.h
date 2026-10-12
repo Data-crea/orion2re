@@ -40,6 +40,8 @@ constexpr uint16_t MSG_SET_JOBS      = 0x84;
 // fleet box. int16 ship_idx, uint8 selected (0 or 1). Applied only if
 // every precondition holds; a refused command writes nothing.
 constexpr uint16_t MSG_SELECT_SHIP   = 0x85;
+// OrionLayer, open fix 43. Show (1) or hide (0) the engine's own window: uint8 show.
+constexpr uint16_t MSG_SHOW_WINDOW   = 0x86;
 
 // Subscription flags (bitmask)
 constexpr uint16_t SUB_STATE         = 0x01;

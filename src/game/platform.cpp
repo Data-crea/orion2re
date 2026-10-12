@@ -14,6 +14,10 @@ uint32_t g_last_scan_code;
 namespace platform {
     namespace {
         bool g_has_lost_focus;
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 43. Whether the window is on screen now, so a client's request is applied once.
+        bool g_window_shown = false;
+#endif
         SDL_Window* g_sdl_window;
         SDL_Renderer* g_sdl_renderer;
         SDL_Texture* g_sdl_present_texture;
@@ -1632,6 +1636,9 @@ namespace platform {
         if (!ext::g_hide_window)
 #endif
         SDL_ShowWindow(g_sdl_window);
+#ifdef ORION2RE_EXT
+        g_window_shown = !ext::g_hide_window;  // OrionLayer, open fix 43.
+#endif
         const char* renderer_name = SDL_GetRendererName(g_sdl_renderer);
         SDL_LogInfo(
             SDL_LOG_CATEGORY_APPLICATION,
@@ -1696,6 +1703,18 @@ namespace platform {
 
         while (!Game_Thread_Exited()) {
             Service_Pending_Window_Events();
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 43. A client's MSG_SHOW_WINDOW, applied on this thread, which owns the window.
+            if (g_window_shown == ext::g_hide_window) {
+                g_window_shown = !ext::g_hide_window;
+                if (g_window_shown) {
+                    SDL_ShowWindow(g_sdl_window);
+                } else {
+                    SDL_HideWindow(g_sdl_window);
+                }
+                Publish_Present_Scaler_Config();  // v2: the VSync request is re-published (ORION2RE_NO_VSYNC / hidden window) and applied at the next present
+            }
+#endif
 
             Present_Published_Off_Page();
             SDL_Delay(1);

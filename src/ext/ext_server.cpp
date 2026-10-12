@@ -243,6 +243,16 @@ void Server::HandleClientMessage(Client& client) {
         }
         break;
     }
+    case MSG_SHOW_WINDOW: {
+        // OrionLayer, open fix 43. uint8 show; shorter is dropped, never guessed.
+        if (payload_len >= 1) {
+            InputCommand cmd{};
+            cmd.type = MSG_SHOW_WINDOW;
+            cmd.param1 = payload[0] != 0 ? 1 : 0;
+            input_queue_.push_back(cmd);
+        }
+        break;
+    }
     case MSG_SET_JOBS: {
         // int16 colony_idx, uint8 count, count x (pop_idx, job).
         // A malformed list is DROPPED here rather than half-queued:

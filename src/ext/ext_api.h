@@ -2,6 +2,7 @@
 // orion2re Extension API
 // Public interface. Only ext_api.cpp includes game headers.
 
+#include <atomic>  // OrionLayer, open fix 43. The window flag is shared by two threads.
 #include <cstdint>
 
 namespace ext {
@@ -18,7 +19,8 @@ void Tick(int16_t current_screen);
 void Shutdown();
 
 /// If true, suppress SDL_ShowWindow (headless mode).
-extern bool g_hide_window;
+/// OrionLayer, open fix 43. Set at start from ORION2RE_HIDE_WINDOW, and by a client (MSG_SHOW_WINDOW) from the game thread; read by the main thread, which owns the window.
+extern std::atomic<bool> g_hide_window;
 
 /// Pending field activation from external client.
 /// Set by ProcessInput(), consumed by Get_Input() early return.
