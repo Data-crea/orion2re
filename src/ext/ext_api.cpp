@@ -2830,10 +2830,14 @@ void Tick(int16_t current_screen) {
 
     // Send field list (only if changed)
     int16_t fc = fields::fields_count;
+    // OrionLayer, open fix 84. A list that changes with its count unchanged is sent too (the race report's RETURN to Races).
+    static std::vector<uint8_t> fields_buf;
+    static std::vector<uint8_t> fields_sent;
+    SerializeFields(fields_buf);
     if (fc != g_last_fields_count || (events & EVT_SCREEN_CHANGED)
+        || fields_buf != fields_sent
         || g_server.TakeFieldsDirty()) {
-        static std::vector<uint8_t> fields_buf;
-        SerializeFields(fields_buf);
+        fields_sent = fields_buf;
         g_server.SendToSubscribers(SUB_FIELDS, MSG_FIELDS,
                                     fields_buf.data(), fields_buf.size());
         // Right after the list it belongs to: a client that gets a
