@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 51. MultiplayerGuard.
+#endif
 
 namespace {
     constexpr int kPlayerRemapPaletteStart = 144;
@@ -97,6 +100,10 @@ namespace MULTPLAY {
     void __cdecl Chat_Box_Input_Loop() {
         int16_t input_id;
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. The net next turn screen (37, and COMBFIND's waits) on the wire while it takes input.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_NET_NEXT_TURN);
+#endif
         input_id = fields::Get_Input();
 
         if (MOX::mp_screen->bg_height == 0) {
@@ -256,6 +263,10 @@ namespace MULTPLAY {
         mouse::Set_Mouse_List(&MOX::mouse_list_arrow, 1);
         Add_MP_Setup_Screen_Fields();
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. The MP setup on the wire; the Online dialog and the load list nest their own.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_SETUP);
+#endif
         while (true) {
             timer::Mark_Time();
             input_field = fields::Get_Input();
@@ -369,6 +380,10 @@ namespace MULTPLAY {
             MISC::Fade_Into_Screen(Hotseat_Draw_Next_Player, &fade_flag, 11 /* 0xB */);
         }
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. The hotseat player switch on the wire while it takes input.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_HOTSEAT_SELECT);
+#endif
         while (!is_done) {
             int16_t input = fields::Get_Input();
             int16_t scan_id = fields::Scan_Input();
@@ -402,6 +417,9 @@ namespace MULTPLAY {
             }
         }
 
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_NONE);  // OrionLayer, open fix 51. The switch is done; the reports follow.
+#endif
         fields::Clear_Fields();
         fields::Set_Input_Delay(3);
         fields::Deactivate_Auto_Function();
@@ -604,6 +622,11 @@ namespace MULTPLAY {
             return -1;
         }
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. The load list on the wire (under 41), its slot strings formatted above.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_LOAD_GAME);
+#endif
+
         MISC::Fade_Into_Screen(MULTPLAY::Draw_Load_MP_Game_Screen, (uint8_t*)&MOX::mp_screen->needs_full_redraw, 11);
 
         while (!exit_loop) {
@@ -764,6 +787,10 @@ namespace MULTPLAY {
             fields::Assign_Auto_Function(SCORE::nullsub, 1);
 
             strlcpy(prompt, HAROLD::H_Message(0xFE /* HESTR_0FE_ENTER_NET_GAME_NAME */), sizeof(prompt));
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 51. The net game name box on the wire, with its prompt (and a duplicate-name warning over it).
+            const ext::MultiplayerGuard ext_mp_guard(ext::MP_NET_GAME_NAME, -1000, -1000, -1000, prompt);
+#endif
 
             y = namestar::Star_Name_Popup_Screen_Center_Y();
             x = namestar::Star_Name_Popup_Screen_Center_X();
@@ -1050,6 +1077,10 @@ namespace MULTPLAY {
         Load_Choose_Multi_Net_Game_Screen();
         MOX::mp_screen->subscreen_mode = 4;
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. The game list on the wire (under 22) with the router's session records.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_JOIN_GAME_LIST);
+#endif
         do {
             fields::Clear_Fields();
             Add_Choose_Multi_Net_Game_Fields();

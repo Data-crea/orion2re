@@ -142,6 +142,59 @@ struct TurnPopupGuard {
     void end();
 };
 
+/// OrionLayer, open fix 51. The multiplayer step that takes input: the
+/// screens behind the main menu's Multiplayer button report 15, 16, 17, 21,
+/// 22, 37 and 41, and one id covers several steps (15 the setup and its
+/// Online dialog, 21 every host step, 22 every join step, 41 the load list
+/// and hosting a loaded game). Set by MultiplayerGuard at each step's input
+/// loop (the phase table is above SerializeState's "MPLY" block in
+/// ext_api.cpp), restored when the step ends — a step opened inside another
+/// (the Online dialog, the load list) gives the outer one back. A function
+/// with several steps keeps one guard and moves it on with set().
+/// What a phase shows is read at send time from where the game keeps it
+/// (MOX::mp_screen, NETMOX::net, ...); `fields` and `text` hold what only
+/// the step's own locals hold. What is SENT, nothing the game reads.
+enum MultiplayerPhase : uint8_t {
+    MP_NONE = 0,
+    MP_SETUP = 1,               // 15 MULTPLAY::Multi_Player_Screen
+    MP_ONLINE_SETUP = 2,        // 15 MULTPLAY::Online_Setup_Screen_
+    MP_NET_GAME_NAME = 3,       // 41 MULTPLAY::Change_MP_Game_Name
+    MP_LOAD_GAME = 4,           // 41 MULTPLAY::Load_Multi_Player_Game_Screen
+    MP_HOTSEAT_SETUP = 5,       // 16 HOTPOP::Hotseat_Screen
+    MP_HOTSEAT_SELECT = 6,      // 17 MULTPLAY::Hotseat_Select_Player
+    MP_HOST_INIT = 7,           // 21/41 NETSTART::Start_Net_Screen / Load_Net_Screen
+    MP_HOST_WAIT_JOINERS = 8,   // 21 Start_Net_Screen
+    MP_HOST_WAIT_RACES = 9,     // 21 Start_Net_Screen
+    MP_HOST_SENDING = 10,       // 21/41 Start_Net_Screen / Load_Net_Screen
+    MP_HOST_PICK_POSITION = 11, // 41 Load_Net_Screen (Choose_Network_Plyrs_Screen)
+    MP_HOST_WAIT_LOADED = 12,   // 41 Load_Net_Screen
+    MP_JOIN_INIT = 13,          // 22 NETSTART::Join_Net_Screen
+    MP_JOIN_GAME_LIST = 14,     // 22 MULTPLAY::Choose_Multi_Network_Game_Screen
+    MP_JOIN_WAITING = 15,       // 22 Join_Net_Screen
+    MP_JOIN_GENERATING_MAP = 16,// 22 NETSTART::Net_Select_Race
+    MP_JOIN_PICK_POSITION = 17, // 22 NETSTART::Net_Pick_Position (Choose_Network_Plyrs_Screen)
+    MP_JOIN_GETTING_DATA = 18,  // 22 Net_Pick_Position
+    MP_NET_NEXT_TURN = 19,      // 37 MULTPLAY::Chat_Box_Input_Loop (NETTURN, COMBFIND)
+};
+
+struct MultiplayerView {
+    uint8_t phase;          // MultiplayerPhase
+    int16_t fields[3];      // MP_HOTSEAT_SETUP: join, accept, cancel; else -1000
+    const char* text;       // MP_NET_GAME_NAME: the prompt; else nullptr
+};
+extern MultiplayerView g_multiplayer;
+
+struct MultiplayerGuard {
+    MultiplayerView previous;
+    explicit MultiplayerGuard(uint8_t phase, int16_t field_a = -1000,
+                              int16_t field_b = -1000, int16_t field_c = -1000,
+                              const char* text = nullptr);
+    ~MultiplayerGuard();
+    /// The function's next step (or MP_NONE while it opens a screen of its
+    /// own, like race selection): sets the phase, clears fields and text.
+    void set(uint8_t phase) const;
+};
+
 /// The field id of the input Get_Input() is returning THIS CALL when it
 /// came from a client's ACTIVATE_FIELD, and 0 when it came from the mouse.
 ///

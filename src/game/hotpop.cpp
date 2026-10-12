@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 51. MultiplayerGuard.
+#endif
 
 namespace HOTPOP {
     int16_t hotseat_human_players;
@@ -100,6 +103,10 @@ namespace HOTPOP {
         struct_::Clear_Structure(temp_player, sizeof(s_player));
 
         do {
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 51. The hotseat setup on the wire with this pass's Join/Accept/Cancel fields.
+            const ext::MultiplayerGuard ext_mp_guard(ext::MP_HOTSEAT_SETUP, btn_join, btn_accept, btn_cancel);
+#endif
             input = fields::Get_Input();
 
             if (HOTPOP::hotseat_human_players == 0) {
@@ -144,6 +151,9 @@ namespace HOTPOP {
 
             if (input == btn_join) {
                 MOX::PLAYER_NUM = player_idx;
+#ifdef ORION2RE_EXT
+                ext_mp_guard.set(ext::MP_NONE);  // OrionLayer, open fix 51. Race selection (51) is not this step.
+#endif
                 if (RACESEL::Race_Selection_Screen(temp_player) == 0) {
                     EVANHELP::Set_Hotseat_Setup_Screen_Help_List(center_x, center_y);
                     if (HOTPOP::hotseat_human_players == 0) {

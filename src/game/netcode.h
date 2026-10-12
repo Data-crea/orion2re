@@ -2,6 +2,10 @@
 
 #include "game/netadapter.h"
 
+#ifdef ORION2RE_EXT
+namespace netadapter { struct s_adapter; }  // OrionLayer, open fix 51. Ext_Router_Adapter_ below.
+#endif
+
 namespace netcode {
     using recv_callback_fn = void(__cdecl*)(int16_t net_id, uint16_t packet_id, uint32_t len, uint8_t* packet);
 
@@ -107,4 +111,13 @@ namespace netcode {
      * @param player_name Local player display name.
      */
     int32_t __cdecl Net_Create_Game(const char* name, int32_t max_players, const char* password, const char* player_name);
+
+#ifdef ORION2RE_EXT
+    /** OrionLayer, open fix 51. The router adapter for READING only (the
+     *  session list, the member count), or nullptr outside router modes —
+     *  the Net_Get_* wrappers pump the router first, which runs the receive
+     *  callback and so writes game state; ext::SerializeState must not.
+     */
+    const netadapter::s_adapter* Ext_Router_Adapter_();
+#endif
 } // namespace netcode

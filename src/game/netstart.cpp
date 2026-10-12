@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 51. MultiplayerGuard.
+#endif
 
 #include <algorithm>
 
@@ -125,6 +128,10 @@ namespace NETSTART {
         RACESEL::Race_Selection_Screen(local_player);
 
         local_player->objectives = PLAYER_OBJECTIVE_HUMAN;
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. "Generating map" on the wire (22) until the host's data comes.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_JOIN_GENERATING_MAP);
+#endif
         MULTPLAY::Reload_Generating_Map_Info();
 
         MISC::Fade_Into_Screen(MULTPLAY::Draw_Generic_Net_Info_Screen, &fade_flag, 11);
@@ -170,6 +177,10 @@ namespace NETSTART {
             connected_players[i] = (MOX::player[i].network_player_id != -1);
         }
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. The pick-position list on the wire (22), then "getting data".
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_JOIN_PICK_POSITION);
+#endif
         if (MULTPLAY::Choose_Network_Plyrs_Screen(&selection, connected_players, false, true) == -1) {
             message_buffer = -1;
             NETMOX::Mox_Send_Message(NETMOX::net.host_election_id, NET_PACKET_PICK_YOUR_POSITION_RESULT, &message_buffer, sizeof(message_buffer));
@@ -187,6 +198,9 @@ namespace NETSTART {
         MULTPLAY::Reload_Getting_Data_Info();
 
         strlcpy(MOX::temp_string, NETTURN::waiting_message_fmt, sizeof(MOX::temp_string));
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_JOIN_GETTING_DATA);  // OrionLayer, open fix 51. Its status line is set just above.
+#endif
 
         while (NETMOX::net.network_data_ptr == nullptr) {
             fields::Get_Input();
@@ -268,6 +282,10 @@ namespace NETSTART {
         const char* myname_str = s_myname_005597dc;
 
         NETMOX::net.sync_state = NET_SYNC_STATE_CLIENT_JOINING;
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. The join steps on the wire (22): initializing, (game list nested), waiting.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_JOIN_INIT);
+#endif
 
         NETTURN::Net_Init_Host_Election();
         MULTPLAY::Reload_Initializing_Net_Info();
@@ -314,6 +332,9 @@ namespace NETSTART {
 
         NETMOX::net.is_network_active = 1;
         NETMOX::net.net_host_id = netcode::Net_Host_ID();
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_JOIN_WAITING);  // OrionLayer, open fix 51. Joined; waiting for the host.
+#endif
         MULTPLAY::Reload_Join_Net_Screen();
         fields::Clear_Fields();
         fields::Add_Hidden_Field(0, 0, 639, 479, "", 0);
@@ -336,6 +357,9 @@ namespace NETSTART {
             return 0;
         }
 
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_NONE);  // OrionLayer, open fix 51. Race selection (51) or the pick list follow with their own.
+#endif
         if (NETMOX::net.sync_state == NET_SYNC_STATE_CLIENT_SELECT_RACE) {
             NETMOX::Mox_Send_Message(NETMOX::net.host_election_id, NET_PACKET_NETWORK_SYNC_STATUS, &MOX::nebula_screen_seg, sizeof(MOX::nebula_screen_seg));
             result = (uint8_t)NETSTART::Net_Select_Race();
@@ -357,6 +381,10 @@ namespace NETSTART {
             return 0;
         }
         NETMOX::net.sync_state = NET_SYNC_STATE_HOST_STARTUP;
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. The host steps on the wire (21): initializing, joiners, race info, sending.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_HOST_INIT);
+#endif
         NETTURN::Net_Init_Host_Election();
         MULTPLAY::Reload_Initializing_Net_Info();
         fields::Assign_Auto_Function(MULTPLAY::Draw_Generic_Net_Info_Screen, 1);
@@ -397,6 +425,9 @@ namespace NETSTART {
             MULTPLAY::Reload_Waiting_For_Joiners_Screen();
             fields::Clear_Fields();
             MULTPLAY::Add_Waiting_For_Joiners_Field();
+#ifdef ORION2RE_EXT
+            ext_mp_guard.set(ext::MP_HOST_WAIT_JOINERS);  // OrionLayer, open fix 51. Begin is added just above.
+#endif
             fields::Assign_Auto_Function(MULTPLAY::Draw_Wait_For_New_Joiners_Screen, 2);
             MULTPLAY::Draw_Wait_For_New_Joiners_Screen();
             RUSS::Mox_Sync_Update();
@@ -470,6 +501,9 @@ namespace NETSTART {
             }
         }
 
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_NONE);  // OrionLayer, open fix 51. The host's race selection (51) is not a host step.
+#endif
         RACESEL::Race_Selection_Screen(&MOX::player[MOX::PLAYER_NUM]);
 
         NETMOX::net.player_color_selected_flags[MOX::PLAYER_NUM] = 1;
@@ -479,6 +513,9 @@ namespace NETSTART {
 
         Send_Configured_Setup_Message(NET_PACKET_START_GAME, &msg, sizeof(msg));
 
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_HOST_WAIT_RACES);  // OrionLayer, open fix 51. Waiting for the joiners' race info.
+#endif
         MULTPLAY::Reload_Wait_For_Race_Info();
         MISC::Fade_Into_Screen(MULTPLAY::Draw_Generic_Net_Info_Screen, &unused, 11);
 
@@ -558,6 +595,9 @@ namespace NETSTART {
             }
         }
 
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_HOST_SENDING);  // OrionLayer, open fix 51. Sending the game data.
+#endif
         MULTPLAY::Reload_Sending_Data_Info();
         video::Set_Page_Off();
         MULTPLAY::Draw_SendGet_Net_Info_Screen();
@@ -643,6 +683,10 @@ namespace NETSTART {
         int16_t user_list[256];
 
         NETMOX::net.sync_state = NET_SYNC_STATE_LOAD_GAME_HOST_SETUP;
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 51. Hosting a loaded game on the wire (41): initializing, own position, joiners, sending.
+        const ext::MultiplayerGuard ext_mp_guard(ext::MP_HOST_INIT);
+#endif
         NETTURN::Net_Init_Host_Election();
         MULTPLAY::Reload_Initializing_Net_Info();
 
@@ -683,6 +727,9 @@ namespace NETSTART {
             NETMOX::net.network_sync_complete_flag = 0;
         }
 
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_HOST_PICK_POSITION);  // OrionLayer, open fix 51. The host picks its own empire.
+#endif
         int16_t choose_result = MULTPLAY::Choose_Network_Plyrs_Screen(&payload.begin_state, status, 0, 1);
 
         fields::Clear_Fields();
@@ -708,6 +755,9 @@ namespace NETSTART {
         MULTPLAY::Reload_Waiting_For_Joiners_Screen();
         fields::Clear_Fields();
         MULTPLAY::Add_Waiting_For_Joiners_Field();
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_HOST_WAIT_LOADED);  // OrionLayer, open fix 51. Begin is added just above.
+#endif
 
         NETMOX::net.num_connected_players = 0;
         if (MOX::NUM_PLAYERS > 0) {
@@ -802,6 +852,9 @@ namespace NETSTART {
         }
 
         MOX::temp_string[0] = '\0';
+#ifdef ORION2RE_EXT
+        ext_mp_guard.set(ext::MP_HOST_SENDING);  // OrionLayer, open fix 51. Sending the game data.
+#endif
         MULTPLAY::Reload_Sending_Data_Info();
         video::Set_Page_Off();
         MULTPLAY::Draw_SendGet_Net_Info_Screen();

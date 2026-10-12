@@ -700,6 +700,20 @@ namespace netadapter {
         return sessions[session_index].session.session_id;
     }
 
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 51. The session record, read-only (netadapter.h).
+    const network::router::s_router_session_info* Ext_Game_Info(const s_adapter* adapter, uint32_t session_index) {
+        if (adapter == nullptr || adapter->state == nullptr) {
+            return nullptr;
+        }
+        const std::vector<network::router::s_router_session_record>& sessions = network::router::Router_Session_Browser_Sessions(&adapter->state->browser);
+        if (session_index >= sessions.size()) {
+            return nullptr;
+        }
+        return &sessions[session_index].session;
+    }
+#endif
+
     bool Create_Game(s_adapter* adapter, const char* name, int32_t max_players, const char* player_name) {
         if (adapter == nullptr || adapter->state == nullptr || max_players <= 0) {
             return false;

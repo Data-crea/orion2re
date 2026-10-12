@@ -95,6 +95,31 @@ static void WriteBytes(std::vector<uint8_t>& buf,
     buf.insert(buf.end(), p, p + len);
 }
 
+// OrionLayer, open fix 51. A string as uint8 length + raw bytes, at most `cap` (and 255) bytes.
+static void WriteStr8(std::vector<uint8_t>& buf, const char* str, size_t cap) {
+    size_t len = str != nullptr ? strnlen(str, cap) : 0;
+    if (len > 255) len = 255;
+    Write8(buf, (uint8_t)len);
+    WriteBytes(buf, str, len);
+}
+
+// OrionLayer, open fix 51. A text input field of the "MPLY" block: its id,
+// its max length, the text it holds (its buffer), and — while the field is
+// being edited — the text typed so far (fields::continuous_string, raw: the
+// commit strips a trailing '_').
+static void WriteInputField(std::vector<uint8_t>& buf, int16_t field,
+                            int16_t max_length, const char* text, size_t cap) {
+    Write16(buf, field);
+    Write8(buf, (uint8_t)max_length);
+    WriteStr8(buf, text, cap);
+    const bool editing = field > 0 && fields::input_field_active != 0
+                         && fields::active_input_field_number == field;
+    Write8(buf, (uint8_t)editing);
+    if (editing) {
+        WriteStr8(buf, fields::continuous_string, sizeof(fields::continuous_string));
+    }
+}
+
 // ── State snapshot ───────────────────────────────────────
 
 static void SerializeState(std::vector<uint8_t>& buf,
@@ -1129,6 +1154,266 @@ static void SerializeState(std::vector<uint8_t>& buf,
             }
         }
     }
+
+    // 18. The multiplayer step that takes input: "MPLY", written on ANY
+    //     screen while a MultiplayerGuard is set, and LAST (after HOFM).
+    //     OrionLayer, open fix 51.
+    //
+    //     The screens behind the main menu's Multiplayer button keep what
+    //     they show in MOX::mp_screen (MULTPLAY::g_mp_screen), NETMOX::net,
+    //     the router adapter and their locals; a client saw one id for many
+    //     steps (15, 21, 22, 41) and none of the content. The phase says
+    //     which step takes input; the payload is what it shows. int16 LE.
+    //
+    //     phase  id     step                                    payload
+    //      1     15     MP setup (Multi_Player_Screen)          A
+    //      2     15     Online setup dialog (Online_Setup_Screen_) B
+    //      3     41     net game name (Change_MP_Game_Name)     C
+    //      4     41     load MP game list (Load_Multi_Player_Game_Screen) D
+    //      5     16     hotseat setup (Hotseat_Screen)          E
+    //      6     17     hotseat player switch (Hotseat_Select_Player) F
+    //      7     21/41  host: initializing                       G
+    //      8     21     host: waiting for joiners                H
+    //      9     21     host: waiting for race info              I
+    //     10     21/41  host: sending data                       J
+    //     11     41     host a loaded game: pick own position    K
+    //     12     41     host a loaded game: waiting for joiners  H + L
+    //     13     22     join: initializing                       G
+    //     14     22     join: game list (Choose_Multi_Network_Game_Screen) M
+    //     15     22     join: joined, waiting for the host       G
+    //     16     22     join: generating map (after race pick)   (none)
+    //     17     22     join a loaded game: pick position        K
+    //     18     22     join a loaded game: getting data         J
+    //     19     37     net next turn, chat (Chat_Box_Input_Loop) N
+    //
+    //     s8 = uint8 length + raw bytes. IN = input field: int16 field,
+    //     uint8 max length, s8 its buffer, uint8 editing, s8 typed text (only
+    //     if editing). Field ids are -1000 where the game adds none.
+    //     A: uint8 settings.multi_player_game_type (1 network, 2 online,
+    //        4 hotseat), uint8 game_type, uint8 net.mode, 8 x int16 field:
+    //        network, online, hotseat, cancel, start, load, join, setup;
+    //        s8 endpoint, s8 settings.net_game_name.
+    //     B: IN endpoint (max 30), int16 OK field, int16 Cancel field.
+    //     C: IN name (namestar::input_box), int16 cancel field, s8 prompt.
+    //     D: uint8 game_type, int16 cancel field, uint8 10, per slot: int16
+    //        field, uint8 valid (the save's game type 1-3, 0 invalid), s8
+    //        description, s8 stardate, s8 date (as LOADSAVE formatted them).
+    //     E: int8 settings.number_of_players, int16 humans joined, int16 join
+    //        (-1000 when full), int16 accept, int16 cancel; per joined human
+    //        (humans of them, slot i = player i): uint8 race, uint8 color,
+    //        s8 name, s8 race name.
+    //     F: uint8 8, per player: uint8 status (0 none, 1 has played,
+    //        2 still to play: only 2 is selectable), int16 row field, int16
+    //        banner field.
+    //     G: uint8 net.mode, s8 endpoint, s8 net.cur_game_name.
+    //     H: int16 begin field, int16 router users, int8 number_of_players,
+    //        s8 net.cur_game_name.
+    //     I: int16 players with race info (net.player_connected_flags),
+    //        int16 router users, int8 net.num_connected_players.
+    //     J: s8 MOX::temp_string (the status line the screen prints, or "").
+    //     K: int16 begin field, uint8 8, per player: uint8 shown (human, not
+    //        eliminated), uint8 taken (connected: rows of taken players do
+    //        nothing), int16 row field, int16 banner field.
+    //     L: int8 net.num_connected_players (humans in the save), int32
+    //        net.joining_net_id (-1 none: a joiner is picking).
+    //     M: int16 cancel field, uint8 rows, per row: int16 field, uint16
+    //        players, uint16 max players, uint8 open, s8 session name.
+    //     N: IN chat (max 80; buffer MULTPLAY::global_chat_string), int16
+    //        the full-screen "C" field; uint8 humans, per human banner:
+    //        uint8 player, uint8 has hit next turn; uint8 lines, per chat
+    //        line as the screen prints it: uint8 sender (>= 8 GNN), s8 line.
+    if (g_multiplayer.phase != MP_NONE) {
+        buf.push_back((uint8_t)'M');
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'Y');
+        Write8(buf, 1);                                   // block version
+        const uint8_t phase = g_multiplayer.phase;
+        Write8(buf, phase);
+
+        const s_mp_screen* mp = MOX::mp_screen;
+        static const s_mp_screen mp_none = {};            // before the step sets it
+        const s_mp_screen& m = mp != nullptr ? *mp : mp_none;
+        const s_network& net = NETMOX::net;
+        const netadapter::s_adapter* router = netcode::Ext_Router_Adapter_();
+        const int16_t users = router != nullptr
+            ? (int16_t)netadapter::Get_Users(router, nullptr, 0) : 0;
+
+        switch (phase) {
+        case MP_SETUP:
+            Write8(buf, MOX::settings.multi_player_game_type);
+            Write8(buf, (uint8_t)MOX::game_type);
+            Write8(buf, net.mode);
+            for (int16_t f : {m.field_id_network, m.field_id_online, m.field_id_hotseat,
+                              m.field_id_cancel, m.field_id_start_game, m.field_id_load_game,
+                              m.field_id_join_game, m.field_id_setup}) {
+                Write16(buf, f);
+            }
+            WriteStr8(buf, net.online_settings.endpoint, sizeof(net.online_settings.endpoint));
+            WriteStr8(buf, MOX::settings.net_game_name, sizeof(MOX::settings.net_game_name));
+            break;
+        case MP_ONLINE_SETUP:
+            WriteInputField(buf, m.game_list_field_ids[3], 30, net.online_settings.endpoint,
+                            sizeof(net.online_settings.endpoint));
+            Write16(buf, m.field_id_ok);
+            Write16(buf, m.field_id_cancel);
+            break;
+        case MP_NET_GAME_NAME:
+            WriteInputField(buf, namestar::input_box.accept_field_id,
+                            namestar::input_box.max_input_chars,
+                            namestar::input_box.input_text,
+                            sizeof(namestar::input_box.input_text));
+            Write16(buf, namestar::input_box.cancel_field_id);
+            WriteStr8(buf, g_multiplayer.text, 255);
+            break;
+        case MP_LOAD_GAME: {
+            Write8(buf, (uint8_t)MOX::game_type);
+            Write16(buf, m.field_id_cancel);
+            Write8(buf, 10);
+            const bool dates = MOX::save_game_dates != nullptr
+                               && MOX::save_game_stardates != nullptr;
+            for (int i = 0; i < 10; i++) {
+                Write16(buf, m.game_list_field_ids[i]);
+                Write8(buf, (uint8_t)m.save_slot_valid[i]);
+                WriteStr8(buf, MOX::save_game_description[i].description,
+                          sizeof(MOX::save_game_description[i].description));
+                WriteStr8(buf, dates ? MOX::save_game_stardates + i * 25 : nullptr, 25);
+                WriteStr8(buf, dates ? MOX::save_game_dates + i * 25 : nullptr, 25);
+            }
+            break;
+        }
+        case MP_HOTSEAT_SETUP: {
+            Write8(buf, (uint8_t)MOX::settings.number_of_players);
+            int16_t humans = HOTPOP::hotseat_human_players;
+            if (humans < 0) humans = 0;
+            if (humans > MAX_PLAYERS) humans = MAX_PLAYERS;
+            Write16(buf, humans);
+            for (int16_t f : g_multiplayer.fields) {
+                Write16(buf, f);
+            }
+            for (int16_t i = 0; i < humans; i++) {
+                const s_player& p = MOX::player[i];
+                Write8(buf, p.race);
+                Write8(buf, p.color);
+                WriteStr8(buf, p.name, sizeof(p.name));
+                WriteStr8(buf, p.race_name, sizeof(p.race_name));
+            }
+            break;
+        }
+        case MP_HOTSEAT_SELECT:
+            Write8(buf, MAX_PLAYERS);
+            for (int i = 0; i < MAX_PLAYERS; i++) {
+                const int8_t status = m.player_button_status[i];
+                Write8(buf, (uint8_t)status);
+                Write16(buf, status != 0 ? m.player_field_ids[i] : (int16_t)-1000);
+                Write16(buf, status != 0 ? m.game_list_field_ids[i] : (int16_t)-1000);
+            }
+            break;
+        case MP_HOST_INIT:
+        case MP_JOIN_INIT:
+        case MP_JOIN_WAITING:
+            Write8(buf, net.mode);
+            WriteStr8(buf, net.online_settings.endpoint, sizeof(net.online_settings.endpoint));
+            WriteStr8(buf, net.cur_game_name, sizeof(net.cur_game_name));
+            break;
+        case MP_HOST_WAIT_JOINERS:
+        case MP_HOST_WAIT_LOADED:
+            Write16(buf, m.field_id_begin);
+            Write16(buf, users);
+            Write8(buf, (uint8_t)MOX::settings.number_of_players);
+            WriteStr8(buf, net.cur_game_name, sizeof(net.cur_game_name));
+            if (phase == MP_HOST_WAIT_LOADED) {
+                Write8(buf, (uint8_t)net.num_connected_players);
+                Write32(buf, net.joining_net_id);
+            }
+            break;
+        case MP_HOST_WAIT_RACES: {
+            int16_t ready = 0;
+            for (int i = 0; i < MOX::NUM_PLAYERS && i < MAX_PLAYERS; i++) {
+                if (net.player_connected_flags[i] != 0) ready++;
+            }
+            Write16(buf, ready);
+            Write16(buf, users);
+            Write8(buf, (uint8_t)net.num_connected_players);
+            break;
+        }
+        case MP_HOST_SENDING:
+        case MP_JOIN_GETTING_DATA:
+            WriteStr8(buf, MOX::temp_string, sizeof(MOX::temp_string));
+            break;
+        case MP_HOST_PICK_POSITION:
+        case MP_JOIN_PICK_POSITION:
+            Write16(buf, m.field_id_begin);
+            Write8(buf, MAX_PLAYERS);
+            for (int i = 0; i < MAX_PLAYERS; i++) {
+                const s_player& p = MOX::player[i];
+                const bool shown = i < MOX::NUM_PLAYERS
+                                   && p.objectives == PLAYER_OBJECTIVE_HUMAN && p.eliminated == 0;
+                Write8(buf, (uint8_t)shown);
+                Write8(buf, shown ? m.player_connected_flags[i] : 0);
+                Write16(buf, shown ? m.player_field_ids[i] : (int16_t)-1000);
+                Write16(buf, shown ? m.game_list_field_ids[i] : (int16_t)-1000);
+            }
+            break;
+        case MP_JOIN_GAME_LIST: {
+            Write16(buf, m.field_id_cancel);
+            int32_t rows = router != nullptr ? netadapter::Game_Count(router) : 0;
+            if (rows < 0) rows = 0;
+            if (rows > 10) rows = 10;
+            Write8(buf, (uint8_t)rows);
+            for (int32_t i = 0; i < rows; i++) {
+                const network::router::s_router_session_info* info =
+                    netadapter::Ext_Game_Info(router, (uint32_t)i);
+                Write16(buf, m.game_list_field_ids[i]);
+                Write16(buf, info != nullptr ? (int16_t)info->current_players : 0);
+                Write16(buf, info != nullptr ? (int16_t)info->max_players : 0);
+                Write8(buf, info != nullptr ? (uint8_t)info->open : 0);
+                WriteStr8(buf, info != nullptr ? info->session_name : nullptr,
+                          sizeof(info->session_name));
+            }
+            break;
+        }
+        case MP_NET_NEXT_TURN: {
+            WriteInputField(buf, m.player_field_ids[0], 80, MULTPLAY::global_chat_string,
+                            sizeof(MULTPLAY::global_chat_string));
+            Write16(buf, m.player_field_ids[1]);
+            uint8_t humans = 0;
+            for (int i = 0; i < MOX::NUM_PLAYERS && i < MAX_PLAYERS; i++) {
+                if (MOX::player[i].objectives == PLAYER_OBJECTIVE_HUMAN
+                    && MOX::player[i].eliminated == 0) humans++;
+            }
+            Write8(buf, humans);
+            for (int i = 0; i < MOX::NUM_PLAYERS && i < MAX_PLAYERS; i++) {
+                if (MOX::player[i].objectives == PLAYER_OBJECTIVE_HUMAN
+                    && MOX::player[i].eliminated == 0) {
+                    Write8(buf, (uint8_t)i);
+                    Write8(buf, (uint8_t)(net.players_hit_next_turn[i] != 0));
+                }
+            }
+            // Draw_Net_Next_Turn_Screen's lines, formatted as it prints them.
+            const s_net_chat* chat = CHAT::chat_info;
+            int32_t lines = chat != nullptr ? chat->count : 0;
+            if (lines < 0) lines = 0;
+            if (lines > 14) lines = 14;
+            Write8(buf, (uint8_t)lines);
+            for (int32_t i = 0; i < lines; i++) {
+                const s_net_chat_msg& msg = chat->messages[i];
+                char line[100];
+                if (msg.player_id < MAX_PLAYERS) {
+                    snprintf(line, sizeof(line), "(%s)  %.*s", MOX::player[msg.player_id].name,
+                             (int)sizeof(msg.text), msg.text);
+                } else {
+                    snprintf(line, sizeof(line), "( GNN )  %.*s", (int)sizeof(msg.text), msg.text);
+                }
+                Write8(buf, msg.player_id);
+                WriteStr8(buf, line, sizeof(line));
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -1669,6 +1954,24 @@ void TurnPopupGuard::end() {
     active = false;
     g_turn_popup = previous;
     g_screen_override = previous_screen;
+}
+
+// OrionLayer, open fix 51. The multiplayer step that takes input (ext_api.h).
+MultiplayerView g_multiplayer = {0, {-1000, -1000, -1000}, nullptr};
+
+MultiplayerGuard::MultiplayerGuard(uint8_t phase, int16_t field_a,
+                                   int16_t field_b, int16_t field_c,
+                                   const char* text)
+    : previous(g_multiplayer) {
+    g_multiplayer = {phase, {field_a, field_b, field_c}, text};
+}
+
+MultiplayerGuard::~MultiplayerGuard() {
+    g_multiplayer = previous;
+}
+
+void MultiplayerGuard::set(uint8_t phase) const {
+    g_multiplayer = {phase, {-1000, -1000, -1000}, nullptr};
 }
 
 // OrionLayer, open fix 47. The running list field (ext_api.h).

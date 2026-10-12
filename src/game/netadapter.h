@@ -133,6 +133,13 @@ namespace netadapter {
     bool Is_Member_Accepted(const s_adapter* adapter, uint32_t network_id);
     int32_t Get_Users(const s_adapter* adapter, uint32_t* users, int32_t max_users);
 
+#ifdef ORION2RE_EXT
+    /// OrionLayer, open fix 51. The browser's record of session `session_index` (name, players,
+    /// max players, open), or nullptr past the end — a const read for
+    /// ext::SerializeState; Game_Name gives only the name.
+    const network::router::s_router_session_info* Ext_Game_Info(const s_adapter* adapter, uint32_t session_index);
+#endif
+
     bool Send_Game_Message(s_adapter* adapter, uint32_t target_network_id, uint16_t message_type, const void* payload, uint32_t payload_size);
     bool Poll_Game_Packet(s_adapter* adapter, s_game_packet* packet);
     bool Poll_Event(s_adapter* adapter, s_event* event);

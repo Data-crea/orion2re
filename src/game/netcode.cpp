@@ -709,4 +709,11 @@ namespace netcode {
         netInitialized = 1;
         return 1;
     }
+
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 51. Read-only access for ext::SerializeState (netcode.h); pumps nothing.
+    const netadapter::s_adapter* Ext_Router_Adapter_() {
+        return Is_Router_Mode((uint32_t)connection_type) ? &router_adapter : nullptr;
+    }
+#endif
 } // namespace netcode
