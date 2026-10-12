@@ -178,6 +178,7 @@ enum CombatEventType : uint8_t {
     CEV_COMMAND = 18,       // op, result (0 taken, else why refused), a, b — OrionLayer, open fix 58.
     CEV_SOUND = 19,         // sound id, handle, ticks since the last other event — OrionLayer, open fix 79.
     CEV_SOUND_CHANGE = 20,  // handle (-1 every sound), change (1 fade, 2 loop, 3 pitch), value, ticks — OrionLayer, open fix 79.
+    CEV_FIGHTER_BEAM = 21,  // missile, beam weapon, group x px, y px, facing, quantity, target x px, y px — OrionLayer, open fix 77.
 };
 
 /// OrionLayer, open fix 58. One command per battle action (decision 52), consumed where the human's input is read.

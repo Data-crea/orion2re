@@ -798,6 +798,9 @@ namespace CMBTMIS {
                 ext::Combat_Event(ext::CEV_FIGHTER_PASS, missile_idx, source_unit_idx, target_unit_idx, type, missile->fighter_count, dmg_accum, sys_dmg_accum);  // OrionLayer, open fix 56.
 #endif
                 if (MOX::apply_damage_to_planet == 1 && MOX::super_fast_flag == 0) {
+#ifdef ORION2RE_EXT
+                    ext::Combat_Event(ext::CEV_FIGHTER_BEAM, missile_idx, MOX::fighter_beam_type[CMBTMIS::Missile_Owner(missile_idx)], missile->x, missile->y, missile->facing_dir, missile->quantity, x, y);  // OrionLayer, open fix 77. What the pass draws.
+#endif
                     Fighter_Combat_SFX(missile_idx, x, y, dmg_accum, sys_dmg_accum);
                 }
 
