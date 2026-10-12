@@ -187,8 +187,51 @@ namespace vfs_detail {
         return resolve_layers(g_vfs_state.package_layers);
     }
 
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 70. `asset_path` in ORION2RE_LANGUAGE_DIR, the player's other install with the language's files; read only.
+    static bool Resolve_Language_Asset_Path_(const char* asset_path, char* resolved_path, size_t resolved_path_size) {
+        const char* language_dir = SDL_getenv("ORION2RE_LANGUAGE_DIR");
+        char language_base[VFS_MAX_PATH];
+        char candidate_path[VFS_MAX_PATH];
+        return language_dir != nullptr && language_dir[0] != '\0' &&
+               Build_Base_Path_(language_dir, language_base, sizeof(language_base)) &&
+               Build_Candidate_Path_(language_base, "", asset_path, candidate_path, sizeof(candidate_path)) &&
+               Resolve_Candidate_Path_(candidate_path, resolved_path, resolved_path_size);
+    }
+
+    // OrionLayer, open fix 70. A file the language owns (named in ORION2RE_LANGUAGE_FILES, comma separated, any case): an English install can hold English copies under the German names (DIPLOMSG.LBX, EVENTMSG.LBX), so these come from the language's folder FIRST.
+    static bool Language_Owns_(const char* asset_path) {
+        const char* names = SDL_getenv("ORION2RE_LANGUAGE_FILES");
+        if (names == nullptr || names[0] == '\0') {
+            return false;
+        }
+        const char* slash = strrchr(asset_path, '/');
+        const char* base = slash != nullptr ? slash + 1 : asset_path;
+        const size_t base_length = strlen(base);
+        for (const char* cursor = names; *cursor != '\0';) {
+            const char* end = strchr(cursor, ',');
+            const size_t length = end != nullptr ? (size_t)(end - cursor) : strlen(cursor);
+            if (length == base_length && strncasecmp(cursor, base, length) == 0) {
+                return true;
+            }
+            if (end == nullptr) {
+                break;
+            }
+            cursor = end + 1;
+        }
+        return false;
+    }
+#endif
+
     bool Resolve_Raw_Asset_Path_(const char* asset_path, char* resolved_path, size_t resolved_path_size) {
         char candidate_path[VFS_MAX_PATH];
+
+#ifdef ORION2RE_EXT
+        if (Language_Owns_(asset_path) &&
+            Resolve_Language_Asset_Path_(asset_path, resolved_path, resolved_path_size)) {
+            return true;  // OrionLayer, open fix 70.
+        }
+#endif
 
         if (Build_Candidate_Path_(g_vfs_state.base_path, "", asset_path, candidate_path, sizeof(candidate_path)) &&
             Resolve_Candidate_Path_(candidate_path, resolved_path, resolved_path_size)) {
@@ -200,6 +243,13 @@ namespace vfs_detail {
             Resolve_Candidate_Path_(candidate_path, resolved_path, resolved_path_size)) {
             return true;
         }
+
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 70. A read the game folder cannot serve is looked for last in ORION2RE_LANGUAGE_DIR (GER_HELP.LBX, HGSTRNGS.LBX, ...); read only, never written, unset = before the fix.
+        if (Resolve_Language_Asset_Path_(asset_path, resolved_path, resolved_path_size)) {
+            return true;
+        }
+#endif
 
         return false;
     }

@@ -232,6 +232,19 @@ namespace MOX2 {
         MOX::global_esc = 0;
     }
 
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 70. The language the starter asks for (ORION2RE_LANGUAGE, 0-4 as the settings dialog's: 1 German; set by OrionLayer's start from the player's choice).
+    // Ported onto v2: v2 reads language.ini itself and no longer forces 0, so an unset or invalid variable keeps language.ini's value.
+    uint8_t Ext_Language_(uint8_t fallback) {
+        const char* value = SDL_getenv("ORION2RE_LANGUAGE");
+        if (value == nullptr || value[0] == '\0') {
+            return fallback;
+        }
+        const int language = atoi(value);
+        return (uint8_t)(language >= 0 && language <= 4 ? language : fallback);
+    }
+#endif
+
     void __cdecl Set_Mox_Language() {
         char dir_buffer[80];
         char line_buffer[80];
@@ -253,6 +266,9 @@ namespace MOX2 {
             language = 0;
         }
         MOX::settings.language = static_cast<uint8_t>(language);
+#ifdef ORION2RE_EXT
+        MOX::settings.language = Ext_Language_(MOX::settings.language);  // OrionLayer, open fix 70.
+#endif
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "mox2: Set_Mox_Language complete language=%d", (int)MOX::settings.language);
     }
 

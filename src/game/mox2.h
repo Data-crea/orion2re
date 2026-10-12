@@ -21,6 +21,9 @@ namespace MOX2 {
 
     /** Reads and validates the language selected in language.ini, falling back to English. */
     void __cdecl Set_Mox_Language();
+#ifdef ORION2RE_EXT
+    uint8_t Ext_Language_(uint8_t fallback);  // OrionLayer, open fix 70.
+#endif
 
     /** Loads the alternate data path from orioncd.ini and verifies required assets are reachable. */
     void __cdecl Set_Mox_Alt_Path();
