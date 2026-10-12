@@ -22,6 +22,9 @@ static bool Hide_Window_At_Start_() {
 std::atomic<bool> g_hide_window{Hide_Window_At_Start_()};
 int16_t g_pending_field = 0;
 int16_t g_activated_input = 0;
+// OrionLayer, open fix 62. The rect the client saw at the pending index (x, y, x_end, y_end), when it sent one.
+static bool g_pending_checked = false;
+static int16_t g_pending_rect[4] = {0, 0, 0, 0};
 bool g_injected_mouse_pending = false;
 
 static Server g_server;
@@ -2030,6 +2033,11 @@ static void ProcessInput() {
             // overwritten by Interpret_Mouse_Input() on normal clicks.
             if (cmd.param1 >= 0 && cmd.param1 < fields::fields_count) {
                 g_pending_field = cmd.param1;
+                // OrionLayer, open fix 62. A client that names the field's rect gets it checked where the field is taken.
+                g_pending_checked = cmd.pairs.size() == 8;
+                if (g_pending_checked) {
+                    memcpy(g_pending_rect, cmd.pairs.data(), 8);
+                }
             }
             break;
 
@@ -2498,6 +2506,25 @@ void Tick(int16_t current_screen) {
 
     // Process queued input commands
     ProcessInput();
+
+    // OrionLayer, open fix 62. A pending activation is taken by the NEXT
+    // Get_Input (fields.cpp), which may belong to another list than the one
+    // the client answered: a screen that ended by itself in between (the
+    // reports phase's whole-screen field, gone in 0.02-0.15 s) handed its
+    // index to SELECT NEW RESEARCH, whose row 1 was then committed after its
+    // input delay (open fix 26). Every Tick runs right before that take, so
+    // an index that no longer names the field the client saw is dropped here.
+    if (g_pending_field > 0 && g_pending_checked) {
+        const bool same = g_pending_field < fields::fields_count &&
+            fields::fields[g_pending_field].x == g_pending_rect[0] &&
+            fields::fields[g_pending_field].y == g_pending_rect[1] &&
+            fields::fields[g_pending_field].x_end == g_pending_rect[2] &&
+            fields::fields[g_pending_field].y_end == g_pending_rect[3];
+        if (!same) {
+            g_pending_field = 0;
+            g_pending_checked = false;
+        }
+    }
 
     // No clients? Skip serialization.
     if (g_server.ClientCount() == 0) return;

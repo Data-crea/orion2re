@@ -199,6 +199,10 @@ void Server::HandleClientMessage(Client& client) {
             InputCommand cmd{};
             cmd.type = MSG_ACTIVATE;
             memcpy(&cmd.param1, payload, 2);
+            // OrionLayer, open fix 62. Optional: int16 x, y, x_end, y_end of the field as the client saw it.
+            if (payload_len >= 10) {
+                cmd.pairs.assign(payload + 2, payload + 10);
+            }
             input_queue_.push_back(cmd);
         }
         break;
