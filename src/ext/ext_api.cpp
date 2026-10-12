@@ -868,6 +868,36 @@ static void SerializeState(std::vector<uint8_t>& buf,
             WriteBytes(buf, text, len);
         }
     }
+
+    // 14. The move verdict the fleet box's selection would get at every
+    //     star: "FMOV", written ONLY on SCREEN_MAIN while the fleet box is
+    //     open and a ship in it is selected, and LAST. OrionLayer, open fix 48.
+    //
+    //     The original computes it on HOVER (Scan_Stars_XY,
+    //     mainscr.cpp:2987-2993) into g_ship_move_info and colours the
+    //     preview line from it (Draw_ETA_Destination_Line, :558-567); a
+    //     client hovers without the engine's pointer, so the same call is
+    //     made here for every star into a LOCAL struct, the global
+    //     untouched. Sent as the game fills it: the 14-byte s_ship_move_info.
+    if (current_screen == SCREEN_MAIN && MOVEBOX::Moveable_Box_Selected(2) != 0 &&
+        FLEETPOP::Some_Icon_Selected()) {
+        static int16_t ids[MAX_SHIPS];
+        HACCESS::Get_Fleet_Box_Selected_Ship_Ids(ids, MAX_SHIPS, 0x00FF);
+        if (ids[0] != -1) {  // Ships_Try_To_Move_To reads ship[ids[0]] unchecked
+            buf.push_back((uint8_t)'F');
+            buf.push_back((uint8_t)'M');
+            buf.push_back((uint8_t)'O');
+            buf.push_back((uint8_t)'V');
+            Write8(buf, 1);                                     // block version
+            Write16(buf, MOX::NUM_STARS);
+            Write8(buf, (uint8_t)sizeof(s_ship_move_info));     // 14
+            for (int16_t s = 0; s < MOX::NUM_STARS; s++) {
+                s_ship_move_info mi;
+                SHIPMOVE::Ships_Try_To_Move_To(ids, s, &mi);
+                WriteBytes(buf, &mi, sizeof(mi));
+            }
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
