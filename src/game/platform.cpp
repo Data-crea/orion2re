@@ -105,6 +105,10 @@ namespace platform {
             if (no_vsync != nullptr && no_vsync[0] != '\0' && no_vsync[0] != '0') {
                 vsync_enabled = 0;
             }
+            // OrionLayer, open fix 41. A hidden window is never drawn, so it never presents with VSync.
+            if (ext::g_hide_window) {
+                vsync_enabled = 0;
+            }
 #endif
             SDL_SetAtomicInt(&g_requested_vsync_enabled, vsync_enabled);
             Request_Present_Refresh();

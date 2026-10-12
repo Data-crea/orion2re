@@ -13,7 +13,7 @@
 
 namespace ext {
 
-bool g_hide_window = false;
+bool g_hide_window = true;  // OrionLayer, open fix 41. Hidden before the window is first shown, not after (platform.cpp).
 int16_t g_pending_field = 0;
 int16_t g_activated_input = 0;
 bool g_injected_mouse_pending = false;
