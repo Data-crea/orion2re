@@ -2475,6 +2475,13 @@ void Combat_Event(uint8_t type, int16_t a0, int16_t a1, int16_t a2, int16_t a3,
     if (type == CEV_COMMAND && a1 == 0) g_polled_since_wait = false;  // OrionLayer, open fix 71, amended. A command taken: its action's first wait is a frame of it, not the input loop's.
 }
 
+void Combat_Note(uint8_t type, int16_t a0, int16_t a1, int16_t a2, int16_t a3,
+                 int16_t a4, int16_t a5, int16_t a6, int16_t a7) {
+    const int32_t ticks = g_battle_ticks;  // OrionLayer, open fix 82. A note inside an animation keeps the tick count.
+    Combat_Event(type, a0, a1, a2, a3, a4, a5, a6, a7);
+    g_battle_ticks = ticks;
+}
+
 // OrionLayer, open fix 79. The battle's sounds as events (ext_api.h).
 static bool Battle_Sound_Recorded_() {
     return g_combat_live && g_hide_window.load() && g_server.ClientCount() > 0;

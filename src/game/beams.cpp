@@ -1378,6 +1378,11 @@ namespace BEAMS {
                                 if (attacker_ship_id > 0) {
                                     FIREPTS::Calc_FP_Offsets(&fp_x, &fp_y, weapon_id, shot_count, attacker_owner, attacker_ship_id, attacker_picture_num, (uint8_t)attacker_facing_dir, (uint8_t)target_bearing, fp_idx_val);
                                 }
+#ifdef ORION2RE_EXT
+                                if (frame_idx[i] == 0 && fp_idx_val == fp_count - 1 && g_reflection_state_flag != 2) {
+                                    ext::Combat_Note(ext::CEV_BEAM_AIM, attacker_ship_id, target_id, fx->weapon_id, fp_count, (int16_t)(attacker_center_x + fp_x + MOX::cur_combat_x * 20), (int16_t)(attacker_center_y + fp_y + MOX::cur_combat_y * 20), (int16_t)(target_center_x + rand_offsets[i + 2] + MOX::cur_combat_x * 20), (int16_t)(target_center_y + rand_offsets[i] + MOX::cur_combat_y * 20));  // OrionLayer, open fix 82. The bolt's own end points.
+                                }
+#endif
                                 Fire_Weapon(attacker_center_x + fp_x, attacker_center_y + fp_y, target_center_x + rand_offsets[i + 2], target_center_y + rand_offsets[i], attacker_facing_dir, target_facing_dir, fx->weapon_id, frame_idx[i], i, MOX::combat_data[target_id].size_class, fx->result_flags, fx->special_flag, is_non_ship_target, fp_idx_val, g_reflection_state_flag, MOX::combat_data[attacker_ship_id].size_class, fx->specials, 1);
                             }
                         }

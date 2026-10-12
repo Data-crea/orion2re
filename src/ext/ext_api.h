@@ -179,6 +179,7 @@ enum CombatEventType : uint8_t {
     CEV_SOUND = 19,         // sound id, handle, ticks since the last other event — OrionLayer, open fix 79.
     CEV_SOUND_CHANGE = 20,  // handle (-1 every sound), change (1 fade, 2 loop, 3 pitch), value, ticks — OrionLayer, open fix 79.
     CEV_FIGHTER_BEAM = 21,  // missile, beam weapon, group x px, y px, facing, quantity, target x px, y px — OrionLayer, open fix 77.
+    CEV_BEAM_AIM = 22,      // source, target, weapon, fire points, from x px, y px, to x px, y px (an entry's last fire point, the target and its miss offset) — OrionLayer, open fix 82.
 };
 
 /// OrionLayer, open fix 58. One command per battle action (decision 52), consumed where the human's input is read.
@@ -211,6 +212,10 @@ void Combat_Command_Cell(int16_t* x, int16_t* y);
 void Combat_Event(uint8_t type, int16_t a0 = 0, int16_t a1 = 0, int16_t a2 = 0,
                   int16_t a3 = 0, int16_t a4 = 0, int16_t a5 = 0,
                   int16_t a6 = 0, int16_t a7 = 0);
+/// OrionLayer, open fix 82. What an animation drew from its own random numbers, recorded inside it: the sounds after it still count their ticks from the event they belong to (open fix 79).
+void Combat_Note(uint8_t type, int16_t a0 = 0, int16_t a1 = 0, int16_t a2 = 0,
+                 int16_t a3 = 0, int16_t a4 = 0, int16_t a5 = 0,
+                 int16_t a6 = 0, int16_t a7 = 0);
 
 /// OrionLayer, open fix 79. The battle's sounds as events, the engine silent while a client draws.
 ///
