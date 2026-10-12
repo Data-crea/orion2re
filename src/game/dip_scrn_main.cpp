@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 46. ScreenOverride for the two audiences.
+#endif
 
 namespace DIP_SCRN {
     /**
@@ -1170,6 +1173,10 @@ namespace DIP_SCRN {
     }
 
     void __cdecl Diplomacy_Screen(int player_idx) {
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 46. The player's audience reports a synthetic 57 (ext_api.h); the game still reads its caller's screen.
+        const ext::ScreenOverride ext_screen_guard(57);
+#endif
         diplomacy_current_music = -1;
         synch_up_established_flag = 0;
 
@@ -1261,6 +1268,10 @@ namespace DIP_SCRN {
         if (MOX::player[player_idx].eliminated == 1) {
             return;
         }
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 46. An audience the AI asked for (turn start, report.cpp; a sneak attack, combfind.cpp) reports a synthetic 58 (ext_api.h).
+        const ext::ScreenOverride ext_screen_guard(58);
+#endif
 
         fields::Deactivate_Help_List();
         fields::Enable_Draw_All_Fields();

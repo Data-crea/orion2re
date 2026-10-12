@@ -48,6 +48,12 @@ struct ScreenOverride {
     ~ScreenOverride();
 };
 
+/// OrionLayer, open fix 46. The diplomacy audience has no screen id and runs under its
+/// caller's (6 the Races screen, 0 a turn-start report, 12 a sneak attack
+/// in turn processing): it reports 57 when the player opened it
+/// (DIP_SCRN::Diplomacy_Screen) and 58 when an AI asked for it
+/// (DIP_SCRN::Npc_Diplomacy_Screen), so a client can tell it is up.
+
 /// The field id of the input Get_Input() is returning THIS CALL when it
 /// came from a client's ACTIVATE_FIELD, and 0 when it came from the mouse.
 ///
