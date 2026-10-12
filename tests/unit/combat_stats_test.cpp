@@ -44,6 +44,8 @@ namespace {
         int16_t y;
     };
     std::vector<s_draw_position> drawn_positions;
+    s_help_box* active_help_list;
+    int16_t active_help_box_count;
     char weapon_name[] = "Weapon";
     char weapon_name_plural[] = "Weapons";
 } // namespace
@@ -207,6 +209,9 @@ namespace MOX {
     int16_t cmbt_colony_id;
     int16_t combat_total_ship_count;
     int16_t cur_ship;
+    int16_t order_info_flag;
+    int16_t ship_status_display;
+    s_help_box help_entry_list[50];
     int16_t cur_ptr;
     int16_t ship_turn_order[MAX_COMBAT_SHIPS];
     int16_t side_end_of_turn[15];
@@ -235,6 +240,11 @@ namespace MOX {
 } // namespace MOX
 
 namespace fields {
+    void __cdecl Set_Help_List(s_help_box* help_data, int16_t count) {
+        active_help_list = help_data;
+        active_help_box_count = count;
+    }
+
     int16_t __cdecl Add_Hot_Key(const char* hotkey) {
         last_hotkey = hotkey;
         return next_hotkey_field;
@@ -264,6 +274,7 @@ namespace NETMOX {
 namespace TECHDATA {
     s_tech_armor_data armor[ARMOR_COUNT];
     s_tech_shield_data shields[SHIELD_COUNT];
+    s_tech_specials_data specials[SPECIAL_COUNT];
     s_tech_weapon_data weapons[WEAPON_COUNT];
     s_tech_weapon_mod_data weapon_modifications[WEAPON_MOD_COUNT];
     uint8_t hard_shields_damage_reduction;
@@ -725,6 +736,42 @@ DOCTEST_TEST_CASE("tactical planets use size-specific draw offsets") {
 
     DOCTEST_CHECK(x == 7);
     DOCTEST_CHECK(y == 7);
+}
+
+DOCTEST_TEST_CASE("combat help hides ship-specific entries without a current ship") {
+    MOX::order_info_flag = 0;
+    MOX::ship_status_display = 0;
+    MOX::missile_warning = 0;
+    MOX::combat_total_ship_count = 2;
+
+    for (int16_t cur_ship : {-1, 2}) {
+        MOX::cur_ship = cur_ship;
+        memset(MOX::help_entry_list, 0, sizeof(MOX::help_entry_list));
+        active_help_list = nullptr;
+        COMBAT1::Set_Combat_Help_Fields();
+        DOCTEST_CHECK(active_help_list == MOX::help_entry_list);
+        DOCTEST_CHECK(active_help_box_count == 18);
+        for (int j = 0; j < 8; ++j) {
+            DOCTEST_CHECK(MOX::help_entry_list[9 + j].help_id == -1);
+        }
+    }
+
+    MOX::ship_status_display = 1;
+    MOX::cur_ship = -1;
+    COMBAT1::Set_Combat_Help_Fields();
+    for (int j = 0; j < 8; ++j) {
+        DOCTEST_CHECK(MOX::help_entry_list[9 + j].help_id == -1);
+    }
+}
+
+DOCTEST_TEST_CASE("current ship blip is skipped without a current ship") {
+    MOX::combat_total_ship_count = 2;
+    for (int16_t cur_ship : {-1, 2}) {
+        MOX::cur_ship = cur_ship;
+        drawn_positions.clear();
+        CMBTDRW1::Draw_Current_Ship_Blip();
+        DOCTEST_CHECK(drawn_positions.empty());
+    }
 }
 
 DOCTEST_TEST_CASE("current ship minimap pulse matches static blips on classic and expanded grids") {
