@@ -563,6 +563,72 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write8(buf, COLBLDG::field_mode);
         Write16(buf, COLBLDG::colony_auto_building);
     }
+
+    // 11. What the build popup offers, in its own order, with the numbers
+    //     it prints for each: "BLDL", written ONLY while
+    //     SCREEN_QUEUE_POPUP is up, and LAST. OrionLayer, open fix 40.
+    //
+    //     Calculate_Building_Array keeps Trade Goods and Housing first,
+    //     then every building Colony_Can_Build_Product allows, sorted by
+    //     the language's building names (colbldg.cpp:161-178); the ship and
+    //     other list is Calculate_Military_Array (:180-264), with
+    //     COLONY_PRODUCTION_SEPARATOR rows between its groups. A client copy
+    //     would be a second copy of a long rule and of a sort by name. Per
+    //     entry the id, then the three numbers Draw_Cost_And_Time_Info
+    //     prints (:1115-1174): the cost (as the screen casts it), the
+    //     maintenance for a building (-1 otherwise) and the build time;
+    //     -1, -1, -1 for a separator.
+    if (current_screen == SCREEN_QUEUE_POPUP) {
+        buf.push_back((uint8_t)'B');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'D');
+        buf.push_back((uint8_t)'L');
+        const int16_t h = COLONY::colony_handle;
+        const bool ok = h >= 0 && h < MOX::NUM_COLONIES;
+        auto entry = [&](int16_t id) {
+            Write16(buf, id);
+            if (!ok || id == COLONY_PRODUCTION_SEPARATOR) {
+                Write16(buf, (int16_t)-1);
+                Write16(buf, (int16_t)-1);
+                Write16(buf, (int16_t)-1);
+                return;
+            }
+            Write16(buf, (int16_t)COLCALC::Colony_Product_Cost(&MOX::colony[h], id));
+            Write16(buf, COLBLDG::Colony_Production_Is_Building(id)
+                         ? (int16_t)TECHDATA::buildings[id].maintenance
+                         : (int16_t)-1);
+            Write16(buf, COLONY::Calculate_Colony_Turn_Count_From_Scrap_For_Prod(h, id));
+        };
+        int16_t nb = COLBLDG::n_building_indexes;
+        if (nb < 0) nb = 0;
+        if (nb > 54) nb = 54;
+        Write16(buf, nb);
+        for (int16_t i = 0; i < nb; i++) {
+            entry(COLBLDG::building_indexes[i]);
+        }
+        int16_t nm = COLBLDG::n_military_indexes;
+        if (nm < 0) nm = 0;
+        if (nm > 54) nm = 54;
+        Write16(buf, nm);
+        for (int16_t i = 0; i < nm; i++) {
+            entry(COLBLDG::military_indexes[i]);
+        }
+        // The seven queue items too: the summary shows the queue's first
+        // item when nothing is hovered (colbldg.cpp:825), and a queued item
+        // need not be in either list (a second Colony Base is not offered
+        // once the queue holds as many as there are free worlds, :185).
+        for (int i = 0; i < 7; i++) {
+            const int16_t id = COLBLDG::current_item[i];
+            if (id == COLONY_PRODUCTION_NONE) {
+                Write16(buf, id);
+                Write16(buf, (int16_t)-1);
+                Write16(buf, (int16_t)-1);
+                Write16(buf, (int16_t)-1);
+            } else {
+                entry(id);
+            }
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
