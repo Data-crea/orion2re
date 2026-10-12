@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 49. TurnPopupGuard.
+#endif
 
 namespace EVENTS {
     namespace {
@@ -2350,7 +2353,16 @@ namespace EVENTS {
                     Get_Event_Message(1, (int16_t)(game_random::Random(4) - 1), 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, event_message, sizeof(event_message));
                     event_status_flag = 0;
                 }
+#ifdef ORION2RE_EXT
+                {
+                    // OrionLayer, open fix 49. The GNN intro: id 63, its message type and the news text ("TPOP" kind 7).
+                    const ext::TurnPopupGuard ext_popup_guard(63, 7, nullptr, event_message);
+                    ext_popup_guard.arg(0, current_event == 0 ? 0 : 1);
+                    Drive_Event_Screen();
+                }
+#else
                 Drive_Event_Screen();
+#endif
             }
 
             current_event++;
@@ -2363,6 +2375,18 @@ namespace EVENTS {
             event_status_flag = 0;
 
             if (MOX::settings.show_gnn_report == 1) {
+#ifdef ORION2RE_EXT
+                // OrionLayer, open fix 49. The GNN event: id 63, event, subtype, picture, message values, news text ("TPOP" kind 7).
+                const ext::TurnPopupGuard ext_popup_guard(63, 7, nullptr, event_message);
+                const int16_t ext_values[11] = {p3, p4, p5, player_idx, p7, p8, p9, p10, p11, p12, p13};
+                ext_popup_guard.arg(0, (int16_t)(event_id + 2));
+                ext_popup_guard.arg(1, event_id);
+                ext_popup_guard.arg(2, event_subtype);
+                ext_popup_guard.arg(3, (int16_t)(event_id + 2));
+                for (int16_t v = 0; v < 11; ++v) {
+                    ext_popup_guard.arg((int16_t)(4 + v), ext_values[v]);
+                }
+#endif
                 Drive_Event_Screen();
             } else {
                 JIM::Get_Text_Message("jimtext.lbx", 29, text_buffer, sizeof(text_buffer));

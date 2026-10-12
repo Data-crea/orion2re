@@ -21,6 +21,11 @@ namespace SCIENCE {
 
     void* science_mouse_bitmap;
 
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 49. Why the room is up, set by the Show_Off_ callers, read and cleared by Science_Room (sent only).
+    static int16_t ext_science_reason = 0;
+#endif
+
     void __cdecl Show_Off_Captured_Tech(int16_t* captured_tech_ids, uint16_t tech_count, int16_t message_arg) {
         char text_buffer[0x100];
 
@@ -33,6 +38,9 @@ namespace SCIENCE {
         JIM::Decode_Text_System(text_buffer, message_arg, sizeof(text_buffer));
 
         char* trooper_anim = BILL::Cache_Player_Trooper_Anim();
+#ifdef ORION2RE_EXT
+        if (ext_science_reason == 0) ext_science_reason = 4;  // OrionLayer, open fix 49. Captured, unless an artifact came here.
+#endif
         SCIENCE::Science_Room(trooper_anim, tech_count, captured_tech_ids, text_buffer);
 
         file_ani::Reset_File_Animation_Buffer();
@@ -43,6 +51,9 @@ namespace SCIENCE {
 
     void __cdecl Show_Off_Artifact_Tech(uint16_t tech_idx, int16_t planet_idx) {
         int16_t discovered_tech = (int16_t)tech_idx;
+#ifdef ORION2RE_EXT
+        ext_science_reason = 3;  // OrionLayer, open fix 49. Artifact (either room).
+#endif
 
         if (finds_presented_by_scientist == 0) {
             Show_Off_Captured_Tech(&discovered_tech, 1, planet_idx);
@@ -105,6 +116,9 @@ namespace SCIENCE {
         JIM::Get_Text_Message("billtext.lbx", 2, message_text, sizeof(message_text));
         JIM::Decode_Text_Tech_And_Other_Name(message_text, MOX::PLAYER_NUM, tech_idx, other_player_idx, sizeof(message_text));
         spy_anim = BILL::Cache_Player_Spy_Anim();
+#ifdef ORION2RE_EXT
+        ext_science_reason = 2;  // OrionLayer, open fix 49. Stolen.
+#endif
         SCIENCE::Science_Room(spy_anim, 1, &discovered_tech, message_text);
         file_ani::Reset_File_Animation_Buffer();
         allocate::Pop_Block(MOX::screen_seg);
@@ -122,6 +136,25 @@ namespace SCIENCE {
         // stolen and artifact technology (report.cpp), which is the same
         // dialog and reports the same id.
         const ext::ScreenOverride ext_screen_guard(52);
+        // OrionLayer, open fix 49. What the room presents (kind 1, id 52 kept; ext_api.cpp "TPOP").
+        const ext::TurnPopupGuard ext_popup_guard(-1, 1, nullptr, footer_text);
+        ext_popup_guard.arg(0, (int16_t)discovery_count);
+        ext_popup_guard.arg(1, ext_science_reason);
+        ext_popup_guard.arg(2, 0);
+        ext_science_reason = 0;
+        {
+            // Each entry takes one slot, a weapon-mod entry (0x4000) two.
+            int16_t slot = 0;
+            for (uint16_t e = 0; e < discovery_count && slot < 13; ++e) {
+                const bool mod = (discovery_data[slot] & 0x4000) != 0;
+                ext_popup_guard.arg((int16_t)(3 + slot), discovery_data[slot]);
+                ++slot;
+                if (mod && slot < 13) {
+                    ext_popup_guard.arg((int16_t)(3 + slot), discovery_data[slot]);
+                    ++slot;
+                }
+            }
+        }
 #endif
         MOX2::action_func_t saved_auto_function = nullptr;
         int16_t science_hot_key;
@@ -314,6 +347,9 @@ namespace SCIENCE {
 
                     ++current_entry_index;
                     --remaining_discoveries;
+#ifdef ORION2RE_EXT
+                    ext_popup_guard.arg(2, (int16_t)(discovery_count - remaining_discoveries));  // OrionLayer, open fix 49. Entries shown.
+#endif
 
                     first_entry = false;
                     jumble_amount = (MOX::settings.animations_on != 0) ? 100 : 0;
@@ -438,6 +474,9 @@ namespace SCIENCE {
                     "SR_R%x_SC.LBX",
                     (unsigned int)(uint8_t)MOX::player[player_idx].race);
 
+#ifdef ORION2RE_EXT
+                ext_science_reason = 1;  // OrionLayer, open fix 49. Researched.
+#endif
                 SCIENCE::Science_Room(science_room_lbx, researched_tech_count, researched_tech_ids, decoded_text);
                 return;
             }

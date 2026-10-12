@@ -103,6 +103,39 @@ struct MessageBoxGuard {
     ~MessageBoxGuard();
 };
 
+/// OrionLayer, open fix 49. The turn-time popup that is up: which one (kind),
+/// up to 16 numbers it was opened with or keeps (args, -1 = unset; the
+/// layout per kind is the table above SerializeState's "TPOP" block in
+/// ext_api.cpp), and its title and text where the game formats them into a
+/// buffer that outlives the popup's input loop. Set by TurnPopupGuard, which
+/// can also report a synthetic screen id while it lives (like
+/// ScreenOverride), restored when the popup returns — or earlier, by end(),
+/// where the popup opens another dialog on its way out. What is SENT,
+/// nothing the game reads.
+struct TurnPopupView {
+    uint8_t kind;          // 0 none, 1 science room ... 9 colony landing (ext_api.cpp)
+    int16_t args[16];
+    int16_t n_args;
+    const char* text;
+    const char* title;
+};
+extern TurnPopupView g_turn_popup;
+
+struct TurnPopupGuard {
+    TurnPopupView previous;
+    int16_t previous_screen;
+    bool active;
+    /// screen_id < 0: keep the reported id as it is.
+    TurnPopupGuard(int16_t screen_id, uint8_t kind, const char* title,
+                   const char* text);
+    ~TurnPopupGuard();
+    /// Sets args[i] of the view (and n_args to at least i + 1).
+    void arg(int16_t i, int16_t v) const;
+    void set_text(const char* text) const;
+    /// Restores the view and the reported id now; the destructor then does nothing.
+    void end();
+};
+
 /// The field id of the input Get_Input() is returning THIS CALL when it
 /// came from a client's ACTIVATE_FIELD, and 0 when it came from the mouse.
 ///

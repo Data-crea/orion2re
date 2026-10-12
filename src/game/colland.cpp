@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 49. TurnPopupGuard.
+#endif
 
 namespace COLLAND {
     s_animation_header* l_anims;
@@ -197,6 +200,17 @@ namespace COLLAND {
             COLONY::Col_Calc_Wrapper(COLONY::colony_handle);
         }
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 49. The landing: planet, colony, star and its title as Draw_Colony_Landing_Screen formats it (id 33 kept; "TPOP" kind 9).
+        char ext_planet_name[64];
+        char ext_title[200];
+        HACCESS::Do_Get_Planet_Name(COLONY::planet_handle, ext_planet_name, 1);  // own buffer: Get_Planet_Name writes MOX::temp_string
+        snprintf(ext_title, sizeof(ext_title), ESTRINGS::E_Strings(0xE5), ext_planet_name);
+        ext::TurnPopupGuard ext_popup_guard(-1, 9, ext_title, nullptr);
+        ext_popup_guard.arg(0, COLONY::planet_handle);
+        ext_popup_guard.arg(1, COLONY::colony_handle);
+        ext_popup_guard.arg(2, COLONY::star_handle);
+#endif
         do {
             timer::Mark_Time();
             Add_Fields();
@@ -204,10 +218,16 @@ namespace COLLAND {
             animate::Get_Animation_Frame_Count(COLLAND::l_anims);
             animate::Get_Current_Frame(COLLAND::l_anims);
             RUSS::Mox_Sync_Update();
+#ifdef ORION2RE_EXT
+            ext_popup_guard.arg(3, fields);  // OrionLayer, open fix 49. The dismiss field of this pass.
+#endif
             input_result = ::fields::Get_Input();
             ::fields::Scan_Input();
             timer::Release_Time(1);
         } while (input_result == 0);
+#ifdef ORION2RE_EXT
+        ext_popup_guard.end();  // OrionLayer, open fix 49. Not over the star-name popup.
+#endif
 
         COLONY::Reset_Field_Mode();
         ::fields::Clear_Fields();

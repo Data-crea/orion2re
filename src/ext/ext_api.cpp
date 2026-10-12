@@ -925,6 +925,170 @@ static void SerializeState(std::vector<uint8_t>& buf,
             WriteBytes(buf, str, len);
         }
     }
+
+    // 16. The turn-time popup that is up: "TPOP", written on ANY screen
+    //     while one is, and LAST (after MSGB). OrionLayer, open fix 49.
+    //
+    //     The popups the turn start and turn processing open run under the
+    //     galaxy map's id (0) or the processing id (12) and keep what they
+    //     show in their own locals; TurnPopupGuard reports a synthetic id
+    //     for each and puts what it was opened with here:
+    //
+    //     kind  id  popup (function)                         args
+    //      1    52  science room (SCIENCE::Science_Room)    [0] entries, [1] reason 0 unknown 1 researched
+    //                                                          2 stolen 3 artifact 4 captured, [2] entries shown
+    //                                                          so far, [3..] discovery_data slots raw (bit 0x4000 =
+    //                                                          weapon-mod entry, the next slot its mask)
+    //                                                          text = footer
+    //      2    40  Turn Summary (TURNSUM::Turn_Summary_Popup) [0] cur_page [1] max_page [2] up field
+    //                                                          [3] down field [4] OK field [5] first row field
+    //                                                          [6] last row field [7] frame field [8] background
+    //                                                          field [9] message index it opened at (absolute)
+    //                                                          + the message list below
+    //      3    59  leader for hire (MAINPUPS::Random_New_Officer_Popup)
+    //                                                        [0] leader [1] cost [2] star [3] field state 0 offer
+    //                                                          1 rejected 2 too poor 3 hired [4] hire field
+    //                                                          [5] reject/close field [6] dismiss field
+    //                                                          [7] over the Leaders screen (then id 29 is kept)
+    //                                                          [8] maintenance
+    //      4    60  planet choice (MAINPUPS::New_Colony_Selection_Popup and its
+    //               New_Outpost_ / Drop_Troops_ wrappers)  [0] star [1] mode 0 colony 1 outpost 2 troops
+    //                                                          [2] using colony ship [3] special shown
+    //                                                          [4] cancel field [5] dismiss field
+    //                                                          title = the popup's title; text = the special's
+    //                                                          description while it is shown
+    //                                                          + the system display below
+    //      5    61  new system (MAINPUPS::New_System_Discovery_Popup)
+    //                                                        [0] star [1] special shown [2] dismiss field
+    //                                                          title/text as kind 4 + the system display below
+    //      6    62  leader level / marooned hero (MAINPUPS::Officer_Gains_Level_Popup)
+    //                                                        [0] leader [1] state 0 level 1 joins 2 fails
+    //                                                          [2] star [3] dismiss field
+    //      7    63  GNN (EVENTS::Drive_Event_Screen)        [0] message type (0 intro, 1 next event,
+    //                                                          event+2) [1] event id or -1 [2] subtype or -1
+    //                                                          [3] picture EVENTS.LBX or -1 [4..14]
+    //                                                          Get_Event_Message's colony_idx, val1, val2,
+    //                                                          player_idx1, tech_field_idx1, player_idx2,
+    //                                                          leader_idx, player_idx3, star_idx,
+    //                                                          tech_app_idx1, tech_app_idx2; text = the news
+    //      8    64  combat target (MAINPUPS::Defense_Colony_Selection_Popup)
+    //                                                        [0] star [1] attacker [2] cancel field
+    //                                                          + the system display and COMBFIND::target below
+    //      9    33  colony landing (COLLAND::Colony_Landing_Screen)
+    //                                                        [0] planet [1] colony [2] star [3] dismiss field
+    //                                                          title = "colony built on" line
+    //
+    //     Written: version, kind, n_args + args, title, text (int16
+    //     length + raw bytes each), then per kind:
+    //     - 2: int16 count, per message: int16 length + the line as
+    //       MSG_::sprintf_msg renders it, uint8 1 if a click on it jumps
+    //       to a colony (MSG_::Goto_Msg_Colony's test), int16 that colony
+    //       or -1, uint8 its list page, int16 its first field on the page
+    //       shown or -1, uint8 its field count there (0 if not shown).
+    //     - 4, 5, 8: the system display's live fields: int16 star, int16
+    //       the grid field (asteroids: picked by POINTER position), 5 x
+    //       (int16 planet field, int16 planet) per orbit slot, 15 x (int16
+    //       ship field, int16 ship) per ship slot; -1000 / -1 when empty.
+    //     - 8 also: COMBFIND::target: 5 x int16 colony, int16 count,
+    //       15 x int16 player, int16 count.
+    if (g_turn_popup.kind != 0) {
+        buf.push_back((uint8_t)'T');
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'O');
+        buf.push_back((uint8_t)'P');
+        Write8(buf, 1);                                   // block version
+        Write8(buf, g_turn_popup.kind);
+        int16_t n_args = g_turn_popup.n_args;
+        if (n_args < 0) n_args = 0;
+        if (n_args > 16) n_args = 16;
+        Write16(buf, n_args);
+        for (int16_t i = 0; i < n_args; i++) {
+            Write16(buf, g_turn_popup.args[i]);
+        }
+        for (const char* str : {g_turn_popup.title, g_turn_popup.text}) {
+            const size_t len = str != nullptr ? strnlen(str, 4000) : 0;
+            Write16(buf, (int16_t)len);
+            WriteBytes(buf, str, len);
+        }
+
+        if (g_turn_popup.kind == 2) {
+            const s_list_state& list = TURNSUM::g_turn_sum_header;
+            int16_t first = MSG_::First_Msg_For_Player(MOX::PLAYER_NUM);
+            int16_t n = MSG_::N_Msgs_For_Player(MOX::PLAYER_NUM);
+            if (first < 0 || first >= MAX_MESSAGES || n < 0) n = 0;
+            if (first + n > MAX_MESSAGES) n = (int16_t)(MAX_MESSAGES - first);
+            Write16(buf, n);
+            char text[256];
+            uint8_t page = 0;
+            for (int16_t i = 0; i < n; i++) {
+                s_MSG& msg = MSG_::msgs[first + i];  // sprintf_msg takes it non-const, as INFS passes it
+                MSG_::sprintf_msg(text, sizeof(text), &msg);
+                const size_t len = strnlen(text, sizeof(text));
+                Write16(buf, (int16_t)len);
+                WriteBytes(buf, text, len);
+
+                // Goto_Msg_Colony's test (msg.cpp), without its writes.
+                int16_t colony = -1;
+                if (msg.msg_type == MSG_TYPE_COLONY) {
+                    const int16_t planet = msg.u.colony.planet_idx;
+                    if (planet >= 0 && planet < MAX_PLANETS) {
+                        const int16_t c = MOX::planet[planet].colony_index;
+                        if (c >= 0 && MOX::colony[c].owner == MOX::PLAYER_NUM) {
+                            colony = c;
+                        }
+                    }
+                }
+                Write8(buf, (uint8_t)(colony != -1));
+                Write16(buf, colony);
+
+                // The list item: its page (Init_List_Data starts a page at
+                // each stop_flag) and, on the page shown, the fields
+                // Add_Fields_To_List_Page gave its lines.
+                int16_t first_field = -1;
+                uint8_t n_fields = 0;
+                if (list.items != nullptr && i < list.num_items) {
+                    const s_list_item& item = list.items[i];
+                    if (i == 0 || item.stop_flag != 0) page++;
+                    if (page == list.cur_page && item.app_count != 0) {
+                        first_field = (int16_t)item.app_ids[0];
+                        n_fields = item.app_count;
+                    }
+                }
+                Write8(buf, page);
+                Write16(buf, first_field);
+                Write8(buf, n_fields);
+            }
+        }
+
+        if (g_turn_popup.kind == 4 || g_turn_popup.kind == 5 ||
+            g_turn_popup.kind == 8) {
+            Write16(buf, COLONY::sys_disp_star_handle);
+            Write16(buf, MOX::system_display_grid_field);
+            for (int i = 0; i < 5; i++) {
+                Write16(buf, MOX::planet_buttons[i]);
+                Write16(buf, MOX::sys_disp != nullptr ? MOX::sys_disp[i].orbit
+                                                      : (int16_t)-1);
+            }
+            for (int i = 0; i < 15; i++) {
+                const bool used = MOX::system_display_ships[i].ship_idx > -1;
+                Write16(buf, used ? MOX::system_display_ships[i].button
+                                  : (int16_t)-1000);
+                Write16(buf, used ? MOX::system_display_ships[i].ship_idx
+                                  : (int16_t)-1);
+            }
+        }
+
+        if (g_turn_popup.kind == 8) {
+            for (int i = 0; i < 5; i++) {
+                Write16(buf, COMBFIND::target.colony_targets[i]);
+            }
+            Write16(buf, COMBFIND::target.num_colony_targets);
+            for (int i = 0; i < 15; i++) {
+                Write16(buf, COMBFIND::target.player_targets[i]);
+            }
+            Write16(buf, COMBFIND::target.num_player_targets);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -1424,6 +1588,44 @@ MessageBoxGuard::MessageBoxGuard(uint8_t kind, const char* title,
 
 MessageBoxGuard::~MessageBoxGuard() {
     g_message_box = previous;
+}
+
+// OrionLayer, open fix 49. The turn-time popup that is up (ext_api.h).
+TurnPopupView g_turn_popup = {0, {}, 0, nullptr, nullptr};
+
+TurnPopupGuard::TurnPopupGuard(int16_t screen_id, uint8_t kind,
+                               const char* title, const char* text)
+    : previous(g_turn_popup), previous_screen(g_screen_override),
+      active(true) {
+    g_turn_popup.kind = kind;
+    for (int16_t& a : g_turn_popup.args) a = -1;
+    g_turn_popup.n_args = 0;
+    g_turn_popup.text = text;
+    g_turn_popup.title = title;
+    if (screen_id >= 0) {
+        g_screen_override = screen_id;
+    }
+}
+
+TurnPopupGuard::~TurnPopupGuard() {
+    end();
+}
+
+void TurnPopupGuard::arg(int16_t i, int16_t v) const {
+    if (!active || i < 0 || i >= 16) return;
+    g_turn_popup.args[i] = v;
+    if (g_turn_popup.n_args < i + 1) g_turn_popup.n_args = (int16_t)(i + 1);
+}
+
+void TurnPopupGuard::set_text(const char* text) const {
+    if (active) g_turn_popup.text = text;
+}
+
+void TurnPopupGuard::end() {
+    if (!active) return;
+    active = false;
+    g_turn_popup = previous;
+    g_screen_override = previous_screen;
 }
 
 // OrionLayer, open fix 47. The running list field (ext_api.h).

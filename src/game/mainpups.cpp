@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 49. TurnPopupGuard.
+#endif
 
 namespace MAINPUPS {
     char* g_msg_ptr;
@@ -633,6 +636,13 @@ namespace MAINPUPS {
         Update_Colony_Defense_Fields();
         last_scanned_field = mp_fields[1];
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 49. The combat target choice: id 64 and its star, attacker and cancel field ("TPOP" kind 8).
+        const ext::TurnPopupGuard ext_popup_guard(64, 8, nullptr, nullptr);
+        ext_popup_guard.arg(0, star_idx);
+        ext_popup_guard.arg(1, player_idx);
+#endif
+
         Draw_Defense_Selection_Popup();
         RUSS::Mox_Sync_Update();
 
@@ -640,6 +650,9 @@ namespace MAINPUPS {
             timer::Release_Time(2);
             timer::Mark_Time();
 
+#ifdef ORION2RE_EXT
+            ext_popup_guard.arg(2, mp_fields[6]);  // OrionLayer, open fix 49. The cancel field of this pass.
+#endif
             input_event = fields::Get_Input();
             scanned_field = fields::Scan_Input();
 
@@ -795,6 +808,27 @@ namespace MAINPUPS {
         fields::Assign_Auto_Function(Draw_Selection_Popup, 1);
 
         Update_Selection_Fields();
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 49. The planet choice: id 60, its title as Draw_Selection_Popup formats it ("TPOP" kind 4).
+        char ext_title[200] = "";
+        {
+            int16_t ext_string_id = -1;
+            switch (selection_state_flag) {
+            case 0: ext_string_id = (g_using_colony_ship != 0) ? 0x1ce : 0x1cd; break;
+            case 1: ext_string_id = 0x1cb; break;
+            case 2: ext_string_id = 0x1cf; break;
+            case 3: ext_string_id = 0x1cc; break;
+            default: break;
+            }
+            if (ext_string_id != -1) {
+                snprintf(ext_title, sizeof(ext_title), ESTRINGS::E_Strings(ext_string_id), MOX::star[g_star_n].name);
+            }
+        }
+        ext::TurnPopupGuard ext_popup_guard(60, 4, ext_title, nullptr);
+        ext_popup_guard.arg(0, g_star_n);
+        ext_popup_guard.arg(1, selection_state_flag);
+        ext_popup_guard.arg(2, g_using_colony_ship);
+#endif
         Draw_Selection_Popup();
         RUSS::Mox_Sync_Update();
 
@@ -802,12 +836,25 @@ namespace MAINPUPS {
         do {
             timer::Release_Time(2);
             timer::Mark_Time();
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 49. The special shown and the fields of this pass.
+            {
+                const bool ext_special = g_special != SYSTEM_SPECIAL_NO_SPECIAL && g_special != SYSTEM_SPECIAL_MAROONED_HERO;
+                ext_popup_guard.arg(3, g_special);
+                ext_popup_guard.arg(4, mp_fields[2]);
+                ext_popup_guard.arg(5, mp_fields[0]);
+                ext_popup_guard.set_text(ext_special ? g_msg_ptr : nullptr);
+            }
+#endif
             input = fields::Get_Input();
             scan_input = fields::Scan_Input();
             result = Evaluate_Selection_Input(&input, &scan_input, &done);
             Draw_Selection_Popup();
             RUSS::Mox_Sync_Update();
         } while (done == 0);
+#ifdef ORION2RE_EXT
+        ext_popup_guard.end();  // OrionLayer, open fix 49. Not over the star-name popup.
+#endif
 
         if (namestar::Can_Change_Star_Name(star_idx) != 0 &&
             MOX::settings.animations_on == 0 &&
@@ -886,6 +933,16 @@ namespace MAINPUPS {
 
         last_scanned_field = mp_fields[1];
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 49. The leader for hire: id 59 (29 kept over the Leaders screen, OFFS), leader, cost, star ("TPOP" kind 3).
+        const ext::TurnPopupGuard ext_popup_guard(on_officer_screen_flag != 0 ? -1 : 59, 3, nullptr, nullptr);
+        ext_popup_guard.arg(0, g_officer);
+        ext_popup_guard.arg(1, cost);
+        ext_popup_guard.arg(2, g_star_n);
+        ext_popup_guard.arg(7, on_officer_screen_flag != 0 ? 1 : 0);
+        ext_popup_guard.arg(8, OFFICER::Officer_Maintenance(g_player_n, g_officer));
+#endif
+
         video::Set_Refresh_Stencil();
         video::Set_Page_Off();
 
@@ -899,6 +956,13 @@ namespace MAINPUPS {
             on_officer_screen_flag == 0;
 
         do {
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 49. The state and the fields of this pass.
+            ext_popup_guard.arg(3, field_state);
+            ext_popup_guard.arg(4, mp_fields[7]);
+            ext_popup_guard.arg(5, mp_fields[8]);
+            ext_popup_guard.arg(6, mp_fields[0]);
+#endif
             int16_t input = fields::Get_Input();
             int16_t scan_input = fields::Scan_Input();
 
@@ -1022,6 +1086,14 @@ namespace MAINPUPS {
 
         last_scanned_field = mp_fields[1];
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 49. The new system: id 61, its title as Draw_Discovery_Popup formats it ("TPOP" kind 5).
+        char ext_title[200];
+        snprintf(ext_title, sizeof(ext_title), ESTRINGS::E_Strings(456), MOX::star[COLONY::sys_disp_star_handle].name);
+        const ext::TurnPopupGuard ext_popup_guard(61, 5, ext_title, nullptr);
+        ext_popup_guard.arg(0, star_idx);
+#endif
+
         Draw_Discovery_Popup();
         RUSS::Mox_Sync_Update();
 
@@ -1029,6 +1101,15 @@ namespace MAINPUPS {
             timer::Release_Time(2);
             timer::Mark_Time();
 
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 49. The special shown and the dismiss field of this pass.
+            {
+                const bool ext_special = g_special != SYSTEM_SPECIAL_NO_SPECIAL && g_special != SYSTEM_SPECIAL_MAROONED_HERO;
+                ext_popup_guard.arg(1, g_special);
+                ext_popup_guard.arg(2, mp_fields[0]);
+                ext_popup_guard.set_text(ext_special ? g_msg_ptr : nullptr);
+            }
+#endif
             input_val = fields::Get_Input();
             scanned_val = fields::Scan_Input();
 
@@ -1102,6 +1183,15 @@ namespace MAINPUPS {
 
         Update_Officer_Gains_Level_Fields();
         last_scanned_field = mp_fields[1];
+
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 49. The leader's level / marooned hero: id 62, leader, state, star, dismiss field ("TPOP" kind 6).
+        const ext::TurnPopupGuard ext_popup_guard(62, 6, nullptr, nullptr);
+        ext_popup_guard.arg(0, officer_idx);
+        ext_popup_guard.arg(1, officer_gains_level_state);
+        ext_popup_guard.arg(2, g_star_n);
+        ext_popup_guard.arg(3, mp_fields[0]);
+#endif
 
         video::Set_Page_Off();
         Draw_Officer_Gains_Level_Popup();

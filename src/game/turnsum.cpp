@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 49. TurnPopupGuard.
+#endif
 
 namespace {
     int16_t turn_sum_list_y[16] = {
@@ -120,6 +123,11 @@ namespace TURNSUM {
             return;
         }
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 49. Keep reporting 40 while the popup is up (line above set 0) and send its list ("TPOP" kind 2).
+        const ext::TurnPopupGuard ext_popup_guard(SCREEN_TURN_SUMMARY, 2, nullptr, nullptr);
+#endif
+
         if (MOX::return_screen == SCREEN_REPORTS) {
             g_turn_message_ix = 0;
         } else {
@@ -163,6 +171,19 @@ namespace TURNSUM {
                 int16_t field_btn_ok = fields::Add_Button_Field(0xF2, 0x176, "", ok_button_image, "\x1B", 0);
                 fields::Add_Hidden_Field(0x54, 0x33, 0x1D0, 0x189, "\x1B", 0);
                 int16_t field_hidden_bg = fields::Add_Hidden_Field(0, 0, 0x27F, 0x1DF, "\x1B", 0);
+#ifdef ORION2RE_EXT
+                // OrionLayer, open fix 49. The page and the fields of this pass (ext_api.cpp "TPOP" kind 2).
+                ext_popup_guard.arg(0, g_turn_sum_header.cur_page);
+                ext_popup_guard.arg(1, g_turn_sum_header.max_page);
+                ext_popup_guard.arg(2, field_btn_up);
+                ext_popup_guard.arg(3, field_btn_down);
+                ext_popup_guard.arg(4, field_btn_ok);
+                ext_popup_guard.arg(5, INFO::g_first_list_field);
+                ext_popup_guard.arg(6, INFO::g_last_list_field);
+                ext_popup_guard.arg(7, (int16_t)(field_btn_ok + 1));
+                ext_popup_guard.arg(8, field_hidden_bg);
+                ext_popup_guard.arg(9, g_turn_message_ix);
+#endif
 
                 animate::Draw(0x54, 0x33, popup_background_anim);
                 LIST::Display_List_Page(&g_turn_sum_header);
