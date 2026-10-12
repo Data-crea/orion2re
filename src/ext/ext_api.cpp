@@ -2472,6 +2472,7 @@ void Combat_Event(uint8_t type, int16_t a0, int16_t a1, int16_t a2, int16_t a3,
     e = {g_combat_event_next, g_combat_serial, type, {a0, a1, a2, a3, a4, a5, a6, a7}};
     ++g_combat_event_next;
     if (type != CEV_SOUND && type != CEV_SOUND_CHANGE) g_battle_ticks = 0;  // OrionLayer, open fix 79. The ticks count from this event.
+    if (type == CEV_COMMAND && a1 == 0) g_polled_since_wait = false;  // OrionLayer, open fix 71, amended. A command taken: its action's first wait is a frame of it, not the input loop's.
 }
 
 // OrionLayer, open fix 79. The battle's sounds as events (ext_api.h).
