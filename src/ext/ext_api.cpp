@@ -1938,6 +1938,48 @@ static void SerializeState(std::vector<uint8_t>& buf,
                   sizeof(namestar::input_box.prompt_text));
         Write8(buf, (uint8_t)(namestar::input_box.show_cancel_anim != 0));
     }
+
+    // 31. The text fields: "TXTF", written ONLY while the field list holds a
+    //     continuous input field, after INBX's place. OrionLayer, open fix 88.
+    //
+    //     A name a player types — the race's on Custom Race (raceopt.cpp:
+    //     1157-1167), a ship's (design_main.cpp:688), a save's — is a
+    //     continuous input field: it opens only by a click (fields.cpp:
+    //     1076-1105), takes keys into fields::continuous_string and stores
+    //     them in its own buffer on Enter (:1057-1068). The field list has
+    //     its rectangle and type, never its text, so a client could neither
+    //     show the name nor read back what was stored. Per such field (at
+    //     most 16, in list order) as WriteInputField writes one: its index,
+    //     its max length, its buffer, whether it is being edited and the
+    //     typed text then. Read only; nothing here changes the game.
+    {
+        uint8_t txtf_count = 0;
+        for (int16_t i = 0; i < fields::fields_count && txtf_count < 16; ++i) {
+            if (fields::fields[i].field_type == FIELD_TYPE_CONTINUOUS_INPUT) {
+                ++txtf_count;
+            }
+        }
+        if (txtf_count > 0) {
+            buf.push_back((uint8_t)'T');
+            buf.push_back((uint8_t)'X');
+            buf.push_back((uint8_t)'T');
+            buf.push_back((uint8_t)'F');
+            Write8(buf, 1);                               // block version
+            Write8(buf, txtf_count);
+            uint8_t written = 0;
+            for (int16_t i = 0; i < fields::fields_count && written < txtf_count; ++i) {
+                s_field& f = fields::fields[i];
+                if (f.field_type != FIELD_TYPE_CONTINUOUS_INPUT) {
+                    continue;
+                }
+                const s_field_cont_input* in = fields::Field_Data_Continuous_Input(&f);
+                const int16_t limit = in->max_length;
+                WriteInputField(buf, i, limit, in->buffer,
+                                limit > 0 ? (size_t)limit : 0);
+                ++written;
+            }
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
