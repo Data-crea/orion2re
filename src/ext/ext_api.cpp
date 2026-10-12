@@ -396,6 +396,47 @@ static void SerializeState(std::vector<uint8_t>& buf,
             Write8(buf, (uint8_t)(MOX::fltscrn_big_icon[i].selected != 0));
         }
     }
+
+    // 5. The Info screen's two inputs SerializeState never sent: "INFS",
+    //    written ONLY while SCREEN_INFO is up, and LAST, so nothing above
+    //    it moves and a client that stops earlier is unaffected. It can
+    //    never meet OFFS or FLTS (other screens). OrionLayer, open fix 32.
+    //
+    //    - MOX::bill_savegame[6] (mox.cpp:778): [1] is where the history
+    //      rings start once a game is past 350 turns (Get_History_Params,
+    //      bill.cpp:547-556) and [2..5] are the divisors the four rings
+    //      were scaled by (bill.cpp:445-535). The rings themselves are in
+    //      s_player, on the wire already; without these six numbers the
+    //      History Graph cannot be drawn or labelled (info.cpp:1222-1329).
+    //    - the Turn Summary's messages, RENDERED exactly as the screen
+    //      renders them (MSG_::sprintf_msg, info.cpp:1971), in the
+    //      player's slice of MSG_::msgs (msg.cpp:86-114). The formats
+    //      live in RSTRING<lang>.LBX and the names in half a dozen tables,
+    //      so sending the finished strings is the one form a client can
+    //      use without re-implementing sprintf_msg. Raw bytes, the game's
+    //      8-bit text with its FMTPARA codes; int16 length first.
+    if (current_screen == SCREEN_INFO) {
+        buf.push_back((uint8_t)'I');
+        buf.push_back((uint8_t)'N');
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'S');
+        for (int i = 0; i < 6; i++) {
+            Write16(buf, MOX::bill_savegame[i]);
+        }
+        int16_t first = MSG_::First_Msg_For_Player(MOX::PLAYER_NUM);
+        int16_t n = MSG_::N_Msgs_For_Player(MOX::PLAYER_NUM);
+        if (first < 0 || first >= MAX_MESSAGES || n < 0) n = 0;
+        if (first + n > MAX_MESSAGES) n = (int16_t)(MAX_MESSAGES - first);
+        Write16(buf, n);
+        char text[256];
+        for (int16_t i = 0; i < n; i++) {
+            MSG_::sprintf_msg(text, sizeof(text), &MSG_::msgs[first + i]);
+            size_t len = strnlen(text, sizeof(text));
+            Write16(buf, (int16_t)len);
+            buf.insert(buf.end(), (const uint8_t*)text,
+                       (const uint8_t*)text + len);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
