@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"
+#endif
 
 #include <exception>
 #include "config/config_loader.h"
@@ -34,6 +37,10 @@ namespace MOX2 {
         while (true) {
             MOX::global_esc = 0;
             int16_t current_screen = MOX::current_screen;
+
+#ifdef ORION2RE_EXT
+            ext::Tick(current_screen);
+#endif
 
             switch (current_screen) {
                 case SCREEN_MAIN:
@@ -390,7 +397,13 @@ namespace MOX2 {
 
         KEN::Ken_Init();
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "mox2: Ken_Init complete, entering screen control");
+#ifdef ORION2RE_EXT
+        ext::Init();
+#endif
         MOX2::Screen_Control();
+#ifdef ORION2RE_EXT
+        ext::Shutdown();
+#endif
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "mox2: Screen_Control returned");
 
         // Copy leave message

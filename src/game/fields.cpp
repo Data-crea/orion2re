@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"
+#endif
 
 namespace fields {
     namespace {
@@ -172,6 +175,19 @@ namespace fields {
             return 0;
         }
 
+#ifdef ORION2RE_EXT
+        ext::Tick(MOX::current_screen);
+        if (ext::g_pending_field > 0) {
+            int16_t result = ext::g_pending_field;
+            ext::g_pending_field = 0;
+            last_button_number = result;
+            const s_field& f = fields[result];
+            last_button_x = (f.x + f.x_end) / 2;
+            last_button_y = (f.y + f.y_end) / 2;
+            video::Set_Page_Off();
+            return result;
+        }
+#endif
         if (input_delay < 0) {
             input_delay = 0;
         }

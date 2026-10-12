@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"
+#endif
 
 #include "config/config_runtime.h"
 #include "game/scalers/scaler.h"
@@ -1596,6 +1599,9 @@ namespace platform {
             return 0;
         }
         g_applied_vsync_enabled = -1;
+#ifdef ORION2RE_EXT
+        if (!ext::g_hide_window)
+#endif
         SDL_ShowWindow(g_sdl_window);
         const char* renderer_name = SDL_GetRendererName(g_sdl_renderer);
         SDL_LogInfo(

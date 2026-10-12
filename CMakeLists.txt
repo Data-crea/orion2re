@@ -883,6 +883,28 @@ if(TARGET orion2re)
     target_compile_definitions(orion2re PRIVATE
         $<$<CONFIG:Debug>:ORION2RE_DEBUG_BUILD=1>
     )
+
+endif()
+
+# Extension API for external frontends (OrionLayer local; ported onto v2:
+# the game sources compile in orion2re_game_objects, so the define and the
+# ext sources go there, and every executable built from it gets them)
+option(ORION2RE_EXT "Build with Extension API (TCP server for external clients)" OFF)
+if(ORION2RE_EXT AND TARGET orion2re_game_objects)
+    target_sources(orion2re_game_objects PRIVATE
+        src/ext/ext_api.cpp
+        src/ext/ext_server.cpp)
+    target_compile_definitions(orion2re_game_objects PRIVATE ORION2RE_EXT)
+    target_include_directories(orion2re_game_objects PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    if(TARGET orion2re)
+        target_compile_definitions(orion2re PRIVATE ORION2RE_EXT)
+    endif()
+    if(WIN32)
+        if(TARGET orion2re)
+            target_link_libraries(orion2re PRIVATE ws2_32)
+        endif()
+    endif()
+    message(STATUS "orion2re: Extension API enabled (port 17362)")
 endif()
 
 if(ORION2RE_GAME_DIR AND TARGET orion2re)
