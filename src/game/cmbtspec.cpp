@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 56. The battle's events.
+#endif
 
 #include <cstddef>
 
@@ -1979,6 +1982,9 @@ namespace CMBTSPEC {
                 CMBTFIRE::Apply_Ship_Damage(ship_idx, &applied_damage, &struct_damage, facing, 0, 0, 0, 0, 0);
                 damage_out = applied_damage;
             }
+#ifdef ORION2RE_EXT
+            ext::Combat_Event(ext::CEV_BLAST_HIT, source_ship_idx, ship_idx, sfx_type, damage_out, struct_damage);  // OrionLayer, open fix 56.
+#endif
 
             if (MOX::apply_damage_to_planet == 1 && MOX::super_fast_flag == 0) {
                 BEAMS::Add_Damage_Indicator_For_Ship(

@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 56. The battle's events.
+#endif
 
 namespace CMBTFIR2 {
     namespace {
@@ -1699,6 +1702,9 @@ namespace CMBTFIR2 {
 
         sound::Fadeout_Sound(sound_handle, 10);
 
+#ifdef ORION2RE_EXT
+        ext::Combat_Event(ext::CEV_RAID, attacker_idx, target_idx, *raiders, target_raiders, marines, total_damage);  // OrionLayer, open fix 56.
+#endif
         target->marine_count = (int8_t)marines;
         *raiders = target_raiders;
 
@@ -1815,6 +1821,9 @@ namespace CMBTFIR2 {
             result_msg_id = 0x33;
         }
 
+#ifdef ORION2RE_EXT
+        ext::Combat_Event(ext::CEV_CAPTURE, attacker_idx, defender_idx, result_msg_id, attacker_marines, defender_marines_current, defender->owner);  // OrionLayer, open fix 56.
+#endif
         KEN::Ken_Get_Text_Message(result_msg_id, tmp_buf, sizeof(tmp_buf));
         strlcat(msg_buf, tmp_buf, sizeof(msg_buf));
 

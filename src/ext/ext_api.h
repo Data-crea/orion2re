@@ -144,6 +144,42 @@ extern CombatResultView g_combat_result;
 void Record_Combat_Result(int16_t star_idx, int16_t colony_pop_lost,
                           int16_t winner, bool fought);
 
+/// OrionLayer, open fix 56. What happens in a battle, in the order the engine does it.
+///
+/// The original plays every effect inside a blocking loop and tells nobody;
+/// ext::Tick runs only where the battle waits for input or between AI steps,
+/// so a client watching snapshots sees almost none of it (work order 193
+/// §6: 1 beam picture of 9). Each hook in the combat code calls
+/// Combat_Event with values that already exist at that point — it computes
+/// nothing, draws no random number and never ticks — and the event goes into
+/// a ring the next snapshot drains ("CMEV"), numbered, so a client can play
+/// the battle after the fact and see a gap as a gap. Recorded only while a
+/// battle is live (open fix 52's gate): the bombardment that reuses
+/// Fire_Ship outside a battle (COMBAT::Tactical_Bombardment) records
+/// nothing.
+enum CombatEventType : uint8_t {
+    CEV_BEAM_SHOT = 1,      // source, target, flag (1 missile), slot, weapon, result bits, past shields, absorbed
+    CEV_REFLECT = 2,        // reflector, shooter, past shields, absorbed (damage reflected onto the shooter)
+    CEV_BOMB = 3,           // source, target, slot, weapon, hits
+    CEV_SPECIAL = 4,        // source, target, flag, slot, weapon (the effect is the state that follows)
+    CEV_MISSILE_LAUNCH = 5, // missile, source, target, anti-missile, slot, type, quantity, speed
+    CEV_MISSILE_MERGE = 6,  // missile, into, quantity after
+    CEV_MISSILE_HIT = 7,    // missile, source, target, type, quantity, past shields, absorbed, anti-missile
+    CEV_FIGHTER_PASS = 8,   // missile, source, target, type, passes left, past shields, absorbed
+    CEV_MISSILE_GONE = 9,   // missile, type, quantity, x, y (every end: hit, shot down, merged, dissipated)
+    CEV_MOVE = 10,          // unit, from x, from y, to x, to y, cost, teleport (recorded as the move starts)
+    CEV_ROTATE = 11,        // unit, from facing, to facing, step
+    CEV_DESTROY = 12,       // unit, death state, status before, owner, previous owner, x px, y px
+    CEV_RETREAT = 13,       // unit, x, y, owner, status (5: died while turning away)
+    CEV_BLAST_HIT = 14,     // source, unit, blast kind, past shields, absorbed
+    CEV_WEB_DAMAGE = 15,    // unit, past shields, absorbed
+    CEV_CAPTURE = 16,       // attacker, defender, result (0x32 taken, 0x31 destroyed, 0x33 failed), marines, defenders left, owner after
+    CEV_RAID = 17,          // attacker, target, raiders sent, raiders back, defenders left, damage
+};
+void Combat_Event(uint8_t type, int16_t a0 = 0, int16_t a1 = 0, int16_t a2 = 0,
+                  int16_t a3 = 0, int16_t a4 = 0, int16_t a5 = 0,
+                  int16_t a6 = 0, int16_t a7 = 0);
+
 struct CombatGuard {
     ScreenOverride screen;
     bool previous;

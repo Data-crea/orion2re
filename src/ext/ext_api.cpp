@@ -29,6 +29,18 @@ static int16_t g_last_screen = -99;
 static int32_t g_last_stardate = -1;
 static int16_t g_last_fields_count = -1;
 
+// OrionLayer, open fix 56. The battle's events (ext_api.h): a ring of the last
+// 1024, numbered from 1; SerializeState drains what is new.
+struct CombatEventRecord {
+    uint32_t seq;
+    uint16_t serial;
+    uint8_t type;
+    int16_t a[8];
+};
+static CombatEventRecord g_combat_events[1024];
+static uint32_t g_combat_event_next = 1;   // the number the next event gets
+static uint32_t g_combat_event_sent = 1;   // the first number not yet sent
+
 // ── Pointer coordinates ──────────────────────────────────
 
 /// Convert a 640x480 game point to the window point that maps back
@@ -1643,6 +1655,36 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write16(buf, bar.up_btn);
         Write16(buf, bar.dn_btn);
     }
+
+    // 24. What happened in the battle since the last snapshot: "CMEV", written
+    //     on ANY screen while there are events not yet sent (a battle's last
+    //     events drain into the first snapshot after it), after FBSC.
+    //     OrionLayer, open fix 56.
+    //
+    //     Numbered from 1 across battles; `first` above the client's next
+    //     number is a gap (the ring holds 1024, or no client was connected).
+    //     Every state block in the SAME snapshot (CMBT, CMSL, CRES) is the
+    //     battle after all of these — so a client that animates plays them,
+    //     then shows that state.
+    if (g_combat_event_sent < g_combat_event_next) {
+        uint32_t first = g_combat_event_sent;
+        if (g_combat_event_next - first > 1024) first = g_combat_event_next - 1024;
+        const uint16_t n = (uint16_t)(g_combat_event_next - first);
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'M');
+        buf.push_back((uint8_t)'E');
+        buf.push_back((uint8_t)'V');
+        Write8(buf, 1);                                   // block version
+        Write32(buf, (int32_t)first);
+        Write16(buf, (int16_t)n);
+        for (uint32_t s = first; s < g_combat_event_next; s++) {
+            const CombatEventRecord& e = g_combat_events[s % 1024];
+            Write16(buf, (int16_t)e.serial);
+            Write8(buf, e.type);
+            for (int k = 0; k < 8; k++) Write16(buf, e.a[k]);
+        }
+        g_combat_event_sent = g_combat_event_next;
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -2170,6 +2212,15 @@ CombatGuard::CombatGuard() : screen(SCREEN_EXT_COMBAT), previous(g_combat_live) 
     g_combat_live = true;
     ++g_combat_serial;
     g_combat_result.valid = false;  // OrionLayer, open fix 57. A new battle: the last result goes.
+}
+
+// OrionLayer, open fix 56. Combat_Event: the ring above SerializeState (ext_api.h).
+void Combat_Event(uint8_t type, int16_t a0, int16_t a1, int16_t a2, int16_t a3,
+                  int16_t a4, int16_t a5, int16_t a6, int16_t a7) {
+    if (!g_combat_live) return;
+    CombatEventRecord& e = g_combat_events[g_combat_event_next % 1024];
+    e = {g_combat_event_next, g_combat_serial, type, {a0, a1, a2, a3, a4, a5, a6, a7}};
+    ++g_combat_event_next;
 }
 
 // OrionLayer, open fix 57. How the last battle ended (ext_api.h).

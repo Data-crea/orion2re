@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 56. The battle's events.
+#endif
 
 #include "config/config_loader.h"
 #include "game/boarding.h"
@@ -2093,6 +2096,9 @@ namespace COMBAT1 {
             }
         }
 
+#ifdef ORION2RE_EXT
+        ext::Combat_Event(ext::CEV_RETREAT, ship_idx, ship->x, ship->y, ship->owner, ship->unit_status);  // OrionLayer, open fix 56.
+#endif
         ship->unit_status = 5;
         ship->is_retreating = 2;
         CMBTFIRE::Retarget_Missiles_Aimed_At(ship_idx);

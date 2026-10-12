@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 56. The battle's events.
+#endif
 
 namespace CMBTMOV1 {
     namespace {
@@ -78,6 +81,9 @@ namespace CMBTMOV1 {
         saved_dont_draw = MOX::dont_draw_ship;
         MOX::dont_draw_ship = ship_idx;
 
+#ifdef ORION2RE_EXT
+        if (ship->facing_dir != target_facing) ext::Combat_Event(ext::CEV_ROTATE, ship_idx, ship->facing_dir, target_facing, step);  // OrionLayer, open fix 56.
+#endif
         while (ship->facing_dir != target_facing && ship->unit_status == 0) {
             timer::Mark_Time();
 
@@ -275,6 +281,9 @@ namespace CMBTMOV1 {
             if (Teleporter_Destination_In_Range(
                     ship_idx, dest_x_px, dest_y_px)) {
                 CMBTFIR2::Set_Teleporter_Used(ship_idx);
+#ifdef ORION2RE_EXT
+                ext::Combat_Event(ext::CEV_MOVE, ship_idx, ship->x, ship->y, dest_x, dest_y, 0, 1);  // OrionLayer, open fix 56.
+#endif
                 Draw_Teleporting_Ship(ship_idx, dest_x, dest_y);
                 skip_normal_move = true;
             }
@@ -360,6 +369,9 @@ namespace CMBTMOV1 {
                 Rotate_Ship(ship_idx, facing_dir, cur_x_px - MOX::cur_combat_x * 20, cur_y_px - MOX::cur_combat_y * 20);
             }
 
+#ifdef ORION2RE_EXT
+            if (ship->unit_status == 0 && test_move_result == 0 && (start_x_px != dest_x_px || start_y_px != dest_y_px)) ext::Combat_Event(ext::CEV_MOVE, ship_idx, (int16_t)(start_x_px / 20), (int16_t)(start_y_px / 20), (int16_t)(dest_x_px / 20), (int16_t)(dest_y_px / 20), move_cost, 0);  // OrionLayer, open fix 56.
+#endif
             if (ship->unit_status == 0 && test_move_result == 0 && (start_x_px != dest_x_px || start_y_px != dest_y_px)) {
                 cur_x_px = start_x_px;
                 cur_y_px = start_y_px;

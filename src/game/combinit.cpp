@@ -3302,6 +3302,9 @@ namespace COMBINIT {
                 BEAMS::Draw_Damage_Message_Queue_Until_Done();
             }
 
+#ifdef ORION2RE_EXT
+            ext::Combat_Event(ext::CEV_WEB_DAMAGE, i, total_damage, struct_damage_total);  // OrionLayer, open fix 56.
+#endif
             int16_t cause = CMBTFIRE::Is_Combat_Ship_Dead(i);
             if (cause != 0) {
                 CMBTFIRE::Destroy_Ship(i, ship->x * 20, ship->y * 20, cause);

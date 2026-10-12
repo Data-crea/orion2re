@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 56. The battle's events.
+#endif
 
 namespace CMBTMIS {
     static int16_t incoming_x[MAX_COMBAT_FLYERS];
@@ -791,6 +794,9 @@ namespace CMBTMIS {
                     sys_dmg_accum += sys_dmg;
                 }
 
+#ifdef ORION2RE_EXT
+                ext::Combat_Event(ext::CEV_FIGHTER_PASS, missile_idx, source_unit_idx, target_unit_idx, type, missile->fighter_count, dmg_accum, sys_dmg_accum);  // OrionLayer, open fix 56.
+#endif
                 if (MOX::apply_damage_to_planet == 1 && MOX::super_fast_flag == 0) {
                     Fighter_Combat_SFX(missile_idx, x, y, dmg_accum, sys_dmg_accum);
                 }
@@ -873,6 +879,9 @@ namespace CMBTMIS {
                     loop_count++;
                 } while (loop_count < missile->quantity);
             }
+#ifdef ORION2RE_EXT
+            ext::Combat_Event(ext::CEV_MISSILE_HIT, missile_idx, source_unit_idx, target_unit_idx, type, missile->quantity, dmg_accum, sys_dmg_accum, target_is_missile);  // OrionLayer, open fix 56.
+#endif
             Kill_Missile(missile_idx);
         }
 
@@ -1407,6 +1416,9 @@ namespace CMBTMIS {
     }
 
     void __cdecl Kill_Missile(int16_t missile_idx) {
+#ifdef ORION2RE_EXT
+        ext::Combat_Event(ext::CEV_MISSILE_GONE, missile_idx, MOX::missile[missile_idx].type, MOX::missile[missile_idx].quantity, MOX::missile[missile_idx].x, MOX::missile[missile_idx].y);  // OrionLayer, open fix 56.
+#endif
         incoming_valid[missile_idx] = false;
         Clear_Fighter_Slot_History(missile_idx);
         // Clear the missile data structure
@@ -1454,6 +1466,9 @@ namespace CMBTMIS {
                     continue;
                 }
                 other->quantity += missile->quantity;
+#ifdef ORION2RE_EXT
+                ext::Combat_Event(ext::CEV_MISSILE_MERGE, missile_idx, i, other->quantity);  // OrionLayer, open fix 56.
+#endif
                 Kill_Missile(missile_idx);
                 return;
             }
@@ -1685,6 +1700,9 @@ namespace CMBTMIS {
                 target_coords_y = MOX::missile[target_idx].y;
             }
 
+#ifdef ORION2RE_EXT
+            ext::Combat_Event(ext::CEV_MISSILE_LAUNCH, missile_idx, source_idx, target_idx, is_anti_rocket, weapon_slot, MOX::missile[missile_idx].type, MOX::missile[missile_idx].quantity, MOX::missile[missile_idx].speed);  // OrionLayer, open fix 56.
+#endif
             if (MOX::apply_damage_to_planet == 1 &&
                 (MOX::super_fast_flag == 0 ||
                     ((MOX::missile[missile_idx].type != WEAPON_PROTON_TORPEDO ||

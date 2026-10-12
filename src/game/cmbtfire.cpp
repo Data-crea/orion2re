@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 56. The battle's events.
+#endif
 
 #include "lua/lua_game.h"
 
@@ -387,6 +390,9 @@ namespace CMBTFIRE {
             new_owner = (int8_t)MOX::combat_attacker_player;
         }
 
+#ifdef ORION2RE_EXT
+        ext::Combat_Event(ext::CEV_DESTROY, ship_idx, death_state, ship.unit_status, ship.owner, ship.previous_owner, draw_x, draw_y);  // OrionLayer, open fix 56.
+#endif
         ship.is_retreating = 0;
         COMBAT1::Remove_Continuing_Effect_Specials(ship_idx);
 
@@ -1461,6 +1467,9 @@ namespace CMBTFIRE {
                                                     source_ship_idx, &primary_damage, &secondary_damage, shield_facing, 0, TECHDATA::weapons[weapon->weapon_id].natural_mods, 0, 0, 0);
                                                 primary_damage_total += primary_damage;
                                                 secondary_damage_total += secondary_damage;
+#ifdef ORION2RE_EXT
+                                                ext::Combat_Event(ext::CEV_REFLECT, target_ship_idx, source_ship_idx, primary_damage, secondary_damage);  // OrionLayer, open fix 56.
+#endif
                                             }
 
                                             beam_fx_entries[beam_fx_count].result_flags |= (fire_result_flags & 1);
@@ -1481,6 +1490,9 @@ namespace CMBTFIRE {
 
                                             beam_fx_entries[beam_fx_count].is_damage_entry = 0;
                                             total_hits_on_target += beam_hit_offset_x;
+#ifdef ORION2RE_EXT
+                                            ext::Combat_Event(ext::CEV_BEAM_SHOT, source_ship_idx, target_ship_idx, (int16_t)flag, weapon_slot_idx, weapon->weapon_id, fire_res, beam_hit_offset_x, beam_hit_offset_y);  // OrionLayer, open fix 56.
+#endif
                                             weapon->shots_left--;
                                             break;
                                         }
@@ -1499,11 +1511,17 @@ namespace CMBTFIRE {
                                         case WEAPON_TYPE_BOMB: {
                                             int16_t bomb_hits = Fire_Bomb(source_ship_idx, target_ship_idx, weapon_slot_idx);
                                             total_hits_on_target = bomb_hits;
+#ifdef ORION2RE_EXT
+                                            ext::Combat_Event(ext::CEV_BOMB, source_ship_idx, target_ship_idx, weapon_slot_idx, weapon->weapon_id, bomb_hits);  // OrionLayer, open fix 56.
+#endif
                                             weapon->shots_left = 0;
                                             weapon->ammo--;
                                             break;
                                         }
                                         case WEAPON_TYPE_SPECIAL: {
+#ifdef ORION2RE_EXT
+                                            ext::Combat_Event(ext::CEV_SPECIAL, source_ship_idx, target_ship_idx, (int16_t)flag, weapon_slot_idx, weapon->weapon_id);  // OrionLayer, open fix 56.
+#endif
                                             Fire_Special_Weapon(source_ship_idx, sx, sy, target_ship_idx, weapon_slot_idx, flag);
                                             if (weapon->weapon_id == WEAPON_STASIS_FIELD ||
                                                 weapon->weapon_id == WEAPON_BLACK_HOLE_GENERATOR) {
