@@ -8,6 +8,7 @@
 #include "game/newgame.h"
 #include "game/platform.h"
 #include "game/build_queue.h"  // OrionLayer, open fix 35. autobuild_settings, sent in "COLS".
+#include "game/fmtpara.h"  // OrionLayer, open fix 67. The message box text's item values.
 
 #include <vector>
 #include <cstring>
@@ -968,7 +969,7 @@ static void SerializeState(std::vector<uint8_t>& buf,
         buf.push_back((uint8_t)'S');
         buf.push_back((uint8_t)'G');
         buf.push_back((uint8_t)'B');
-        Write8(buf, 1);                                   // block version
+        Write8(buf, 2);              // block version; 2: the item values, open fix 67
         Write8(buf, g_message_box.kind);
         Write16(buf, g_message_box.field_a);
         Write16(buf, g_message_box.field_b);
@@ -978,6 +979,32 @@ static void SerializeState(std::vector<uint8_t>& buf,
             Write16(buf, (int16_t)len);
             WriteBytes(buf, str, len);
         }
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 67. The values the text's FMTPARA item codes
+        // (0x18, a letter, one hex digit: Insert_Item, fmtpara.cpp:854)
+        // print, read through the game's own Get_Item_Value while the box
+        // is up, which is while its caller's variables are (the boarding
+        // result, cmbtfir2.cpp:1640-1647): a count, then index and value.
+        // Only an index the text names and whose pointer is set is read.
+        std::vector<std::pair<uint8_t, int32_t>> items;
+        const char* t = g_message_box.text;
+        for (size_t i = 0; t != nullptr && t[i] != '\0' && i < 4000; ++i) {
+            if (t[i] != 0x18 || t[i + 1] == '\0') continue;
+            size_t k = i + 2;
+            while (t[k] == ' ') ++k;
+            const int c = toupper((unsigned char)t[k]);
+            const int d = c >= '0' && c <= '9' ? c - '0' : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+            if (d < 0 || FMTPARA::para_global.item_ptr[d] == nullptr) continue;
+            bool seen = false;
+            for (const auto& it : items) seen = seen || it.first == d;
+            if (!seen) items.emplace_back((uint8_t)d, (int32_t)FMTPARA::Get_Item_Value((uint16_t)d));
+        }
+        Write8(buf, (uint8_t)items.size());
+        for (const auto& it : items) {
+            Write8(buf, it.first);
+            WriteBytes(buf, &it.second, sizeof(it.second));
+        }
+#endif
     }
 
     // 16. The turn-time popup that is up: "TPOP", written on ANY screen
