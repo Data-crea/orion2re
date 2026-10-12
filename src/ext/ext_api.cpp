@@ -2501,6 +2501,11 @@ static void ProcessInput() {
             Set_Spies_(cmd.pairs);  // OrionLayer, open fix 64.
             break;
 
+        case MSG_INJECT_RAW_KEY:
+            // OrionLayer, open fix 89. Straight into the key queue, as platform.cpp queues a translated key (Queue_Key_Code, :416-418).
+            key::Push_Key_Code((uint32_t)(uint16_t)cmd.param1, (uint32_t)((uint16_t)cmd.param1 >> 8));
+            break;
+
         case MSG_COMBAT_COMMAND:
             // OrionLayer, open fix 58. Kept for the battle's next human input; a later one replaces it.
             if (cmd.pairs.size() >= 11) {

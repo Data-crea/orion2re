@@ -48,6 +48,8 @@ constexpr uint16_t MSG_INJECT_RIGHT_CLICK = 0x87;
 constexpr uint16_t MSG_COMBAT_COMMAND = 0x88;
 // OrionLayer, open fix 64. The Races screen's spies: uint8 n, n x (uint8 player, uint8 spies, uint8 mission 1-3 or 0 kept), uint8 agent pool.
 constexpr uint16_t MSG_SET_SPIES      = 0x89;
+// OrionLayer, open fix 89. uint16: a key code as platform.cpp translates F1-F10 (0x3B00-0x4400), Alt+F1-F10 (0x6800-0x7100) and Alt+letter (scan << 8, 0x1000-0x3200); anything else is dropped.
+constexpr uint16_t MSG_INJECT_RAW_KEY = 0x8A;
 
 // Subscription flags (bitmask)
 constexpr uint16_t SUB_STATE         = 0x01;

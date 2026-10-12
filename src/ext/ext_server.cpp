@@ -247,6 +247,26 @@ void Server::HandleClientMessage(Client& client) {
         }
         break;
     }
+    case MSG_INJECT_RAW_KEY: {
+        // OrionLayer, open fix 89. Only the codes platform.cpp makes for F1-F10, Alt+F1-F10 and Alt+letter.
+        if (payload_len >= 2) {
+            uint16_t code = 0;
+            memcpy(&code, payload, 2);
+            const uint16_t scan = (uint16_t)(code >> 8);
+            const bool fkey = (code & 0xFF) == 0 && scan >= 0x3B && scan <= 0x44;
+            const bool alt_fkey = (code & 0xFF) == 0 && scan >= 0x68 && scan <= 0x71;
+            const bool alt_letter = (code & 0xFF) == 0 &&
+                ((scan >= 0x10 && scan <= 0x19) || (scan >= 0x1E && scan <= 0x26) ||
+                 (scan >= 0x2C && scan <= 0x32));
+            if (fkey || alt_fkey || alt_letter) {
+                InputCommand cmd{};
+                cmd.type = MSG_INJECT_RAW_KEY;
+                cmd.param1 = (int16_t)code;
+                input_queue_.push_back(cmd);
+            }
+        }
+        break;
+    }
     case MSG_SET_SPIES: {
         // OrionLayer, open fix 64. The whole list (2 + 3n bytes, n <= 8), or nothing.
         if (payload_len >= 2 && payload[0] <= 8 && payload_len == (size_t)2 + 3 * payload[0]) {
