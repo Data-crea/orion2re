@@ -1712,6 +1712,37 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
         g_combat_event_sent = g_combat_event_next;
     }
+
+    // 25. The battle's scan view and board popup: "CPOP", written ONLY while
+    //     one of them is up in a battle (66 or 67, open fix 52's ids), after
+    //     CMEV. OrionLayer, open fix 66.
+    //
+    //     The scan view draws MOX::global_combat_data, the copy of the unit
+    //     Display_Combat_View_Ship took (cmbtdrw1.cpp:1549-1551), and keeps
+    //     its index in ship_data_id; the board popup keeps its message, its
+    //     range and the chosen marines in CMBTDRW1's g_msg/g_min/g_max/
+    //     g_var (cmbtdrw1.cpp:1581-1666). None of it was on the wire, so a
+    //     client could not say which unit is scanned, nor show the popup, nor
+    //     see the effect of an arrow. Read only; nothing here changes the game.
+    if (g_combat_live &&
+        (current_screen == SCREEN_EXT_COMBAT_SCAN || current_screen == SCREEN_EXT_COMBAT_BOARD)) {
+        const bool board = current_screen == SCREEN_EXT_COMBAT_BOARD;
+        const char* msg = (board && CMBTDRW1::g_msg != nullptr) ? CMBTDRW1::g_msg : "";
+        const size_t len = strnlen(msg, 255);
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'O');
+        buf.push_back((uint8_t)'P');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, current_screen);
+        Write16(buf, (int16_t)g_combat_serial);
+        Write16(buf, board ? (int16_t)-1 : MOX::ship_data_id);
+        Write16(buf, board ? CMBTDRW1::g_min : (int16_t)0);
+        Write16(buf, board ? CMBTDRW1::g_max : (int16_t)0);
+        Write16(buf, board ? CMBTDRW1::g_var : (int16_t)0);
+        Write8(buf, (uint8_t)len);
+        buf.insert(buf.end(), msg, msg + len);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
