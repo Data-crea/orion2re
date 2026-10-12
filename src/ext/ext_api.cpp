@@ -1833,6 +1833,30 @@ static void SerializeState(std::vector<uint8_t>& buf,
             Write16(buf, h.y2);
         }
     }
+
+    // 28. The refit ship list's first row: "RFIT", written ONLY while
+    //     SCREEN_QUEUE_POPUP is up, after HLPL. OrionLayer, open fix 85.
+    //
+    //     The refit popups run under the build popup's id (colbldg.cpp:1590
+    //     calls COLREFIT::Colony_Refit_Popup). Which ship the list's
+    //     first cell shows is COLREFIT::first_ship: set to 0 when the
+    //     list opens (colrefit.cpp:77), moved by the two arrows
+    //     (Evaluate_Input, :241-260) and recomputed from the scroll
+    //     slider by Update_First_Ship on every draw (:415), which a
+    //     client never sends. Sent with the list's length, the count a
+    //     client checks its own reading of Build_Ship_List against. The
+    //     value is meaningful while the ship list's fields are up; under
+    //     the design list and the build popup it is the last list's.
+    //     Read only; nothing here changes the game.
+    if (current_screen == SCREEN_QUEUE_POPUP) {
+        buf.push_back((uint8_t)'R');
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'I');
+        buf.push_back((uint8_t)'T');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, COLREFIT::first_ship);
+        Write16(buf, COLREFIT::n_ships_in_list);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
