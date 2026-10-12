@@ -1798,6 +1798,41 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write8(buf, (uint8_t)MOX::shields_flag);
         Write8(buf, (uint8_t)MOX::grid_flag);
     }
+
+    // 27. The help list a right click is checked against now: "HLPL",
+    //     written while one is active, after COPT. OrionLayer, open fix 69.
+    //
+    //     A right click first walks the active list (Check_Help_List,
+    //     fields.cpp:2935-2954; first entry with an id under the pointer
+    //     wins, an id of -1 is passed over) and shows that HELP.LBX entry.
+    //     Many lists are built at run time from the game's state — the
+    //     audience's per menu (Setup_Diplomacy_Help, dip_scrn_main.cpp:
+    //     1966-1993), the battle's per weapon (combat1.cpp:2402-2590), the
+    //     popups that inherit their caller's — and none was on the wire. A
+    //     message or text box switches help off while it is up (gendraw.cpp:
+    //     60, textbox.cpp:97), so the block is absent then. Read only;
+    //     nothing here changes the game.
+    if (fields::help_list_active != 0 && fields::help_struct_pointer &&
+        fields::help_list_count > 0) {
+        int16_t n = fields::help_list_count;
+        if (n > 64) {
+            n = 64;
+        }
+        buf.push_back((uint8_t)'H');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'L');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, n);
+        for (int16_t i = 0; i < n; i++) {
+            const s_help_box& h = fields::help_struct_pointer[i];
+            Write16(buf, h.help_id);
+            Write16(buf, h.x1);
+            Write16(buf, h.y1);
+            Write16(buf, h.x2);
+            Write16(buf, h.y2);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
