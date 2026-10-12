@@ -1518,6 +1518,42 @@ static void SerializeState(std::vector<uint8_t>& buf,
             }
         }
     }
+
+    // 21. How the last battle ended: "CRES", written while a result is kept
+    //     (from just before End_Of_Combat until the next battle starts), on
+    //     ANY screen, after CMSL. OrionLayer, open fix 57.
+    if (g_combat_result.valid) {
+        const CombatResultView& r = g_combat_result;
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'R');
+        buf.push_back((uint8_t)'E');
+        buf.push_back((uint8_t)'S');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, (int16_t)r.number);
+        Write16(buf, (int16_t)r.serial);
+        Write8(buf, r.fought);
+        Write16(buf, r.winner);
+        Write16(buf, r.turn);
+        Write16(buf, r.star);
+        Write16(buf, r.colony);
+        Write16(buf, r.attacker);
+        Write16(buf, r.defender);
+        Write16(buf, r.colony_pop_lost);
+        Write32(buf, r.stardate);
+        Write16(buf, r.units);
+        for (int16_t i = 0; i < r.units; i++) {
+            const CombatResultUnit& u = r.unit[i];
+            Write16(buf, u.ship_idx);
+            Write8(buf, (uint8_t)u.owner);
+            Write8(buf, u.previous_owner);
+            Write8(buf, (uint8_t)u.unit_status);
+            Write8(buf, (uint8_t)u.is_retreating);
+            Write8(buf, (uint8_t)u.is_captured);
+            Write16(buf, u.structure_damage);
+            Write16(buf, u.armor_remaining);
+            Write16(buf, u.structure_max);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -2044,6 +2080,37 @@ uint16_t g_combat_serial = 0;
 CombatGuard::CombatGuard() : screen(SCREEN_EXT_COMBAT), previous(g_combat_live) {
     g_combat_live = true;
     ++g_combat_serial;
+    g_combat_result.valid = false;  // OrionLayer, open fix 57. A new battle: the last result goes.
+}
+
+// OrionLayer, open fix 57. How the last battle ended (ext_api.h).
+CombatResultView g_combat_result = {};
+
+void Record_Combat_Result(int16_t star_idx, int16_t colony_pop_lost,
+                          int16_t winner, bool fought) {
+    CombatResultView& r = g_combat_result;
+    r.valid = true;
+    ++r.number;
+    r.serial = fought ? g_combat_serial : 0;
+    r.fought = fought ? 1 : 0;
+    r.winner = winner;
+    r.turn = MOX::combat_turn;
+    r.star = star_idx;
+    r.colony = MOX::cmbt_colony_id;
+    r.attacker = MOX::combat_attacker_player;
+    r.defender = MOX::combat_defender_player;
+    r.colony_pop_lost = colony_pop_lost;
+    r.stardate = MOX::stardate;
+    int16_t units = MOX::combat_data != nullptr ? MOX::combat_total_ship_count : 0;
+    if (units < 0) units = 0;
+    if (units > 210) units = 210;
+    r.units = units;
+    for (int16_t i = 0; i < units; i++) {
+        const s_combat_data& d = MOX::combat_data[i];
+        r.unit[i] = {d.ship_idx, d.owner, d.previous_owner, d.unit_status,
+                     d.is_retreating, d.is_captured, d.structure_damage,
+                     d.armor_remaining, d.structure_max};
+    }
 }
 
 CombatGuard::~CombatGuard() {

@@ -102,6 +102,48 @@ constexpr int16_t SCREEN_EXT_COMBAT_BOARD = 67;
 extern bool g_combat_live;
 extern uint16_t g_combat_serial;
 
+/// OrionLayer, open fix 57. How a battle ended, recorded just before End_Of_Combat writes the losses back.
+///
+/// The end has no box and no input (combinit.cpp: End_Of_Combat), so a
+/// client saw the result only afterwards, as a changed ship[]. Recorded by
+/// Record_Combat_Result from COMBINIT::Tactical_Combat with the winner it
+/// hands End_Of_Combat (1 attacker, -1 defender — also after the 50-turn
+/// timeout — 666 both gone; 0 when the battle never started), and KEPT until
+/// the next battle starts: the stardate moves on in the same Next_Turn
+/// (nextturn.cpp), possibly before any tick, so "until the turn moves on"
+/// could send it never. `number` counts results; a client tells them apart
+/// by it.
+struct CombatResultUnit {
+    int16_t ship_idx;
+    int8_t owner;
+    uint8_t previous_owner;
+    int8_t unit_status;
+    int8_t is_retreating;
+    int8_t is_captured;
+    int16_t structure_damage;
+    int16_t armor_remaining;
+    int16_t structure_max;
+};
+struct CombatResultView {
+    bool valid;
+    uint16_t number;
+    uint16_t serial;       // g_combat_serial of the battle; 0 when not fought
+    uint8_t fought;
+    int16_t winner;
+    int16_t turn;
+    int16_t star;
+    int16_t colony;
+    int16_t attacker;
+    int16_t defender;
+    int16_t colony_pop_lost;
+    int32_t stardate;
+    int16_t units;
+    CombatResultUnit unit[210];
+};
+extern CombatResultView g_combat_result;
+void Record_Combat_Result(int16_t star_idx, int16_t colony_pop_lost,
+                          int16_t winner, bool fought);
+
 struct CombatGuard {
     ScreenOverride screen;
     bool previous;

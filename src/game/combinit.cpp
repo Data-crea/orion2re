@@ -1353,6 +1353,9 @@ namespace COMBINIT {
             }
         }
 
+#ifdef ORION2RE_EXT
+        ext::Record_Combat_Result(star_idx, colony_pop, combat_winner, abort_tactical == 0);  // OrionLayer, open fix 57. The result, before End_Of_Combat writes it back.
+#endif
         End_Of_Combat(star_idx, colony_pop, combat_winner);
 
         if (combat_winner == 1 || combat_winner == 0x29A) {
