@@ -537,6 +537,32 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write32(buf, ok ? COLCALC::Colony_Producing_Product_Cost(&MOX::colony[h]) : -1);
         Write16(buf, ok ? COLONY::Calculate_Current_Production_Turn_Count(h) : (int16_t)-1);
     }
+
+    // 10. The build popup's queue as it is being edited: "BLDQ", written
+    //     ONLY while SCREEN_QUEUE_POPUP is up, and LAST.
+    //     OrionLayer, open fix 39.
+    //
+    //     COLBLDG edits a copy, current_item[7], and writes it into the
+    //     colony's producing[] only on OK or `<` / `>`
+    //     (Do_Exit_Screen_Cleanup, colbldg.cpp:2003-2016); until then the
+    //     wire shows the queue from before the popup. With it: the
+    //     selection box (active_prod, Draw_Active_Prod :1792-1851), the
+    //     mode a click is read in (field_mode: 1 pick a design, 2 repeat,
+    //     :1577-1582) and the autobuild radio's value (colony_auto_building).
+    if (current_screen == SCREEN_QUEUE_POPUP) {
+        buf.push_back((uint8_t)'B');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'D');
+        buf.push_back((uint8_t)'Q');
+        for (int i = 0; i < 7; i++) {
+            Write16(buf, COLBLDG::current_item[i]);
+        }
+        for (int i = 0; i < 4; i++) {
+            Write16(buf, COLBLDG::active_prod[i]);
+        }
+        Write8(buf, COLBLDG::field_mode);
+        Write16(buf, COLBLDG::colony_auto_building);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
