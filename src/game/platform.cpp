@@ -984,6 +984,19 @@ namespace platform {
                 return;
             }
 
+#ifdef ORION2RE_EXT
+            // An injected click already carries its position in the
+            // queued event and Pointer_X() pumps before reading, so
+            // the design is sound. What breaks it is this function:
+            // it overwrites the position, and its enqueue coalesces
+            // over the injected release (same button state), pulling
+            // the pointer back to the physical mouse. Stand aside
+            // until the queue has been pumped.
+            if (ext::g_injected_mouse_pending) {
+                return;
+            }
+#endif
+
             float mouse_x = 0.0f;
             float mouse_y = 0.0f;
             const SDL_MouseButtonFlags sdl_buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
@@ -1727,6 +1740,15 @@ namespace platform {
                 Queue_Key_Code(event.key_code, event.scan_code);
             }
         }
+
+#ifdef ORION2RE_EXT
+        // The injected events have been handled, so the real mouse may
+        // speak again. Cleared here rather than after a frame count:
+        // this runs from Pointer_X(), Pointer_Y() and the main loop,
+        // so the suppression ends the moment anything asks about the
+        // mouse, and it cannot outlive the events it protects.
+        ext::g_injected_mouse_pending = false;
+#endif
     }
 
     void __cdecl Update_Cursor_Image() {
