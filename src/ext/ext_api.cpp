@@ -468,6 +468,31 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write8(buf, COLONY::field_mode);
         Write8(buf, BUILD_QUEUE::autobuild_settings.enabled);
     }
+
+    // 7. Where the colony screen puts its buildings: "CBLD", written ONLY
+    //    while SCREEN_COLONY is up, and LAST. OrionLayer, open fix 36.
+    //
+    //    Make_Bldg_Array_For_Colony (colony_main.cpp:536-631) places the
+    //    colony's buildings on a 6x6 grid and its satellites in ten slots
+    //    with game_random seeded by the colony index plus Random_ draws;
+    //    Draw_Colony_Bldgs and Draw_Colony_Satellites draw from those two
+    //    arrays. A client would have to transcribe the RNG exactly, so the
+    //    arrays are sent as they are: 36 building ids, row by row, then the
+    //    ten satellite ids. Valid while COLS's handle agrees with its pair.
+    if (current_screen == SCREEN_COLONY) {
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'B');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'D');
+        for (int r = 0; r < 6; r++) {
+            for (int c = 0; c < 6; c++) {
+                Write16(buf, (int16_t)COLONY::colony_bldgs[r].buildings[c]);
+            }
+        }
+        for (int i = 0; i < 10; i++) {
+            Write16(buf, COLONY::colony_satellites[i]);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
