@@ -1857,6 +1857,52 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write16(buf, COLREFIT::first_ship);
         Write16(buf, COLREFIT::n_ships_in_list);
     }
+
+    // 29. The fleet box's order buttons: "FBTN", written ONLY while the
+    //     fleet box (moveable box 2) shows a stack, after RFIT's place.
+    //     OrionLayer, open fix 86.
+    //
+    //     Which of ALL, Outpost, Colonize, Engage, Transport and Attack the
+    //     box offers is decided by FLEETPOP::Set_Added_Button_Stuff
+    //     (fleetpop.cpp:813-856) into fleet_box.*_btn_active, and each
+    //     button is a field whose id only MOX holds (Add_Added_Buttons,
+    //     :444-510; ALL :181-186). mainscr.cpp:3411-3500 answers a button
+    //     only while its flag is set and its field is the input. A client
+    //     saw the fields' rectangles and could not say which was which. Per
+    //     button the flag and the field (-1000 when not added), in the
+    //     order above; then the stack's star and whether the player's
+    //     combat ships there ignore enemies (star.ignore_combat_ships, the
+    //     bit Engage clears, mainscr.cpp:3466-3471; 0xFF without a star).
+    //     Read only; nothing here changes the game.
+    if (current_screen == SCREEN_MAIN && MOVEBOX::Moveable_Box_Selected(2) &&
+        MOX::fleet_box_ship_stack >= 0 &&
+        MOX::fleet_box_ship_stack < MOX::ship_stack_count) {
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'B');
+        buf.push_back((uint8_t)'T');
+        buf.push_back((uint8_t)'N');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, MOX::fleet_box_ship_stack);
+        const int16_t fbtn_star = HACCESS::Ship_Stack_Star_Id(
+            MOX::ship_stack_start[MOX::fleet_box_ship_stack]);
+        Write16(buf, fbtn_star);
+        Write8(buf, (fbtn_star > -1 && fbtn_star < MOX::NUM_STARS)
+            ? (uint8_t)((MOX::star[fbtn_star].ignore_combat_ships >>
+                         (MOX::PLAYER_NUM & 0x1f)) & 1)
+            : (uint8_t)0xFF);
+        Write8(buf, (uint8_t)(MOX::fleet_movement_all_button > 0));
+        Write16(buf, MOX::fleet_movement_all_button);
+        Write8(buf, (uint8_t)(MOX::fleet_box.outpost_btn_active != 0));
+        Write16(buf, MOX::fleet_box_outpost_button);
+        Write8(buf, (uint8_t)(MOX::fleet_box.colonize_btn_active != 0));
+        Write16(buf, MOX::fleet_box_colonize_button);
+        Write8(buf, (uint8_t)(MOX::fleet_box.engage_btn_active != 0));
+        Write16(buf, MOX::fleet_box_engage_button);
+        Write8(buf, (uint8_t)(MOX::fleet_box.transport_btn_active != 0));
+        Write16(buf, MOX::fleet_box_transport_button);
+        Write8(buf, (uint8_t)(MOX::fleet_box.attack_btn_active != 0));
+        Write16(buf, MOX::fleet_box_attack_button);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
