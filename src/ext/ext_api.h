@@ -44,6 +44,20 @@ struct ScreenOverride {
     ~ScreenOverride();
 };
 
+/// The field id of the input Get_Input() is returning THIS CALL when it
+/// came from a client's ACTIVATE_FIELD, and 0 when it came from the mouse.
+///
+/// Every handler that reads the game POINTER rather than the returned
+/// field id disagrees with an activation, because an activation moves no
+/// pointer. The tech selection is where that costs the most: it commits
+/// whatever `Draw_Tech_Select` last put under the cursor, so an
+/// activation on a research row chose a different row, or dereferenced
+/// null and took the process with it (open fix 23). A handler that wants
+/// to honour the id it was handed can ask this, and leave the mouse path
+/// untouched — which is the whole point of asking rather than changing
+/// what the pointer means.
+extern int16_t g_activated_input;
+
 /// True while an injected mouse event is queued and not yet
 /// pumped. Sync_Mouse_State_From_SDL stands aside while this is
 /// set, so the injected position survives to whoever reads

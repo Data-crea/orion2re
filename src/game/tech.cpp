@@ -376,6 +376,53 @@ namespace TECH {
                         return;
                     } else if (input_val < first_btn_field) {
                         int16_t blink_cnt = 3;
+#ifdef ORION2RE_EXT
+                        // AN ACTIVATED ROW IS THE CHOSEN ROW.
+                        //
+                        // This branch commits whatever entry carries
+                        // current_app_index != 0, and only
+                        // Set_Selected_Entry sets that — from
+                        // Draw_Tech_Select, which reads fields::Scan_Input(),
+                        // i.e. the game POINTER. A client's ACTIVATE_FIELD
+                        // moves no pointer, so it committed the row the
+                        // cursor happened to rest on, or — when the cursor
+                        // rested on nothing selectable — Get_Selected_Entry
+                        // returned nullptr and the dereference below took the
+                        // process with it (open fix 23, seen live in work
+                        // order 128).
+                        //
+                        // So when the input came from an activation, select
+                        // the field that was activated before asking which is
+                        // selected. g_activated_input is 0 for every mouse
+                        // input, so the pointer path is not touched: for a
+                        // real click Draw_Tech_Select has already selected
+                        // this same field on the previous idle frame, and
+                        // re-selecting it would be a no-op anyway.
+                        if (ext::g_activated_input == input_val) {
+                            int16_t chosen = input_val;
+                            if (chosen >= g_first_tech_field &&
+                                chosen <= g_last_tech_field) {
+                                // An entry BLOCK rather than a row. The
+                                // pointer path resolves it to that entry's
+                                // last visible row (Draw_Tech_Select), and
+                                // this has to resolve it the same way or the
+                                // two disagree on the same click. An EMPTY
+                                // category has a block field and no rows, and
+                                // its app_click_field_ids[-1] is off the front
+                                // of the array — so it is left unselected and
+                                // caught by the null guard below.
+                                s_list_item_research* block =
+                                    &g_entries_p[chosen - g_first_tech_field];
+                                chosen = (block->visible_app_count > 0)
+                                    ? block->app_click_field_ids[
+                                          block->visible_app_count - 1]
+                                    : 0;
+                            }
+                            if (chosen > 0) {
+                                Set_Selected_Entry(entries, chosen);
+                            }
+                        }
+#endif
                         g_selected_entry_p = Get_Selected_Entry(entries);
                         if (g_selected_entry_p == nullptr) {
                             input_val = 0;

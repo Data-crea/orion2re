@@ -177,9 +177,15 @@ namespace fields {
 
 #ifdef ORION2RE_EXT
         ext::Tick(MOX::current_screen);
+        // Whatever this call returns from here on, it is the mouse's
+        // until the early return below says otherwise. Cleared per call
+        // rather than per frame, so a handler reading it can only ever
+        // see the input it was handed.
+        ext::g_activated_input = 0;
         if (ext::g_pending_field > 0) {
             int16_t result = ext::g_pending_field;
             ext::g_pending_field = 0;
+            ext::g_activated_input = result;
             last_button_number = result;
             const s_field& f = fields[result];
             last_button_x = (f.x + f.x_end) / 2;

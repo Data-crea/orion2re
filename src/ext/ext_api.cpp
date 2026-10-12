@@ -14,6 +14,7 @@ namespace ext {
 
 bool g_hide_window = false;
 int16_t g_pending_field = 0;
+int16_t g_activated_input = 0;
 bool g_injected_mouse_pending = false;
 
 static Server g_server;
