@@ -2443,6 +2443,21 @@ bool g_combat_live = false;
 uint16_t g_combat_serial = 0;
 static int32_t g_battle_ticks = 0;  // OrionLayer, open fix 79. Ticks waited since the last event that is not a sound.
 
+// OrionLayer, open fix 71. Set by every Tick (an input poll), cleared by every wait.
+static bool g_polled_since_wait = true;
+extern bool g_timed_wait;
+extern bool g_animation_poll;
+
+bool Skip_Animation_Wait_() {
+    const bool polled = g_polled_since_wait;
+    g_polled_since_wait = false;
+    return !polled && !g_timed_wait && g_combat_live && g_hide_window.load() && g_server.ClientCount() > 0;
+}
+
+// OrionLayer, open fix 71. A timed wait for input counts its waits (ext_api.h).
+bool g_timed_wait = false;
+bool g_animation_poll = false;
+
 CombatGuard::CombatGuard() : screen(SCREEN_EXT_COMBAT), previous(g_combat_live) {
     g_combat_live = true;
     ++g_combat_serial;
@@ -2750,6 +2765,7 @@ ListFieldGuard::~ListFieldGuard() {
 }
 
 void Tick(int16_t current_screen) {
+    if (!g_animation_poll) g_polled_since_wait = true;  // OrionLayer, open fix 71. An input poll: the next wait is the loop's own tick.
     // What the client is told. The override is the only difference; the
     // game's own MOX::current_screen is untouched, because the dialogs it
     // distinguishes draw themselves from it (ext_api.h).

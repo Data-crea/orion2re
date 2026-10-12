@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 71. The flare's poll.
+#endif
 
 namespace BEAMS {
     uint8_t g_pierced_shield_flag;
@@ -657,7 +660,13 @@ namespace BEAMS {
         animate::Draw(x, y, sprite1);
 
         allocate::Pop_Block(MOX::screen_seg);
+#ifdef ORION2RE_EXT
+        ext::g_animation_poll = true;  // OrionLayer, open fix 71. The flare's own poll is a frame of the shot, not the input loop.
+#endif
         fields::Get_Input();
+#ifdef ORION2RE_EXT
+        ext::g_animation_poll = false;
+#endif
     }
 
     /** Queue a damage popup next to a missile target. */

@@ -365,4 +365,21 @@ extern int16_t g_activated_input;
 /// mouse::Pointer_X(). Cleared by Pump_Game_Input_Queue().
 extern bool g_injected_mouse_pending;
 
+/// OrionLayer, open fix 71. True when timer::Release_Time may return at once:
+/// a battle is live, the engine's window is hidden (open fix 43), a client is
+/// connected to draw it, and no input poll (Tick) came since the last wait —
+/// an animation frame, not the input loop's own tick. Clears the poll mark.
+bool Skip_Animation_Wait_();
+
+/// OrionLayer, open fix 71. True while fields::Timed_Wait_For_Input waits a
+/// number of ticks: a box shown for a time counts it in waits (fields.cpp,
+/// from textbox.cpp), so those waits are never skipped.
+extern bool g_timed_wait;
+
+/// OrionLayer, open fix 71. True while a battle animation polls input inside
+/// its own frame (the shield flare, beams.cpp: Draw_Shield_ ends in
+/// fields::Get_Input): that poll is not the input loop's, so it does not
+/// keep the next wait.
+extern bool g_animation_poll;
+
 } // namespace ext

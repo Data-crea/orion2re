@@ -53,6 +53,10 @@ namespace timer {
     void __cdecl Release_Time(int32_t ticks) {
 #ifdef ORION2RE_EXT
         ext::Battle_Wait(ticks);  // OrionLayer, open fix 79. The original's time, counted for the battle's sounds (before v2's animation speed-up is taken off).
+        if (ext::Skip_Animation_Wait_()) {  // OrionLayer, open fix 71. A hidden battle's animation frame while a client draws it: no wait.
+            SDL_Delay(0);
+            return;
+        }
 #endif
         const int32_t adjusted_ticks = ticks - animation_speedup;
         if (adjusted_ticks <= 0) {

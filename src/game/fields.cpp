@@ -815,6 +815,9 @@ namespace fields {
                 Quick_Call_Auto_Function();
             } while (!has_input);
         } else {
+#ifdef ORION2RE_EXT
+            struct Timed_ { Timed_() { ext::g_timed_wait = true; } ~Timed_() { ext::g_timed_wait = false; } } timed;  // OrionLayer, open fix 71. A timed box keeps its waits.
+#endif
             uint32_t ticks = 0;
             do {
                 platform::Check_Exit();
