@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 52. The battle on the wire.
+#endif
 
 namespace {
     constexpr int kPlayerRemapPaletteStart = 144;
@@ -1218,6 +1221,9 @@ namespace COMBINIT {
 
             Deploy_Ships();
             RUSS::Mox_Update();
+#ifdef ORION2RE_EXT
+            const ext::CombatGuard ext_combat_guard;  // OrionLayer, open fix 52. 65 and the combat blocks' gate until the loop's block ends, before End_Of_Combat.
+#endif
 
             MOX::auto_combat_flag[0] = 0;
             MOX::auto_combat_flag[1] = 0;

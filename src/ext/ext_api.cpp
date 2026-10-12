@@ -1933,6 +1933,19 @@ ScreenOverride::~ScreenOverride() {
 // OrionLayer, open fix 50. The Hall of Fame takes input (ext_api.h).
 bool g_hof_live = false;
 
+// OrionLayer, open fix 52. A tactical battle is up (ext_api.h).
+bool g_combat_live = false;
+uint16_t g_combat_serial = 0;
+
+CombatGuard::CombatGuard() : screen(SCREEN_EXT_COMBAT), previous(g_combat_live) {
+    g_combat_live = true;
+    ++g_combat_serial;
+}
+
+CombatGuard::~CombatGuard() {
+    g_combat_live = previous;
+}
+
 // OrionLayer, open fix 29. The generic message box that is up (ext_api.h).
 MessageBoxView g_message_box = {0, nullptr, nullptr, -1, -1, 0};
 

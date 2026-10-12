@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 52. The battle's two modals have ids.
+#endif
 
 namespace CMBTDRW1 {
     enum class Combat_View_Subject {
@@ -294,6 +297,9 @@ namespace CMBTDRW1 {
 
         int16_t exit_field_id = fields::Add_Hidden_Field(0, 0, 0x27F, 0x1DF, "", 0);
         bool exit_triggered = false;
+#ifdef ORION2RE_EXT
+        const ext::ScreenOverride ext_screen_guard(ext::g_combat_live ? ext::SCREEN_EXT_COMBAT_SCAN : -1);  // OrionLayer, open fix 52. 66 in a battle; elsewhere the caller's id.
+#endif
         do {
             int16_t input = fields::Get_Input();
             if (input == exit_field_id) {
@@ -1676,6 +1682,9 @@ namespace CMBTDRW1 {
         Draw_Board_Popup();
         RUSS::Mox_Sync_Update();
         mouse::Set_Mouse_List(&MOX::mouse_list_arrow, 1);
+#ifdef ORION2RE_EXT
+        const ext::ScreenOverride ext_screen_guard(ext::g_combat_live ? ext::SCREEN_EXT_COMBAT_BOARD : -1);  // OrionLayer, open fix 52. The board popup reports 67.
+#endif
 
         while (!done) {
             int16_t input = fields::Get_Input();

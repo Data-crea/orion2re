@@ -84,6 +84,31 @@ struct ListFieldGuard {
 /// file is read, so the pointer alone cannot say the table is current.
 extern bool g_hof_live;
 
+/// OrionLayer, open fix 52. A tactical battle: its own id and the gate every combat block is written under.
+///
+/// Nothing in cmbt*/comb*/combat* writes MOX::current_screen, so a client
+/// saw 12 (37 in a network game) for the whole battle and could not tell it
+/// from turn processing. CombatGuard lives in COMBINIT::Tactical_Combat from
+/// the ships' deployment to the end of the turn loop (before End_Of_Combat
+/// writes the losses back): it reports SCREEN_EXT_COMBAT, sets g_combat_live
+/// and counts the battle in g_combat_serial. The two modals the battle opens
+/// report their own ids while it is live — the scan view
+/// (CMBTDRW1::Detailed_View_Ship, also opened from the fleet screen, the map
+/// and the Leaders screen, which keep theirs) and the board popup
+/// (CMBTDRW1::Board_Popup). What is SENT, nothing the game reads.
+constexpr int16_t SCREEN_EXT_COMBAT = 65;
+constexpr int16_t SCREEN_EXT_COMBAT_SCAN = 66;
+constexpr int16_t SCREEN_EXT_COMBAT_BOARD = 67;
+extern bool g_combat_live;
+extern uint16_t g_combat_serial;
+
+struct CombatGuard {
+    ScreenOverride screen;
+    bool previous;
+    CombatGuard();
+    ~CombatGuard();
+};
+
 /// OrionLayer, open fix 29. The generic message box that is up: which kind,
 /// its title and text as the caller handed them (raw, FMTPARA codes and
 /// all), the field id of each answer and a timed box's ticks — the text
