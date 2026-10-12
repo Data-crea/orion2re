@@ -180,6 +180,7 @@ enum CombatEventType : uint8_t {
     CEV_SOUND_CHANGE = 20,  // handle (-1 every sound), change (1 fade, 2 loop, 3 pitch), value, ticks — OrionLayer, open fix 79.
     CEV_FIGHTER_BEAM = 21,  // missile, beam weapon, group x px, y px, facing, quantity, target x px, y px — OrionLayer, open fix 77.
     CEV_BEAM_AIM = 22,      // source, target, weapon, fire points, from x px, y px, to x px, y px (an entry's last fire point, the target and its miss offset) — OrionLayer, open fix 82.
+    CEV_GYRO_SPIN = 23,     // source, target, turns (sixteenths of a turn the target spins after the line's eight) — OrionLayer, open fix 83.
 };
 
 /// OrionLayer, open fix 58. One command per battle action (decision 52), consumed where the human's input is read.

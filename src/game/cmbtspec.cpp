@@ -601,6 +601,9 @@ namespace CMBTSPEC {
                 if (normalized_rotation != 15 && normalized_rotation >= 2) break;
                 rotations_left += (int16_t)game_random::Random(13);
             }
+#ifdef ORION2RE_EXT
+            ext::Combat_Note(ext::CEV_GYRO_SPIN, source_idx, target_idx, rotations_left);  // OrionLayer, open fix 83. The spin's count, from the engine's own random numbers.
+#endif
 
             graphics::Set_Window(0, 0, 639, 350);
             video::Clip_On();
