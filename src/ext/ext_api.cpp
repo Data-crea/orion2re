@@ -314,6 +314,88 @@ static void SerializeState(std::vector<uint8_t>& buf,
             }
         }
     }
+
+    // 4. The Leaders screen's view state: "OFFS", written ONLY while
+    //    SCREEN_OFFICERS is up, and LAST, so nothing above it moves and
+    //    a client that stops after FSEL is unaffected. It can never
+    //    meet FLTS: that one is written only on SCREEN_FLEET. OrionLayer,
+    //    open fix 30.
+    //
+    //    NOTHING IN THIS BLOCK IS REACHABLE ANY OTHER WAY. Every value
+    //    is an OFFICER, MOX or MAINPUPS global the screen keeps for
+    //    itself (officer.cpp:12-29, mox.cpp) and SerializeState never
+    //    touched. The leader records are on the wire already and the
+    //    four listed leaders can be rebuilt from them
+    //    (Build_Captain_Id_List is a pure function, officer.cpp:
+    //    2705-2730), so the list is sent for the client to CHECK its
+    //    reconstruction against, not because it could not be had. What
+    //    cannot be had: which view is up, which button mode (hire, pool,
+    //    dismiss), which leader is selected and which is under the
+    //    pointer, which star the colony view shows and which it has
+    //    chosen, and — in the ship view — which stack, which ships in
+    //    which order and which of them is picked, where the list is
+    //    scrolled. And, while the hire popup runs over this screen
+    //    (mainpups.cpp:784-930, reporting 29 all the while), WHICH
+    //    leader it offers and in which state.
+    //
+    //    The big-icon list is written in DISPLAY order, the order
+    //    Build_Fltscrn_Big_Icon_Fields left in fltscrn_big_icon —
+    //    the same array and the same order FLTS sends.
+    if (current_screen == SCREEN_OFFICERS) {
+        buf.push_back((uint8_t)'O');
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'S');
+
+        Write8(buf, (uint8_t)MOX::officer_scrn_type);
+        Write8(buf, (uint8_t)OFFICER::officer_button_mode);
+        Write8(buf, (uint8_t)MOX::officer_selected);
+        Write8(buf, (uint8_t)MOX::officer_scanned);
+        Write16(buf, OFFICER::officer_star_displayed);
+        Write16(buf, OFFICER::officer_star_chosen);
+
+        int16_t n_officers = MOX::n_fltscrn_officers;
+        if (n_officers < 0) n_officers = 0;
+        if (n_officers > 4) n_officers = 4;
+        Write16(buf, n_officers);
+        for (int i = 0; i < 4; i++) {
+            Write16(buf, MOX::officer_id_list ? MOX::officer_id_list[i]
+                                               : (int16_t)-1);
+        }
+
+        int16_t stack = MOX::small_ship_stack_ptr;
+        int16_t head = -1;
+        if (stack >= 0 && stack < MOX::ship_stack_count) {
+            head = MOX::ship_stack_start[stack];
+        } else {
+            stack = -1;
+        }
+        Write16(buf, stack);
+        Write16(buf, head);
+        Write16(buf, MOX::scroll_bar ? MOX::scroll_bar->first_visible_row
+                                      : (int16_t)0);
+        Write16(buf, MOX::offpop_big_icon_selected);
+        Write16(buf, MOX::scanned_big_ship);
+        Write16(buf, MOX::scanned_small_ship);
+        Write16(buf, MOX::galaxy_map_scanned_star);
+
+        // The hire popup, only while it is up over THIS screen: the
+        // flag is set by OFFICER::Hire_Officer_Popup for exactly the
+        // popup's lifetime (officer.cpp:3391-3400).
+        bool popup = MAINPUPS::on_officer_screen_flag != 0;
+        Write16(buf, popup ? MAINPUPS::g_officer : (int16_t)-1);
+        Write16(buf, popup ? MAINPUPS::field_state : (int16_t)-1);
+
+        int16_t icons = MOX::n_fltscrn_big_icons;
+        if (icons < 0) icons = 0;
+        if (icons > SHIP_LIST_CAPACITY) icons = SHIP_LIST_CAPACITY;
+        if (!MOX::fltscrn_big_icon) icons = 0;
+        Write16(buf, icons);
+        for (int16_t i = 0; i < icons; i++) {
+            Write16(buf, MOX::fltscrn_big_icon[i].ship_idx);
+            Write8(buf, (uint8_t)(MOX::fltscrn_big_icon[i].selected != 0));
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
