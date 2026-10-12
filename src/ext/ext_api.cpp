@@ -2441,6 +2441,7 @@ bool g_hof_live = false;
 // OrionLayer, open fix 52. A tactical battle is up (ext_api.h).
 bool g_combat_live = false;
 uint16_t g_combat_serial = 0;
+static int32_t g_battle_ticks = 0;  // OrionLayer, open fix 79. Ticks waited since the last event that is not a sound.
 
 CombatGuard::CombatGuard() : screen(SCREEN_EXT_COMBAT), previous(g_combat_live) {
     g_combat_live = true;
@@ -2455,6 +2456,38 @@ void Combat_Event(uint8_t type, int16_t a0, int16_t a1, int16_t a2, int16_t a3,
     CombatEventRecord& e = g_combat_events[g_combat_event_next % 1024];
     e = {g_combat_event_next, g_combat_serial, type, {a0, a1, a2, a3, a4, a5, a6, a7}};
     ++g_combat_event_next;
+    if (type != CEV_SOUND && type != CEV_SOUND_CHANGE) g_battle_ticks = 0;  // OrionLayer, open fix 79. The ticks count from this event.
+}
+
+// OrionLayer, open fix 79. The battle's sounds as events (ext_api.h).
+static bool Battle_Sound_Recorded_() {
+    return g_combat_live && g_hide_window.load() && g_server.ClientCount() > 0;
+}
+
+static int16_t Battle_Ticks_() {
+    return (int16_t)(g_battle_ticks > 32767 ? 32767 : g_battle_ticks);
+}
+
+bool Battle_Sound(int16_t sound_id, int32_t* handle) {
+    if (!Battle_Sound_Recorded_()) return false;
+    static int32_t next = 16;
+    *handle = next;
+    next = next >= 127 ? 16 : next + 1;
+    if (sound_id != 0) Combat_Event(CEV_SOUND, sound_id, (int16_t)*handle, Battle_Ticks_());
+    return true;
+}
+
+bool Battle_Sound_Change(int32_t handle, uint8_t change, int32_t value) {
+    if (handle != -1 && (handle < 16 || handle > 127)) return false;
+    if (!Battle_Sound_Recorded_()) return handle != -1;
+    if (value < -32768) value = -32768;
+    if (value > 32767) value = 32767;
+    Combat_Event(CEV_SOUND_CHANGE, (int16_t)handle, change, (int16_t)value, Battle_Ticks_());
+    return handle != -1;
+}
+
+void Battle_Wait(int32_t ticks) {
+    if (g_combat_live && ticks > 0) g_battle_ticks += ticks;
 }
 
 // OrionLayer, open fix 65. The original's view kept round a commanded action, as a player's click keeps it.

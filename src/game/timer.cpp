@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 79. The battle's ticks for its sounds.
+#endif
 
 namespace timer {
     namespace {
@@ -48,6 +51,9 @@ namespace timer {
     }
 
     void __cdecl Release_Time(int32_t ticks) {
+#ifdef ORION2RE_EXT
+        ext::Battle_Wait(ticks);  // OrionLayer, open fix 79. The original's time, counted for the battle's sounds (before v2's animation speed-up is taken off).
+#endif
         const int32_t adjusted_ticks = ticks - animation_speedup;
         if (adjusted_ticks <= 0) {
             SDL_Delay(0);

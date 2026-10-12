@@ -1,5 +1,8 @@
 #include "pch.h"
 #include <cstring>
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 79. The battle's sounds as events.
+#endif
 
 namespace {
     bool Building_Forces_Combat_Reengagement(int16_t building_id) {
@@ -226,6 +229,10 @@ namespace ERICNET {
 
     int __cdecl Mox_Play_Sound(int16_t sound_id) {
         if (MOX::settings.sound_fx_on != 0 && MOX::super_fast_flag == 0) {
+#ifdef ORION2RE_EXT
+            int32_t handle = 0;
+            if (ext::Battle_Sound(sound_id, &handle)) return handle;  // OrionLayer, open fix 79. The client plays it.
+#endif
             return sound::Play_Sound(sound_id);
         }
 

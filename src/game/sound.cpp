@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 79. A recorded battle sound's changes.
+#endif
 
 namespace sound {
     void __cdecl Merge_Free_Blocks();
@@ -784,6 +787,9 @@ namespace sound {
 
     void __cdecl Pitch_Bend_Sound(int32_t handle, int32_t pitch) {
         Sound_State_Guard_ guard;
+#ifdef ORION2RE_EXT
+        if (ext::Battle_Sound_Change(handle, 3, pitch)) return;  // OrionLayer, open fix 79. A recorded battle sound: no channel.
+#endif
 
         if (handle >= 1 && handle < SOUND_CHANNEL_COUNT) {
             s_sound_channel& channel = soundChannels[handle];
@@ -1016,6 +1022,9 @@ namespace sound {
      */
     void __cdecl Fadeout_Sound(int16_t channel_idx, int8_t volume_idx) {
         Sound_State_Guard_ guard;
+#ifdef ORION2RE_EXT
+        if (ext::Battle_Sound_Change(channel_idx, 1, volume_idx)) return;  // OrionLayer, open fix 79. A recorded battle sound: no channel.
+#endif
 
         if (channel_idx >= 0 && channel_idx < SOUND_CHANNEL_COUNT) {
             if (soundChannels[channel_idx].volume_index == 0) {
@@ -1027,6 +1036,9 @@ namespace sound {
 
     void __cdecl Loop_Sound(int32_t channel_idx, int8_t loop_count) {
         Sound_State_Guard_ guard;
+#ifdef ORION2RE_EXT
+        if (ext::Battle_Sound_Change(channel_idx, 2, loop_count)) return;  // OrionLayer, open fix 79. A recorded battle sound: no channel.
+#endif
 
         if (channel_idx >= 1) {
             soundChannels[channel_idx].flags |= 0x08;

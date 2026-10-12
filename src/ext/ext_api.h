@@ -176,6 +176,8 @@ enum CombatEventType : uint8_t {
     CEV_CAPTURE = 16,       // attacker, defender, result (0x32 taken, 0x31 destroyed, 0x33 failed), marines, defenders left, owner after
     CEV_RAID = 17,          // attacker, target, raiders sent, raiders back, defenders left, damage
     CEV_COMMAND = 18,       // op, result (0 taken, else why refused), a, b — OrionLayer, open fix 58.
+    CEV_SOUND = 19,         // sound id, handle, ticks since the last other event — OrionLayer, open fix 79.
+    CEV_SOUND_CHANGE = 20,  // handle (-1 every sound), change (1 fade, 2 loop, 3 pitch), value, ticks — OrionLayer, open fix 79.
 };
 
 /// OrionLayer, open fix 58. One command per battle action (decision 52), consumed where the human's input is read.
@@ -208,6 +210,22 @@ void Combat_Command_Cell(int16_t* x, int16_t* y);
 void Combat_Event(uint8_t type, int16_t a0 = 0, int16_t a1 = 0, int16_t a2 = 0,
                   int16_t a3 = 0, int16_t a4 = 0, int16_t a5 = 0,
                   int16_t a6 = 0, int16_t a7 = 0);
+
+/// OrionLayer, open fix 79. The battle's sounds as events, the engine silent while a client draws.
+///
+/// The hidden engine played every battle sound at its own time, before the
+/// client's picture of it (work order 210). While a battle is live, the
+/// window hidden and a client connected, ERICNET::Mox_Play_Sound records
+/// the sound (CEV_SOUND) instead of playing it and hands back a handle of
+/// its own (16-127, never a channel); a fade, loop or pitch bend of such a
+/// handle is recorded too (CEV_SOUND_CHANGE) and touches no channel. Each
+/// carries the 55 ms ticks the engine waited (timer::Release_Time) since the
+/// event before it, so the client starts it at that point of its own
+/// animation. Only what the original would play is recorded (sound effects
+/// on, not super fast); music streams are not touched.
+bool Battle_Sound(int16_t sound_id, int32_t* handle);
+bool Battle_Sound_Change(int32_t handle, uint8_t change, int32_t value);
+void Battle_Wait(int32_t ticks);
 
 struct CombatGuard {
     ScreenOverride screen;
