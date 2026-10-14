@@ -131,6 +131,7 @@ off on request).
 | `adbb683c` | Open Fix 91: the invasion on the wire |
 | `096c97fb` | Open Fix 92: colonists of the colony screen's colony to another colony at the same star |
 | `e3d81221` | Open Fix 93: the LAYOUT message — every member of the records the wire sends raw, by name, offset and size |
+| `42f32654` | Open Fix 94: the Energy Absorber's charge as a battle event |
 
 ---
 
