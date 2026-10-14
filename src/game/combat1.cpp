@@ -1222,6 +1222,11 @@ namespace COMBAT1 {
                 if (Combat_Ship_Participates_In_Current_Pass(i)) {
                     if (absorber_keep_charge == 0 &&
                         MOX::combat_data[i].owner == active_player_id) {
+#ifdef ORION2RE_EXT
+                        if (MOX::combat_data[i].reflected_damage_pool != 0) {
+                            ext::Combat_Note(ext::CEV_ABSORB, i, 0, (int16_t)-MOX::combat_data[i].reflected_damage_pool);  // OrionLayer, open fix 94. Emptied as its side's turn begins.
+                        }
+#endif
                         MOX::combat_data[i].reflected_damage_pool = 0;
                     }
                 }

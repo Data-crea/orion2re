@@ -933,6 +933,9 @@ namespace CMBTFIRE {
                     (int32_t)MOX::combat_data[target_ship_idx]
                         .reflected_damage_pool +
                     reflected);
+#ifdef ORION2RE_EXT
+            ext::Combat_Note(ext::CEV_ABSORB, target_ship_idx, MOX::combat_data[target_ship_idx].reflected_damage_pool, reflected);  // OrionLayer, open fix 94. The charge as it is taken: before the shot's animation, which runs after every shot's damage (Fire_Ship).
+#endif
         }
 
         if (COMBINIT::Does_Combat_Ship_Have_Special(
@@ -2003,6 +2006,11 @@ namespace CMBTFIRE {
                 source_ship_idx);
         }
 
+#ifdef ORION2RE_EXT
+        if (MOX::combat_data[source_ship_idx].reflected_damage_pool != 0) {
+            ext::Combat_Note(ext::CEV_ABSORB, source_ship_idx, 0, (int16_t)-MOX::combat_data[source_ship_idx].reflected_damage_pool);  // OrionLayer, open fix 94. Emptied after the discharge's animation.
+        }
+#endif
         MOX::combat_data[source_ship_idx].reflected_damage_pool = 0;
     }
 
