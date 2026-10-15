@@ -133,6 +133,7 @@ off on request).
 | `e3d81221` | Open Fix 93: the LAYOUT message — every member of the records the wire sends raw, by name, offset and size |
 | `42f32654` | Open Fix 94: the Energy Absorber's charge as a battle event |
 | `105c4054` | Open Fix 94, amended: the comments say where a side's charges are emptied |
+| `cb2bf131` | Open Fix 95: the Stellar Converter's two totals as a battle event |
 
 ---
 
