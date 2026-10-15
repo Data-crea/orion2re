@@ -135,6 +135,7 @@ off on request).
 | `105c4054` | Open Fix 94, amended: the comments say where a side's charges are emptied |
 | `cb2bf131` | Open Fix 95: the Stellar Converter's two totals as a battle event |
 | `c255dc67` | Open Fix 95, amended: the comments name the second total as the shields' share |
+| `be79dadf` | Open Fix 96: the galactic council on the wire |
 
 ---
 
