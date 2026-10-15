@@ -2229,6 +2229,75 @@ static void SerializeState(std::vector<uint8_t>& buf,
                               : (int16_t)-1);
         }
     }
+
+    // 33. The Planets screen's own state: "PLSM", written ONLY while
+    //     SCREEN_PLANET_SUMMARY is up, after SYSW's place. OrionLayer,
+    //     open fix 97.
+    //
+    //     Planet_Summary_Screen (plntsum.cpp:1929-2136) keeps its list, its
+    //     scroll window and its send mode in PLNTSUM's globals and fields
+    //     only it names; a client could not arm Send Colony / Send Outpost,
+    //     click the row the game shows, see the ETAs or undo an order.
+    //     Sent as the game holds them: the send mode (send_choice -1 none
+    //     0 colony 1 outpost) and the two buttons' states (0 none, 1
+    //     selectable, 2 armed), can_reach_scanned_planet, box_field_scanned,
+    //     last_ship_moved, scanned_field; the scroll window's first row and
+    //     total rows; the fields: the eight row fields, the eight colony
+    //     and eight outpost marker fields, up, down, Send Colony, Send
+    //     Outpost (-1000 when absent), then int16 n stars and each star
+    //     icon's field; then int16 n rows and per row (the game's order)
+    //     int16 planet, the colony and outpost orders' ETAs (-1 none: the
+    //     markers), the best colony and outpost ship's ETA, the best colony
+    //     ship, the best outpost ship (-1 none), int8 blocked; last g_ship_move_info's turns_left, moving,
+    //     out_of_range, blackhole_blocks, insufficient_fuel (the hovered
+    //     row's try). Read only; nothing here changes the game.
+    if (current_screen == SCREEN_PLANET_SUMMARY && PLNTSUM::screen != nullptr
+        && PLNTSUM::planet_summary != nullptr && MOX::scroll_bar != nullptr) {
+        const s_plntsum_screen* ps = PLNTSUM::screen;
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'M');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, PLNTSUM::send_choice);
+        Write8(buf, PLNTSUM::draw_colony_button_status);
+        Write8(buf, PLNTSUM::draw_outpost_button_status);
+        Write8(buf, PLNTSUM::can_reach_scanned_planet ? (uint8_t)1 : (uint8_t)0);
+        Write8(buf, (uint8_t)PLNTSUM::box_field_scanned);
+        Write16(buf, PLNTSUM::last_ship_moved);
+        Write16(buf, MOX::scanned_field);
+        Write16(buf, MOX::scroll_bar->first_visible_row);
+        int16_t rows = MOX::scroll_bar->total_rows;
+        if (rows < 0) rows = 0;
+        if (rows > MAX_PLANETS) rows = MAX_PLANETS;
+        Write16(buf, rows);
+        for (int i = 0; i < 8; i++) Write16(buf, ps->fields[i]);
+        for (int i = 0; i < 8; i++) Write16(buf, ps->colony_icons[i]);
+        for (int i = 0; i < 8; i++) Write16(buf, ps->output_icons[i]);
+        Write16(buf, ps->up_button);
+        Write16(buf, ps->dn_button);
+        Write16(buf, ps->buttons[8]);
+        Write16(buf, ps->buttons[9]);
+        Write16(buf, MOX::NUM_STARS);
+        for (int i = 0; i < MOX::NUM_STARS; i++) Write16(buf, ps->planet_icons[i]);
+        Write16(buf, rows);
+        for (int16_t r = 0; r < rows; r++) {
+            const s_plntsum_planet& p = PLNTSUM::planet_summary[r];
+            Write16(buf, p.explored);
+            Write16(buf, (int16_t)p.colony_eta);
+            Write16(buf, (int16_t)p.outpost_eta);
+            Write16(buf, p.best_colony_eta);
+            Write16(buf, p.best_outpost_eta);
+            Write16(buf, p.best_colony_ship_idx);
+            Write16(buf, p.best_outpost_ship_idx);
+            Write8(buf, (uint8_t)p.blocked);
+        }
+        Write8(buf, MOX::g_ship_move_info.turns_left);
+        Write8(buf, (uint8_t)MOX::g_ship_move_info.moving);
+        Write8(buf, (uint8_t)MOX::g_ship_move_info.out_of_range);
+        Write8(buf, (uint8_t)MOX::g_ship_move_info.blackhole_blocks);
+        Write8(buf, (uint8_t)MOX::g_ship_move_info.insufficient_fuel);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
