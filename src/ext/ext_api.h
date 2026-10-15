@@ -187,7 +187,7 @@ enum CombatEventType : uint8_t {
     CEV_BEAM_AIM = 22,      // source, target, weapon, fire points, from x px, y px, to x px, y px (an entry's last fire point, the target and its miss offset) — OrionLayer, open fix 82.
     CEV_GYRO_SPIN = 23,     // source, target, turns (sixteenths of a turn the target spins after the line's eight) — OrionLayer, open fix 83.
     CEV_ABSORB = 24,        // unit, charge after, change (the Energy Absorber's reflected_damage_pool: charged by a hit, emptied by its discharge or after its side's units have acted) — OrionLayer, open fix 94.
-    CEV_CONVERTER_HIT = 25, // source, target, damage, structure damage (the Stellar Converter's two totals after its four hits, the numbers the original shows over the target) — OrionLayer, open fix 95.
+    CEV_CONVERTER_HIT = 25, // source, target, damage through the shields, damage the shields took (the Stellar Converter's two totals after its four hits — Apply_Ship_Damage's dmg_out and sys_dmg — the numbers the original shows over the target) — OrionLayer, open fix 95.
 };
 
 /// OrionLayer, open fix 58. One command per battle action (decision 52), consumed where the human's input is read.
