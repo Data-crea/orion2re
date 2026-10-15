@@ -137,6 +137,7 @@ off on request).
 | `c255dc67` | Open Fix 95, amended: the comments name the second total as the shields' share |
 | `be79dadf` | Open Fix 96: the galactic council on the wire |
 | `360b8d0c` | Open Fix 97: the Planets screen's state on the wire |
+| `2a09cb76` | Open Fix 98: the colony screen's troop popup on the wire |
 
 ---
 
