@@ -1,12 +1,27 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 98. The troop popup on the wire.
+#endif
 
 namespace NEWPUP {
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 98. The side the popup shows, kept for the wire:
+    // Draw_Troop_Popup computes it into a local on each full draw.
+    static s_invasion_side_info ext_troop_side;
+#endif
     MOX2::action_func_t saved_autofunction;
 
     s_animation_header* anims;
     uint8_t rebel_display;
 
     void __cdecl Troop_Popup() {
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 98. The troop popup: id 71, TPOP kind 13, the
+        // colony's side and the summary lines as it prints them.
+        const ext::TurnPopupGuard ext_popup_guard(71, 13, nullptr, nullptr);
+        ext::g_invasion.sides[0] = ext::g_invasion.sides[1] = nullptr;
+        ext::g_invasion.n_lines[0] = ext::g_invasion.n_lines[1] = 0;
+#endif
         COLONY::full_draw = 1;
         fonts::Set_Font_Style_Shadow_Down(1, &COLONY::font_color_array);
 
@@ -33,6 +48,9 @@ namespace NEWPUP {
         fields::Deactivate_Help_List();
         fields::Deactivate_Auto_Function();
         MOX2::Put_Auto_Function(&NEWPUP::saved_autofunction);
+#ifdef ORION2RE_EXT
+        ext::g_invasion.sides[0] = nullptr;  // OrionLayer, open fix 98.
+#endif
     }
 
     void __cdecl Draw_Troop_Popup() {
@@ -60,6 +78,14 @@ namespace NEWPUP {
                 &invasion_info,
                 rebel_display != 0);
 
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 98. This draw's side and lines, for the wire.
+            ext_troop_side = invasion_info;
+            ext::g_invasion.sides[0] = &ext_troop_side;
+            ext::g_turn_popup.args[0] = planet_index;
+            if (ext::g_turn_popup.n_args < 1) ext::g_turn_popup.n_args = 1;
+            ext::Invasion_Summary_Begin(0);
+#endif
             Print_Best_Summary(&invasion_info, &summary_row);
             Print_Race_Summary(&invasion_info, &summary_row);
 
@@ -94,6 +120,9 @@ namespace NEWPUP {
         anim = (s_animation_header*)buffer::Buffer_Reload(COLONY::COLGCBT_LBX, 0x15, MOX::global_cache_seg);
 
         FMTPARA::Print_Formatted_Paragraph(11, *row * 11 + 0x153, animate::Get_Width(anim) - 0x12, text_buffer, 0);
+#ifdef ORION2RE_EXT
+        ext::Invasion_Summary_Line(0, label, value);  // OrionLayer, open fix 98.
+#endif
 
         ++(*row);
     }

@@ -241,6 +241,43 @@ static void WriteCouncilTail(std::vector<uint8_t>& buf) {
     }
 }
 
+// OrionLayer, open fix 98. The troop popup's TPOP tail (kind 13): the side
+// NEWPUP::Draw_Troop_Popup computed and the words Print_Troop_Totals prints
+// for each troop type, then the summary lines Print_Data printed.
+static void WriteTroopTail(std::vector<uint8_t>& buf) {
+    const s_invasion_side_info* info = g_invasion.sides[0];
+    const int16_t player = info != nullptr ? info->player_id : (int16_t)-1;
+    Write8(buf, (uint8_t)(int8_t)player);
+    Write8(buf, NEWPUP::rebel_display);
+    const uint8_t n = info != nullptr ? (uint8_t)(3 + (NEWPUP::rebel_display != 0)) : 0;
+    Write8(buf, n);
+    char text[500];
+    for (int type = 0; type < n; type++) {
+        const uint16_t race = (uint16_t)(uint8_t)MOX::player[player].race;
+        Write16(buf, info->unit_counts[type]);
+        Write16(buf, (int16_t)(uint8_t)info->unit_hps[type]);
+        Write16(buf, info->unit_strengths[type]);
+        snprintf(text, sizeof(text), ESTRINGS::E_Strings(0x0e),
+                 (int32_t)info->unit_counts[type],
+                 COLONY::Player_Troop_Name(player, (int16_t)type, race));
+        WriteCouncilText(buf, text);
+        const uint8_t hp = (uint8_t)info->unit_hps[type];
+        snprintf(text, sizeof(text), ESTRINGS::E_Strings(hp > 1 ? 0x17 : 0x16),
+                 (uint32_t)hp);
+        WriteCouncilText(buf, text);
+        snprintf(text, sizeof(text), ESTRINGS::E_Strings(0x0d),
+                 (int32_t)info->unit_strengths[type]);
+        WriteCouncilText(buf, text);
+    }
+    const uint8_t lines = info != nullptr ? g_invasion.n_lines[0] : (uint8_t)0;
+    Write8(buf, lines);
+    for (int i = 0; i < lines; i++) {
+        const GroundLine& line = g_invasion.lines[0][i];
+        WriteCouncilText(buf, line.label);
+        Write16(buf, line.value);
+    }
+}
+
 static void WriteInvasionTail(std::vector<uint8_t>& buf, uint8_t kind) {
     if (kind == 10) {
         const s_colony_combat_popup_data* p = g_invasion.popup;
@@ -1231,6 +1268,10 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //                                                          title = the title line as last printed
     //     12    70  galactic council (council::Main_Council_Screen; open fix 96)
     //                                                        no args; the tail below
+    //     13    71  troop popup (NEWPUP::Troop_Popup, the colony screen's
+    //               marines and armour; open fix 98)         [0] the planet shown
+    //                                                          (-1 before its first
+    //                                                          draw); the tail below
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:
@@ -1276,6 +1317,14 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //       vote, the ruling): int16 n items, and when n > 0 the title
     //       (uint8 length + raw) and per item uint8 enabled, uint8 length +
     //       raw.
+    //     - 13 (open fix 98): the troop popup's side: int8 player (-1 none
+    //       yet), uint8 rebel_display, uint8 n troop types (3, 4 with the
+    //       rebels; 0 before the first draw), per type int16 count, int16 hit
+    //       points, int16 strength and the three lines Print_Troop_Totals
+    //       prints (E 0x0E count and name, E 0x16/0x17 hit points, E 0x0D
+    //       strength), each int16 length + raw; then uint8 n summary lines,
+    //       per line its label (int16 length + raw) and int16 value, as
+    //       Print_Data printed them.
     if (g_turn_popup.kind != 0) {
         buf.push_back((uint8_t)'T');
         buf.push_back((uint8_t)'P');
@@ -1377,6 +1426,9 @@ static void SerializeState(std::vector<uint8_t>& buf,
         // OrionLayer, open fix 91. The invasion's tails (kinds 10 and 11).
         if (g_turn_popup.kind == 12) {
             WriteCouncilTail(buf);  // OrionLayer, open fix 96.
+        }
+        if (g_turn_popup.kind == 13) {
+            WriteTroopTail(buf);  // OrionLayer, open fix 98.
         }
         if (g_turn_popup.kind == 10 || g_turn_popup.kind == 11) {
             WriteInvasionTail(buf, g_turn_popup.kind);
