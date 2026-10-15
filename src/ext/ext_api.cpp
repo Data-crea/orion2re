@@ -165,6 +165,82 @@ static void WriteInvasionFlics(std::vector<uint8_t>& buf) {
     }
 }
 
+// OrionLayer, open fix 96. The council's TPOP tail (kind 12): its globals as
+// Draw_Main_Council_Screen reads them, its three top lines formatted as that
+// function formats them, its message, and the list taking input now.
+static void WriteCouncilText(std::vector<uint8_t>& buf, const char* s) {
+    const size_t len = s != nullptr ? strnlen(s, 4000) : 0;
+    Write16(buf, (int16_t)len);
+    WriteBytes(buf, s, len);
+}
+
+static void WriteCouncilTail(std::vector<uint8_t>& buf) {
+    Write8(buf, council::council_state);
+    Write8(buf, council::council_nominee_[0]);
+    Write8(buf, council::council_nominee_[1]);
+    Write16(buf, council::council_nominee_vote_total[0]);
+    Write16(buf, council::council_nominee_vote_total[1]);
+    Write16(buf, council::council_nominee_votes[0]);
+    Write16(buf, council::council_nominee_votes[1]);
+    Write16(buf, council::council_total_votes);
+    Write8(buf, (uint8_t)council::council_voter);
+    Write16(buf, council::council_vote_cast);
+    Write8(buf, council::council_vote_for);
+    Write16(buf, diplodef::COUNCIL_FLAG);
+    Write8(buf, council::winning_player);
+    uint8_t n = council::council_total_members;
+    if (n > MAX_PLAYERS) n = MAX_PLAYERS;
+    Write8(buf, n);
+    for (uint8_t i = 0; i < n; i++) {
+        Write8(buf, council::council_members[i]);
+        Write16(buf, council::council_member_votes[i]);
+    }
+    char line[40];
+    for (int i = 0; i < 2; ++i) {
+        line[0] = '\0';
+        if (council::council_nominee_vote_total[i] < 1) {
+            if (council::council_no_votes_message != nullptr) {
+                strlcpy(line, council::council_no_votes_message, sizeof(line));
+                JIM::Decode_Text_Race(line, council::council_nominee_[i], sizeof(line));
+            }
+        } else {
+            const char* msg = council::council_nominee_vote_total[i] < 2
+                ? council::council_vote_message : council::council_votes_message;
+            if (msg != nullptr) {
+                strlcpy(line, msg, sizeof(line));
+                JIM::Decode_Text_Name_And_Stat(line, council::council_nominee_[i],
+                                               council::council_nominee_vote_total[i], sizeof(line));
+            }
+        }
+        if (i == 1) {
+            char total[40];
+            snprintf(total, sizeof(total), "%d %s", (int)council::council_total_votes,
+                     council::council_votes_total_message != nullptr
+                         ? council::council_votes_total_message : "");
+            WriteCouncilText(buf, total);
+        }
+        WriteCouncilText(buf, line);
+    }
+    WriteCouncilText(buf, council::council_message);
+    const ListFieldView& list = g_list_field;
+    int16_t items = (list.items != nullptr && list.count > 0) ? list.count : 0;
+    if (items > 40) items = 40;
+    Write16(buf, items);
+    if (items > 0) {
+        size_t len = list.title != nullptr ? strnlen(list.title, 255) : 0;
+        Write8(buf, (uint8_t)len);
+        WriteBytes(buf, list.title, len);
+        const size_t item_max = list.item_size > 255 ? 255 : (size_t)list.item_size;
+        for (int16_t i = 0; i < items; i++) {
+            const char* item = list.items + (size_t)i * list.item_size;
+            Write8(buf, list.flags != nullptr ? list.flags[i] : 1);
+            len = strnlen(item, item_max);
+            Write8(buf, (uint8_t)len);
+            WriteBytes(buf, item, len);
+        }
+    }
+}
+
 static void WriteInvasionTail(std::vector<uint8_t>& buf, uint8_t kind) {
     if (kind == 10) {
         const s_colony_combat_popup_data* p = g_invasion.popup;
@@ -1153,6 +1229,8 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //                                                          [6] the defender has Battleoids [7] g_ctr
     //                                                          [8] top_line [9] frames drawn (low 15 bits)
     //                                                          title = the title line as last printed
+    //     12    70  galactic council (council::Main_Council_Screen; open fix 96)
+    //                                                        no args; the tail below
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:
@@ -1183,6 +1261,21 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //       int16 the colour parameters; uint8 n explosions, per one uint8
     //       picture (1 ground, 2 bomb, 3 biological, 0 other), int16
     //       frame, x, y.
+    //     - 12 (open fix 96): the council as council.cpp's globals hold it:
+    //       uint8 state (0 convened, 1 nominees, 2 a vote cast, 3 an
+    //       abstention, 4 elected, 5 no one elected, 6 the ruling
+    //       refused), uint8 nominee 0, uint8 nominee 1, int16 each
+    //       nominee's votes received, int16 each nominee's own votes,
+    //       int16 total votes, int8 the member voting now (-1 none), int16
+    //       the votes being cast, uint8 vote_for (0 / 1), int16
+    //       COUNCIL_FLAG, uint8 winning_player, uint8 n members, per
+    //       member uint8 player and int16 votes (the screen's order); then
+    //       the three top lines as Draw_Main_Council_Screen prints them
+    //       (nominee 0's, the total's, nominee 1's) and the message, each
+    //       int16 length + raw; then the list up now (Get_List_Field: the
+    //       vote, the ruling): int16 n items, and when n > 0 the title
+    //       (uint8 length + raw) and per item uint8 enabled, uint8 length +
+    //       raw.
     if (g_turn_popup.kind != 0) {
         buf.push_back((uint8_t)'T');
         buf.push_back((uint8_t)'P');
@@ -1282,6 +1375,9 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
 
         // OrionLayer, open fix 91. The invasion's tails (kinds 10 and 11).
+        if (g_turn_popup.kind == 12) {
+            WriteCouncilTail(buf);  // OrionLayer, open fix 96.
+        }
         if (g_turn_popup.kind == 10 || g_turn_popup.kind == 11) {
             WriteInvasionTail(buf, g_turn_popup.kind);
         }

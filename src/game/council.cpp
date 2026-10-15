@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 96. The council on the wire.
+#endif
 
 namespace council {
     const char lbx_00559a68[12] = "council.lbx";
@@ -115,6 +118,11 @@ namespace council {
         fields::Deactivate_Auto_Function();
         fields::Clear_Fields();
         council::Reload_Main_Council_Screen();
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 96. The council reports id 70 and TPOP kind 12 while
+        // it runs; its tail is read from this file's globals as they stand.
+        const ext::TurnPopupGuard ext_council(70, 12, nullptr, nullptr);
+#endif
         council::council_state = 0;
         diplodef::COUNCIL_FLAG = 1;
         council::council_nominee_vote_total[0] = 0;
