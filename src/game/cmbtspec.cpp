@@ -1069,6 +1069,9 @@ namespace CMBTSPEC {
             total_damage += current_damage;
             total_struct_damage += current_struct_damage;
         }
+#ifdef ORION2RE_EXT
+        ext::Combat_Note(ext::CEV_CONVERTER_HIT, attacker_idx, target_idx, total_damage, total_struct_damage);  // OrionLayer, open fix 95. The two totals Add_Damage_Indicator_For_Ship shows, after the four hits.
+#endif
 
         if (MOX::apply_damage_to_planet == 1 && MOX::super_fast_flag == 0) {
             palette::Restore_Glass_Remap_Block(MOX::shield_remap_colors);
