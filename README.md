@@ -136,6 +136,7 @@ off on request).
 | `cb2bf131` | Open Fix 95: the Stellar Converter's two totals as a battle event |
 | `c255dc67` | Open Fix 95, amended: the comments name the second total as the shields' share |
 | `be79dadf` | Open Fix 96: the galactic council on the wire |
+| `360b8d0c` | Open Fix 97: the Planets screen's state on the wire |
 
 ---
 
