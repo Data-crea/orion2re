@@ -1224,7 +1224,7 @@ namespace COMBAT1 {
                         MOX::combat_data[i].owner == active_player_id) {
 #ifdef ORION2RE_EXT
                         if (MOX::combat_data[i].reflected_damage_pool != 0) {
-                            ext::Combat_Note(ext::CEV_ABSORB, i, 0, (int16_t)-MOX::combat_data[i].reflected_damage_pool);  // OrionLayer, open fix 94. Emptied as its side's turn begins.
+                            ext::Combat_Note(ext::CEV_ABSORB, i, 0, (int16_t)-MOX::combat_data[i].reflected_damage_pool);  // OrionLayer, open fix 94. Emptied after its side's units have acted (this block follows the side's ship loop).
                         }
 #endif
                         MOX::combat_data[i].reflected_damage_pool = 0;
