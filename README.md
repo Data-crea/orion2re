@@ -18,8 +18,24 @@ of your Master of Orion II installation as `ORION2RE_GAME_DIR`: the build
 then puts the engine and its own data (`data/base.zip`, `data/orion2re.cfg`,
 `data/mods/`) into that folder, where the engine expects them.
 
-Linux (Debian/Ubuntu: `sudo apt install build-essential cmake ninja-build git
-python3`):
+Linux — on Debian or Ubuntu the build tools and what SDL3 (vendored in
+`vendors/SDL`) needs to build, as SDL's own `docs/README-linux.md` lists
+them:
+
+```sh
+sudo apt install build-essential cmake ninja-build pkg-config git \
+    python3-venv xdotool libasound2-dev libpulse-dev libaudio-dev \
+    libfribidi-dev libjack-dev libsndio-dev libx11-dev libxext-dev \
+    libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
+    libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev \
+    libgles2-mesa-dev libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev \
+    libudev-dev libthai-dev libusb-1.0-0-dev libpipewire-0.3-dev \
+    libwayland-dev libdecor-0-dev liburing-dev
+```
+
+(`python3-venv` and `xdotool` are OrionLayer's; a player follows
+OrionLayer's README, which carries all of this.)
+
 
 ```sh
 git clone --recurse-submodules --branch orionlayer https://github.com/Data-crea/orion2re.git
