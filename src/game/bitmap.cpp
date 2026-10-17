@@ -306,6 +306,15 @@ namespace bitmap {
             return;
         }
 
+        // OrionLayer, open fix 99. A line shorter than a hundredth of its
+        // picture's width scales the picture to 0 % (scale_factor below) and
+        // the scaling divides by it: SIGFPE. A tractor beam clipped at the
+        // screen's edge to one pixel (Draw_Clipped_Tractor_Line) is such a
+        // line. Nothing of it would be drawn: return before locking.
+        if (img->width <= 0 || (line_len * 100) / img->width == 0) {
+            return;
+        }
+
         video::g_screen_res_x = platform::Lock_Appropriate_Render_Buffer();
         uint8_t* video_page = (uint8_t*)video::current_video_page;
 
