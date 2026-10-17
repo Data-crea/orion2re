@@ -154,6 +154,7 @@ off on request).
 | `be79dadf` | Open Fix 96: the galactic council on the wire |
 | `360b8d0c` | Open Fix 97: the Planets screen's state on the wire |
 | `2a09cb76` | Open Fix 98: the colony screen's troop popup on the wire |
+| `29047f2d` | Open Fix 99: a bitmap line too short for its picture is not drawn (a SIGFPE on a clipped tractor beam) |
 
 ---
 
