@@ -2350,6 +2350,30 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write8(buf, (uint8_t)MOX::g_ship_move_info.blackhole_blocks);
         Write8(buf, (uint8_t)MOX::g_ship_move_info.insufficient_fuel);
     }
+
+    // 34. The galaxy map's merge-relocation mode: "MREL", written ONLY on
+    //     SCREEN_MAIN, after PLSM's place. OrionLayer, open fix 102.
+    //
+    //     F4 (Check_Function_Keys, mainscr.cpp:3326-3343) turns
+    //     MAINSCR::merging_relocations on and swaps the pointer to the
+    //     relocation cursor over the map (mouse_list_relocation,
+    //     mainscr.cpp:192-195); the next star click then sets every
+    //     relocation to that star (mainscr_main.cpp:473-481), and any
+    //     negative input - a right click on the map, an F key, F4 itself,
+    //     whose case then sets it again - clears it first (:417-420). The
+    //     flag was on the wire nowhere: FLTS
+    //     carries the Fleets screen's own FLT1::merging_relocations, a
+    //     different variable, so a client could not show the mode. A
+    //     version byte, then the flag. Read only; nothing here changes the
+    //     game.
+    if (current_screen == SCREEN_MAIN) {
+        buf.push_back((uint8_t)'M');
+        buf.push_back((uint8_t)'R');
+        buf.push_back((uint8_t)'E');
+        buf.push_back((uint8_t)'L');
+        Write8(buf, 1);                                   // block version
+        Write8(buf, MAINSCR::merging_relocations != 0 ? (uint8_t)1 : (uint8_t)0);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
