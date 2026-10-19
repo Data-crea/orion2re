@@ -156,6 +156,7 @@ off on request).
 | `2a09cb76` | Open Fix 98: the colony screen's troop popup on the wire |
 | `29047f2d` | Open Fix 99: a bitmap line too short for its picture is not drawn (a SIGFPE on a clipped tractor beam) |
 | `35486477` | Open Fix 101: a combat command reaches the original's refusal boxes (BOARD at an own unit, FIRE at a phased enemy) |
+| `f93344f6` | Open Fix 102: the galaxy map's merge-relocation mode on the wire |
 
 ---
 
