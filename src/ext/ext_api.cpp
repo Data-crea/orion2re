@@ -3232,10 +3232,11 @@ int16_t Take_Combat_Command(int16_t input_val) {
         const s_combat_data& t = MOX::combat_data[c.a];
         const bool enemy = t.owner != me.owner;
         const bool stasis = CMBTMOV1::Ship_Is_In_Stasis(c.a) != 0;
-        if (c.op == CCMD_FIRE && (!enemy || stasis || t.special_status_flag == 4)) return refuse(4);
+        const bool phased = t.special_status_flag == 4;  // OrionLayer, open fix 101. A phased target: the original's click says why not (KENTEXT 80, combat1.cpp:797-800).
+        if (c.op == CCMD_FIRE && (!enemy || stasis)) return refuse(4);  // OrionLayer, open fix 101.
         if (c.op == CCMD_SELECT && (enemy || MOX::combat_init != 0)) return refuse(4);
         if (c.op == CCMD_REMOVE_STASIS && (!enemy || !stasis)) return refuse(4);
-        if (c.op == CCMD_FIRE && c.b != -1) {
+        if (c.op == CCMD_FIRE && c.b != -1 && !phased) {  // OrionLayer, open fix 101. No shot, so the rows stay as they are.
             // The mask as the eight weapon rows would leave it: a slot in the
             // mask on, one out of it off for this shot (0, which the fire
             // branch puts back to 1), one switched off for good (-1) left so.
@@ -3262,7 +3263,10 @@ int16_t Take_Combat_Command(int16_t input_val) {
         return MOX::missile_field[c.a];
     case CCMD_BOARD:
         if (MOX::skan_flag != 0) return refuse(5);
-        if (!Combat_Unit_At_Anchor_(c.a) || MOX::combat_data[c.a].owner == me.owner) return refuse(4);
+        // OrionLayer, open fix 101. An own unit goes the original's way too:
+        // its click runs Initiate_Boarding_Action, which refuses it in its
+        // box (KENTEXT 0x40 / 0x41, the planet 0x3F; combat1.cpp:2035-2037).
+        if (!Combat_Unit_At_Anchor_(c.a) || c.a == MOX::cur_ship) return refuse(4);  // OrionLayer, open fix 101.
         if (MOX::board_flag == 0) {
             // Step 1 is the BOARD radio: the field engine writes the flag
             // on a click, an activation does not — so it is written here,
