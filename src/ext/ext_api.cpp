@@ -2075,6 +2075,45 @@ static void SerializeState(std::vector<uint8_t>& buf,
         buf.insert(buf.end(), msg, msg + len);
     }
 
+    // 25b. The ship detail view outside a battle: "SHPV", written ONLY while
+    //     it reports 81 and its loop runs, after CPOP. OrionLayer, open fix
+    //     106.
+    //
+    //     CMBTDRW1::Detailed_View_Ship (cmbtdrw1.cpp:227), opened from the
+    //     galaxy map, the Fleets screen and the Leaders screen, draws only
+    //     from MOX::global_combat_data, the record Load_Display_Combat_Ship
+    //     and Get_Ship_Combat_Bonuses derive (cmbtdrw1.cpp:250-256): the
+    //     ship record on the wire carries none of its bonuses, maximum hits,
+    //     speed, ammo, crew or marines. The record is sent FIELD BY FIELD
+    //     exactly as CMBT sends a unit (section 19's asserts hold its
+    //     offsets), with the view's ship, its subject, the name field (-1
+    //     when the name is not editable), the dismiss field and the name in
+    //     the view's own buffer (at most 15 bytes: what Enter stored; the
+    //     keys before Enter are TXTF's). Never in a battle: there the view
+    //     reports 66 and CPOP says which unit.
+    //     Read only; nothing here changes the game.
+    if (current_screen == SCREEN_EXT_SHIP_VIEW && g_ship_view.active &&
+        !g_combat_live) {
+        const char* name = g_ship_view.name != nullptr ? g_ship_view.name : "";
+        const size_t name_len = strnlen(name, 15);
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'H');
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'V');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, g_ship_view.ship_idx);
+        Write16(buf, g_ship_view.subject);
+        Write16(buf, g_ship_view.name_field);
+        Write16(buf, g_ship_view.exit_field);
+        Write8(buf, (uint8_t)name_len);
+        buf.insert(buf.end(), name, name + name_len);
+        const uint8_t* rec = reinterpret_cast<const uint8_t*>(&MOX::global_combat_data);
+        Write16(buf, (int16_t)(offsetof(s_combat_data, ship_image_seg) + sizeof(s_combat_data) - offsetof(s_combat_data, drive_max_hits)));  // record size (v2: 314)
+        WriteBytes(buf, rec, offsetof(s_combat_data, ship_image_seg));
+        WriteBytes(buf, rec + offsetof(s_combat_data, drive_max_hits),
+                   sizeof(s_combat_data) - offsetof(s_combat_data, drive_max_hits));
+    }
+
     // 26. The battle's OPTIONS panel: "COPT", written ONLY while a battle is
     //     live, after CPOP. OrionLayer, open fix 68.
     //
@@ -3579,6 +3618,32 @@ void TurnPopupGuard::end() {
     active = false;
     g_turn_popup = previous;
     g_screen_override = previous_screen;
+}
+
+// OrionLayer, open fix 106. The ship detail view outside a battle (ext_api.h).
+ShipView g_ship_view = {false, -1, 0, -1, -1, nullptr};
+
+ShipViewGuard::ShipViewGuard(bool on, int16_t ship_idx, int16_t subject,
+                             int16_t name_field, int16_t exit_field,
+                             const char* name)
+    : previous(g_ship_view), active(on) {
+    if (!on) return;
+    g_ship_view.active = true;
+    g_ship_view.ship_idx = ship_idx;
+    g_ship_view.subject = subject;
+    g_ship_view.name_field = name_field;
+    g_ship_view.exit_field = exit_field;
+    g_ship_view.name = name;
+}
+
+ShipViewGuard::~ShipViewGuard() {
+    end();
+}
+
+void ShipViewGuard::end() {
+    if (!active) return;
+    active = false;
+    g_ship_view = previous;
 }
 
 // OrionLayer, open fix 91. The invasion on the wire (ext_api.h).

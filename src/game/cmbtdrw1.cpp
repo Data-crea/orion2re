@@ -288,9 +288,15 @@ namespace CMBTDRW1 {
         }
 
         fields::Mark_Fields();
+#ifdef ORION2RE_EXT
+        int16_t ext_name_field = -1;  // OrionLayer, open fix 106. The name's field, for SHPV.
+#endif
 
         if (is_editable) {
             fonts::Set_Font_Style(4, &NEWGAME::color_ken);
+#ifdef ORION2RE_EXT
+            ext_name_field =
+#endif
             fields::Add_Continuous_String_Input_Field(0x106, 0x32, 0x67, 0xC, ship_name, 0xF, 0, 0, 0, 0);
             fields::Add_Hidden_Field(0x10C, 0x32, 0x17F, 0x40, "", 0);
         }
@@ -298,7 +304,12 @@ namespace CMBTDRW1 {
         int16_t exit_field_id = fields::Add_Hidden_Field(0, 0, 0x27F, 0x1DF, "", 0);
         bool exit_triggered = false;
 #ifdef ORION2RE_EXT
-        const ext::ScreenOverride ext_screen_guard(ext::g_combat_live ? ext::SCREEN_EXT_COMBAT_SCAN : -1);  // OrionLayer, open fix 52. 66 in a battle; elsewhere the caller's id.
+        const ext::ScreenOverride ext_screen_guard(ext::g_combat_live ? ext::SCREEN_EXT_COMBAT_SCAN : ext::SCREEN_EXT_SHIP_VIEW);  // OrionLayer, open fix 52. 66 in a battle; open fix 106: 81 elsewhere.
+        // OrionLayer, open fix 106. Outside a battle the view's ship, subject,
+        // fields and name buffer for SHPV (ext_api.cpp) while the loop runs;
+        // ended right after it, before the fields are released.
+        ext::ShipViewGuard ext_ship_view(!ext::g_combat_live, ship_idx, (int16_t)combat_view_subject,
+                                         ext_name_field, exit_field_id, is_editable ? ship_name : nullptr);
 #endif
         do {
             int16_t input = fields::Get_Input();
@@ -309,6 +320,9 @@ namespace CMBTDRW1 {
             Combat_Draw_View_Ship();
             RUSS::Mox_Sync_Update();
         } while (!exit_triggered);
+#ifdef ORION2RE_EXT
+        ext_ship_view.end();
+#endif
 
         if (is_editable) {
             strings::Trim(ship_name);

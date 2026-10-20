@@ -99,13 +99,48 @@ extern bool g_hof_live;
 /// and counts the battle in g_combat_serial. The two modals the battle opens
 /// report their own ids while it is live — the scan view
 /// (CMBTDRW1::Detailed_View_Ship, also opened from the fleet screen, the map
-/// and the Leaders screen, which keep theirs) and the board popup
+/// and the Leaders screen, where open fix 106 reports 81) and the board popup
 /// (CMBTDRW1::Board_Popup). What is SENT, nothing the game reads.
 constexpr int16_t SCREEN_EXT_COMBAT = 65;
 constexpr int16_t SCREEN_EXT_COMBAT_SCAN = 66;
+constexpr int16_t SCREEN_EXT_SHIP_VIEW = 81;  // OrionLayer, open fix 106. The same view outside a battle.
 constexpr int16_t SCREEN_EXT_COMBAT_BOARD = 67;
 extern bool g_combat_live;
 extern uint16_t g_combat_serial;
+
+/// OrionLayer, open fix 106. The ship detail view outside a battle.
+///
+/// CMBTDRW1::Detailed_View_Ship, opened from the galaxy map's fleet box
+/// (mainscr.cpp:3641), the Fleets screen (flt1.cpp:633) and the Leaders
+/// screen (officer.cpp:1175), ran under its caller's id and drew only from
+/// MOX::global_combat_data, the DERIVED record Load_Display_Combat_Ship and
+/// Get_Ship_Combat_Bonuses fill (bonuses, maximum hits, speed, ammo, crew,
+/// marines) — none of it on the wire outside a battle. While its input loop
+/// runs outside a battle ShipViewGuard keeps what the "SHPV" block sends:
+/// the ship, the view's subject (cmbtdrw1.cpp's Combat_View_Subject), the
+/// name field and the dismiss field, and the local name buffer the name
+/// field edits. Ended right after the loop, before the fields are released
+/// and the buffer goes out of scope. What is SENT, nothing the game reads.
+struct ShipView {
+    bool active;
+    int16_t ship_idx;
+    int16_t subject;       // Combat_View_Subject as int (0 ship, 1 lander, 2 strategic combat)
+    int16_t name_field;    // the name's input field, -1 when the name is not editable
+    int16_t exit_field;    // the full-screen dismiss field
+    const char* name;      // the view's 16-byte edit buffer, or nullptr
+};
+extern ShipView g_ship_view;
+
+struct ShipViewGuard {
+    ShipView previous;
+    bool active;
+    /// on == false: the guard does nothing (the view in a battle, CPOP's).
+    ShipViewGuard(bool on, int16_t ship_idx, int16_t subject,
+                  int16_t name_field, int16_t exit_field, const char* name);
+    ~ShipViewGuard();
+    /// Restores the view now; the destructor then does nothing.
+    void end();
+};
 
 /// OrionLayer, open fix 57. How a battle ended, recorded just before End_Of_Combat writes the losses back.
 ///
