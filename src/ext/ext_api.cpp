@@ -323,6 +323,67 @@ static void WriteDragonTail(std::vector<uint8_t>& buf) {
     }
 }
 
+// OrionLayer, open fix 109. The diplomacy system picker's TPOP tail (kind
+// 25): the words of its lines, every star's hidden field and, for each star
+// whose systems are the giver's, what the hover shows
+// (DIP_SCRN::Diplomacy_System_Display and Draw_Diplomacy_System_Text,
+// dip_scrn.cpp). A string is int16 length + raw bytes. Read only: the scan,
+// the population and May_Surrender_Star change nothing.
+static void WriteText16(std::vector<uint8_t>& buf, const char* str, size_t cap) {
+    const size_t len = str != nullptr ? strnlen(str, cap) : 0;
+    Write16(buf, (int16_t)len);
+    WriteBytes(buf, str, len);
+}
+
+static void WriteSystemPickerTail(std::vector<uint8_t>& buf) {
+    static_assert(sizeof(DIP_SCRN::diplomacy_system_fields) / sizeof(int16_t) == MAX_STARS, "diplomacy_system_fields");
+    const int16_t giver = g_turn_popup.args[0];
+    const int16_t receiver = g_turn_popup.args[1];
+    WriteText16(buf, DIP_SCRN::system_cancel_buffer, 20);
+    WriteText16(buf, DIP_SCRN::ext_system_star_template, sizeof(DIP_SCRN::ext_system_star_template));
+    WriteText16(buf, DIP_SCRN::ext_system_colonists_template, sizeof(DIP_SCRN::ext_system_colonists_template));
+    WriteText16(buf, DIP_SCRN::system_homeworld_buffer, 30);
+    WriteText16(buf, DIP_SCRN::system_unsurrenderable_buffer, 40);
+    int16_t n = MOX::NUM_STARS;
+    if (n < 0) n = 0;
+    if (n > MAX_STARS) n = MAX_STARS;
+    Write16(buf, n);
+    // star i's field is diplomacy_system_fields[i + 1]; the picker writes
+    // index NUM_STARS, one past the array when NUM_STARS is MAX_STARS, which
+    // this does not read
+    for (int16_t i = 0; i < n; i++) {
+        Write16(buf, i + 1 < MAX_STARS ? DIP_SCRN::diplomacy_system_fields[i + 1] : (int16_t)-1000);
+    }
+    const size_t count_at = buf.size();
+    Write16(buf, 0);
+    if (giver < 0 || giver >= MAX_PLAYERS || receiver < 0 || receiver >= MAX_PLAYERS) return;
+    int16_t m = 0;
+    for (int16_t i = 0; i < n; i++) {
+        int16_t capitol = -1, owned = 0, planets[5];
+        if (DIP_SCRN::Diplomacy_System_Scan(i, giver, &capitol, &owned, planets) != giver) continue;
+        if (owned < 0) owned = 0;
+        if (owned > 5) owned = 5;
+        m++;
+        Write16(buf, i);
+        Write16(buf, COLCALC::May_Surrender_Star(i, giver, receiver) ? (int16_t)1 : (int16_t)0);
+        Write16(buf, capitol);
+        Write16(buf, COLCALC::Get_System_Population(giver, i));
+        Write16(buf, owned);
+        for (int16_t k = 0; k < owned; k++) {
+            const s_planet_data* planet = &MOX::planet[planets[k]];
+            char line[80];
+            line[0] = '\0';
+            if (planet->size >= 0 && planet->size < PLANET_SIZE_COUNT && planet->climate >= 0 && planet->climate < PLANET_CLIMATE_COUNT) {
+                snprintf(line, sizeof(line), "%s, %s", MOX::planet_size_string[planet->size], MOX::planet_climate_string[planet->climate]);
+            }
+            Write16(buf, planets[k]);
+            WriteText16(buf, line, sizeof(line));
+        }
+    }
+    buf[count_at] = (uint8_t)(m & 0xFF);
+    buf[count_at + 1] = (uint8_t)((m >> 8) & 0xFF);
+}
+
 static void WriteInvasionTail(std::vector<uint8_t>& buf, uint8_t kind) {
     if (kind == 10) {
         const s_colony_combat_popup_data* p = g_invasion.popup;
@@ -1378,6 +1439,18 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //                                                          when not added); text = the
     //                                                          message as last drawn; the
     //                                                          tail below
+    //     25    85  the diplomacy system picker (DIP_SCRN::Diplomacy_System_Display,
+    //               "choose a system to offer / demand", from the audience's
+    //               Offer Gift (dip_scrn_main.cpp's case 3), Demand (dip_scrn.cpp's
+    //               case 7) and the hotseat's better offer; open fix 109)
+    //                                                        [0] the giver [1] the receiver
+    //                                                          [2] display_mode 0 offer, 1
+    //                                                          demand [3] the CANCEL field
+    //                                                          [4] current_ambassador [5]
+    //                                                          ambassador_option; title =
+    //                                                          "Choose A System:", text = the
+    //                                                          statement (diplomacy_message);
+    //                                                          the tail below
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:
@@ -1445,6 +1518,18 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //       click on the star activates; n is NUM_STARS in mode 1 and 0 in
     //       modes 0 and 2, where Evaluate_Dragon_New_Star_Input reads no
     //       star. Re-read every snapshot: the mode moves inside the loop.
+    //     - 25 (open fix 109): five strings (int16 length + raw bytes):
+    //       CANCEL's words, the star line's and the population line's
+    //       templates (JIMTEXT2 0x3A, 0x38, undecoded: 0x81 the star's
+    //       name, 0x82 the number), " (HOMEWORLD)", "(Unsurrenderable)";
+    //       int16 n (NUM_STARS), n x int16 star i's hidden field
+    //       (diplomacy_system_fields[i + 1]); int16 m, then per star whose
+    //       Diplomacy_System_Scan answers the giver: int16 star, int16
+    //       May_Surrender_Star (0 / 1), int16 the capitol's planet (-1
+    //       none), int16 Get_System_Population, int16 k, k x (int16 planet,
+    //       string "size, climate" as Draw_Diplomacy_System_Text prints
+    //       it). A click on a star is taken when it is the giver's, may be
+    //       surrendered and holds no capitol.
     if (g_turn_popup.kind != 0) {
         buf.push_back((uint8_t)'T');
         buf.push_back((uint8_t)'P');
@@ -1558,6 +1643,9 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
         if (g_turn_popup.kind == 24) {
             WriteDragonTail(buf);  // OrionLayer, open fix 108.
+        }
+        if (g_turn_popup.kind == 25) {
+            WriteSystemPickerTail(buf);  // OrionLayer, open fix 109.
         }
     }
 

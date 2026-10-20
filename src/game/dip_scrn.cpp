@@ -1,6 +1,17 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 109. TurnPopupGuard.
+#endif
 
 namespace DIP_SCRN {
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 109. The system picker's two line templates
+    // (JIMTEXT2 0x3A "\x81 Star System", 0x38 "\x82 Million Colonists"), read
+    // at the picker's start: the game's own buffers hold them decoded for
+    // the last star hovered, not as templates.
+    char ext_system_star_template[100];
+    char ext_system_colonists_template[100];
+#endif
     s_mouse_list diplomacy_hand_mouse = {19, 0, 0, 0, 639, 479};
     s_mouse_list diplomacy_blank_mouse = {0, 0, 0, 0, 639, 479};
     uint8_t noreport = 0;
@@ -739,6 +750,24 @@ namespace DIP_SCRN {
 
         exit_field_id = fields::Add_Hidden_Field(0xF, 0x8B, 0x9D, 0xA2, s__00551100, 0);
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 109. The system picker on the wire while its
+        // loop runs: id 85, TPOP kind 25, the title "Choose A System:" and
+        // the statement the room prints (diplomacy_message, set above).
+        // Every star's hidden field, the giver's systems with what the hover
+        // shows for each, and the words of the lines are the tail's, re-read
+        // every snapshot (ext_api.cpp). Read only.
+        JIM::Get_Text_Message(DIP_SCRN::s_jimtext2_lbx, 0x3A, DIP_SCRN::ext_system_star_template, (int16_t)sizeof(DIP_SCRN::ext_system_star_template));
+        JIM::Get_Text_Message(DIP_SCRN::s_jimtext2_lbx, 0x38, DIP_SCRN::ext_system_colonists_template, (int16_t)sizeof(DIP_SCRN::ext_system_colonists_template));
+        ext::TurnPopupGuard ext_popup(85, 25, DIP_SCRN::choose_a_system_buffer, DIP_SCRN::diplomacy_message);
+        ext_popup.arg(0, giver_idx);                         // whose systems are offered
+        ext_popup.arg(1, receiver_idx);                      // who would receive one
+        ext_popup.arg(2, display_mode);                      // 0 offer, 1 demand
+        ext_popup.arg(3, exit_field_id);                     // CANCEL
+        ext_popup.arg(4, DIP_SCRN::current_ambassador);      // the room's race
+        ext_popup.arg(5, DIP_SCRN::ambassador_option);       // 0 refused, 1 normal, 2 a proposal
+#endif
+
         while (true) {
             timer::Mark_Time();
             DIP_SCRN::diplomacy_scan_input_flag = -1;
@@ -796,6 +825,9 @@ namespace DIP_SCRN {
             timer::Release_Time(2);
         }
 
+#ifdef ORION2RE_EXT
+        ext_popup.end();  // OrionLayer, open fix 109. Before the fields are released.
+#endif
         fields::Clear_Fields();
         fields::Deactivate_Auto_Function();
         MOX::star_bg_seg = saved_star_bg_seg;

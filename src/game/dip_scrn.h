@@ -237,6 +237,11 @@ namespace DIP_SCRN {
     extern int16_t diplomacy_system_homeworld_flag;
     extern s_animation_header* diplomacy_system_star_background_seg;
     extern int16_t diplomacy_system_fields[MAX_STARS];
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 109. The system picker's line templates, for TPOP.
+    extern char ext_system_star_template[100];
+    extern char ext_system_colonists_template[100];
+#endif
     extern uint8_t* diplomacy_mouse_bitmap;
     extern char* system_homeworld_buffer;
     extern int16_t diplomacy_good_music;
