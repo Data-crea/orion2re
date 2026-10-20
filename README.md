@@ -161,6 +161,7 @@ off on request).
 | `4b77ed0b` | Open Fix 104: the slider popup on the wire (the freighter scrap's count, the leader cheat; TPOP kind 20, id 80) |
 | `435627ff` | Open Fix 104, amended: the comments cite the slider's steps in the patched tree |
 | `29c61acd` | Open Fix 105: the Antaran room on the wire (its ANTARMSG message; TPOP kind 22, id 82) |
+| `c7205769` | Open Fix 105, amended: the comments say the message set follows the Antarans' invasion stardate |
 
 ---
 
