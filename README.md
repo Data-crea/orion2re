@@ -164,6 +164,7 @@ off on request).
 | `29c61acd` | Open Fix 105: the Antaran room on the wire (its ANTARMSG message; TPOP kind 22, id 82) |
 | `c7205769` | Open Fix 105, amended: the comments say the message set follows the Antarans' invasion stardate |
 | `86842dfe` | Open Fix 106: the ship detail view on the wire outside a battle (id 81, SHPV: the view's ship, fields, name and derived combat record) |
+| `ec66171a` | Open Fix 107: the evolutionary mutation on the wire (TPOP kind 23, id 83: the picks, the selections and the field ids, re-read every snapshot) |
 
 ---
 
