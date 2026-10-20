@@ -1308,10 +1308,10 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //                                                          [7] OK [8] popup style;
     //                                                          text = the message
     //     22    82  Antaran room (ANTAROOM::Main_Antaran_Room_Screen,
-    //               report.cpp:702; open fix 105)            [0] message set (1 before
-    //                                                          stardate 35000) [1] the
-    //                                                          full-screen field; text =
-    //                                                          the ANTARMSG.LBX message
+    //               report.cpp:702; open fix 105)            [0] message set (1 while
+    //                                                          antarans.invasion_stardate
+    //                                                          < 35000) [1] the full-screen
+    //                                                          field; text = the message
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:
