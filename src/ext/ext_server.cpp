@@ -275,12 +275,19 @@ void Server::HandleClientMessage(Client& client) {
     }
     case MSG_SETTLE_POPS: {
         // OrionLayer, open fix 92. int16 source, int16 destination, uint8 n (1..42), n pop indices — the whole list or nothing.
-        if (payload_len >= 5 && payload[4] > 0 && payload[4] <= 42 && payload_len == (size_t)5 + payload[4]) {
+        // OrionLayer, open fix 103: or the long form, two bytes more (answers, job).
+        if (payload_len >= 5 && payload[4] > 0 && payload[4] <= 42 &&
+                (payload_len == (size_t)5 + payload[4] || payload_len == (size_t)7 + payload[4])) {
             InputCommand cmd{};
             cmd.type = MSG_SETTLE_POPS;
             memcpy(&cmd.param1, payload, 2);
             memcpy(&cmd.param2, payload + 2, 2);
             cmd.pairs.assign(payload + 5, payload + 5 + payload[4]);
+            if (payload_len == (size_t)7 + payload[4]) {
+                cmd.settle_extended = true;
+                cmd.settle_answers = payload[5 + payload[4]];
+                cmd.settle_job = (int8_t)payload[6 + payload[4]];
+            }
             input_queue_.push_back(cmd);
         }
         break;

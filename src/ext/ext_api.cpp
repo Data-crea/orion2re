@@ -346,6 +346,34 @@ static void WriteInvasionTail(std::vector<uint8_t>& buf, uint8_t kind) {
 
 // ── State snapshot ───────────────────────────────────────
 
+// ── The last settlement's outcome (OrionLayer, open fix 103.) ──
+//
+// What the last MSG_SETTLE_POPS of the long form did, sent as "STLR": the
+// original answers a settlement with a text box - "Settlers Failed." with
+// one line per reason of the pop it stopped on, or "Settlers Depart" with
+// the number sent and the ETA (colmove.cpp:366-372, :454-460, :482-522 in
+// the 1.60 source) - which a command may not open (fundament 52), so a
+// client draws them from this.
+enum : uint8_t {
+    SETTLE_STOP_NONE = 0,       // every pop listed went
+    SETTLE_STOP_REFUSED = 1,    // Pop_Tries_To_Settle said no
+    SETTLE_STOP_DECLINED = 2,   // a question the command carries no YES for
+    SETTLE_STOP_JOB = 3,        // Give_Colonist_New_Job's rule (job_refusal)
+    SETTLE_STOP_LIST = 4        // the list itself refused, nothing done
+};
+struct SettleOutcome {
+    uint16_t seq = 0;           // long-form commands taken, wrapping
+    int16_t source = -1;
+    int16_t dest = -1;
+    uint8_t listed = 0;
+    uint8_t settled = 0;
+    uint8_t stop = SETTLE_STOP_NONE;
+    uint8_t job_refusal = 0;    // 1 native, 2 android, 3 the job holds 42
+    uint8_t extra_notice = 0;   // Send_Cluster's extra_success_notice
+    s_settler_settle_result result{};   // the last pop asked about
+};
+static SettleOutcome g_settle_outcome;
+
 static void SerializeState(std::vector<uint8_t>& buf,
                            int16_t current_screen) {
     buf.clear();
@@ -2374,6 +2402,35 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write8(buf, 1);                                   // block version
         Write8(buf, MAINSCR::merging_relocations != 0 ? (uint8_t)1 : (uint8_t)0);
     }
+
+    // 35. The last settlement's outcome: "STLR", written ONLY on
+    //     SCREEN_COLONY and SCREEN_COLONY_SUMMARY, after MREL's place.
+    //     OrionLayer, open fix 103. A version byte, the command's sequence
+    //     (uint16, 0 before the first), source and destination colony
+    //     (int16), how many were listed and how many settled, why it
+    //     stopped (SETTLE_STOP_*), the job refusal, the extra notice, then
+    //     the fifteen bytes of s_settler_settle_result in its own order for
+    //     the last pop asked about. Read only.
+    if (current_screen == SCREEN_COLONY ||
+            current_screen == SCREEN_COLONY_SUMMARY) {
+        const SettleOutcome& o = g_settle_outcome;
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'T');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'R');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, (int16_t)o.seq);
+        Write16(buf, o.source);
+        Write16(buf, o.dest);
+        Write8(buf, o.listed);
+        Write8(buf, o.settled);
+        Write8(buf, o.stop);
+        Write8(buf, o.job_refusal);
+        Write8(buf, o.extra_notice);
+        static_assert(sizeof(s_settler_settle_result) == 15,
+                      "STLR sends the fifteen bytes of s_settler_settle_result");
+        WriteBytes(buf, &o.result, sizeof(o.result));
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -2590,46 +2647,77 @@ static int Set_Jobs_(int16_t colony_idx, const uint8_t* pairs,
 
 // ── Colonists to another colony at the star (OrionLayer, open fix 92.) ──
 
-/// Settle a list of pops of the colony screen's colony in another colony
-/// of the player at the same star, or settle none.
+/// Settle a list of pops of one colony in another colony of the player.
 ///
-/// **THE ORIGINAL'S PATH, WITHOUT ITS BOXES.** A cluster carried on the
-/// colony screen and clicked onto a planet of the system display goes to
-/// `COLMOVE::Send_Cluster(colony, -1)` (colony.cpp:1796-1800), which for
-/// every pop in hand asks `SETTLER::Pop_Tries_To_Settle` and, when it may,
-/// moves it with `SETTLER::Settle_Pop` (colmove.cpp:193-292). Both are
-/// called unchanged; what is not reached is what only a human can answer:
-/// the refusal's text box, the ETA and "no room" confirmations and the
-/// success notice (colmove.cpp:200-260, :330-470, :482-522), each a loop
+/// **THE ORIGINAL'S PATH, WITHOUT ITS BOXES.** Colonists in hand dropped on
+/// another colony - a planet of the colony screen's system display
+/// (colony.cpp:1796-1800 in the 1.60 source), the transport popup's row
+/// (`COLXPORT::Xport_Popup_`, colony_main.cpp:1068-1076), a row of the
+/// Colonies list (colsum.cpp:869, :909) - go to `COLMOVE::Send_Cluster_`,
+/// which for every pop in hand asks `SETTLER::Pop_Tries_To_Settle_` and,
+/// when it may, moves it with `SETTLER::Settle_Pop_` (colmove.cpp:177-292).
+/// Both are called unchanged; what is not reached is what only a human can
+/// answer: the refusal's text box, the ETA and "no room" confirmations and
+/// the success notice (colmove.cpp:200-266, :330-470, :482-522), each a loop
 /// that would re-enter `ext::Tick` from inside this handler (fundament 52).
 ///
-/// **SO ONLY WHAT NEEDS NO QUESTION IS DONE**, and a list with one pop
-/// that would need one is refused whole: every pop must settle at once
-/// (`can_settle`, no ETA — the same star — and room at the destination).
-/// A move to another star goes through the transport popup
-/// (`COLXPORT::Xport_Popup`, colony_main.cpp:1068-1076) and is not this
-/// command. All or nothing because a command has nobody to ask whether to
-/// go on (fundament 52's DEVIATION): both colonies are saved first and put
-/// back on a refusal.
+/// **THE SHORT FORM (open fix 92)** is the colony screen's drop on a colony
+/// at its own star: only what needs no question, and a list with one pop
+/// that would need one is refused whole, both colonies put back.
+///
+/// **THE LONG FORM (OrionLayer, open fix 103)** is `Send_Cluster_` to any
+/// colony from the colony screen or the Colonies list. The client asks the
+/// original's two questions before the command and sends the answers: bit
+/// 0 YES to "go on past the limit?" (E 0x205 / 0x203, or 0x206 / 0x204
+/// with an ETA; colmove.cpp:219-262), bit 1 YES to "unavailable for N
+/// turns, are you sure?" (E 0x209, :208-218). A pop that would need a
+/// question the answers do not carry stops the walk as the original's NO
+/// does; a pop `Pop_Tries_To_Settle_` refuses stops it as its refusal
+/// does. Up to there every pop is settled, one by one, as the original
+/// does, and the rest go back to their jobs (HD keeps them in its hand).
+/// With a job (0-2), each pop first takes it as `Give_Colonist_New_Job_`
+/// does for an inter-colony transfer (colmove.cpp:279-289, :535-575) - the
+/// Colonies list's drop on a job column - its three refusals checked
+/// without their box. The outcome is "STLR" (`g_settle_outcome`).
 ///
 /// Returns the number of pops settled, or -1 if the list was refused.
 static int Settle_Pops_(int16_t source_idx, int16_t dest_idx,
-                        const std::vector<uint8_t>& pops) {
+                        const std::vector<uint8_t>& pops,
+                        bool extended, uint8_t answers, int8_t job) {
+    // OrionLayer, open fix 103: a long-form command is reported even when
+    // its list is refused (SETTLE_STOP_LIST), so a client waits on the
+    // sequence, never on a guess.
+    SettleOutcome out{};
+    if (extended) {
+        out.seq = (uint16_t)(g_settle_outcome.seq + 1);
+        out.source = source_idx;
+        out.dest = dest_idx;
+        out.listed = (uint8_t)pops.size();
+        out.stop = SETTLE_STOP_LIST;
+        g_settle_outcome = out;
+    }
     if (source_idx < 0 || source_idx >= MOX::NUM_COLONIES ||
             dest_idx < 0 || dest_idx >= MOX::NUM_COLONIES ||
-            source_idx == dest_idx || pops.empty()) {
+            source_idx == dest_idx || pops.empty() || job < -1 || job > 2) {
         return -1;
     }
-    // Only from the colony screen, for the colony it shows — the one place
-    // the original offers this (colony.cpp:1796) — and only the local
-    // player's, as for MSG_SET_JOBS.
-    if (MOX::current_screen != SCREEN_COLONY ||
-            source_idx != COLONY::colony_handle) {
+    // The short form only from the colony screen, for the colony it shows -
+    // the one place it is offered (colony.cpp:1796); the long form also
+    // from the Colonies list, for any colony of the player (colsum.cpp:869,
+    // :909). Only the local player's, as for MSG_SET_JOBS.
+    const bool on_colony = MOX::current_screen == SCREEN_COLONY &&
+        source_idx == COLONY::colony_handle;
+    const bool on_list = extended &&
+        MOX::current_screen == SCREEN_COLONY_SUMMARY;
+    if (!on_colony && !on_list) {
         return -1;
     }
     s_colony& source = MOX::colony[source_idx];
     s_colony& dest = MOX::colony[dest_idx];
-    if (source.owner != MOX::PLAYER_NUM || dest.owner != MOX::PLAYER_NUM) {
+    // The long form lets `Pop_Tries_To_Settle_` refuse a colony of another
+    // player with the original's own words (dest_owner_mismatch, E 0x211).
+    if (source.owner != MOX::PLAYER_NUM ||
+            (!extended && dest.owner != MOX::PLAYER_NUM)) {
         return -1;
     }
     // No cluster of the game's own in hand (see Set_Jobs_).
@@ -2644,13 +2732,19 @@ static int Settle_Pops_(int16_t source_idx, int16_t dest_idx,
         }
         listed[idx] = true;
     }
+    // Nothing else unassigned: the walk takes every unassigned pop.
+    for (int i = 0; i < n_pops; ++i) {
+        if (!listed[i] && (source.pop[i] & POP::MASK_ASSIGNED) == 0) {
+            return -1;
+        }
+    }
 
     const s_colony saved_source = source;
     const s_colony saved_dest = dest;
 
     // THE PICK-UP, as `Get_Cluster` does it (colmove.cpp:69-73): the
     // listed pops lose their assigned bit, and the walk below takes the
-    // first such pop each time, as `Send_Cluster`'s loop does — because
+    // first such pop each time, as `Send_Cluster`'s loop does - because
     // `Settle_Pop` moves the LAST pop into the slot it empties
     // (settler.cpp:337-342), an index list would point at the wrong pops
     // after the first one.
@@ -2661,14 +2755,58 @@ static int Settle_Pops_(int16_t source_idx, int16_t dest_idx,
 
     int settled = 0;
     bool refused = false;
+    out.stop = SETTLE_STOP_NONE;
     int16_t pop_idx = COLMOVE::Get_First_Unemployed(source_idx);
     while (pop_idx != -1) {
         s_settler_settle_result result;
         SETTLER::Pop_Tries_To_Settle(&source, pop_idx, &dest, &result);
-        if (result.can_settle == 0 || result.eta_turns != 0 ||
-                result.no_room_at_destination != 0) {
-            refused = true;
-            break;
+        out.result = result;
+        if (!extended) {
+            if (result.can_settle == 0 || result.eta_turns != 0 ||
+                    result.no_room_at_destination != 0) {
+                refused = true;
+                break;
+            }
+        } else {
+            if (result.can_settle == 0) {
+                out.stop = SETTLE_STOP_REFUSED;
+                break;
+            }
+            // The question the original asks at this pop (colmove.cpp:
+            // 204-266): "no room" (with or without an ETA) or the ETA alone.
+            if (result.eta_turns != 0 || result.no_room_at_destination != 0) {
+                const uint8_t needs =
+                    result.no_room_at_destination != 0 ? 1u : 2u;
+                if ((answers & needs) == 0) {
+                    out.stop = SETTLE_STOP_DECLINED;
+                    break;
+                }
+            }
+            if (result.field10_0xa != 0) {
+                out.extra_notice = 1;
+            }
+            // A drop on a job column of the Colonies list: the job first,
+            // as `Give_Colonist_New_Job_` gives it for an inter-colony
+            // transfer (colmove.cpp:279-289, :535-575) - no farm limit.
+            uint32_t& word = source.pop[pop_idx];
+            const int current = (int)POP::Get_Prof(word);
+            if (job != -1 && current != job) {
+                const int16_t state = COLONY::Pop_To_Pop_State(source_idx, pop_idx);
+                if ((state == 3 || state == 6) &&
+                        (job == ECON_RESEARCH || job == ECON_INDUSTRY)) {
+                    out.job_refusal = 1;
+                } else if (state == 4) {
+                    out.job_refusal = 2;
+                } else if (COLONY::Sum_Colonists(source_idx, job, -1, -1, 0, -1) >= 42) {
+                    out.job_refusal = 3;
+                }
+                if (out.job_refusal != 0) {
+                    out.stop = SETTLE_STOP_JOB;
+                    break;
+                }
+                POP::Set_Prof(&word, (POP::e_prof)job);
+                out.extra_notice = 1;
+            }
         }
         SETTLER::Settle_Pop(&source, pop_idx, &dest);
         settled++;
@@ -2681,10 +2819,24 @@ static int Settle_Pops_(int16_t source_idx, int16_t dest_idx,
         dest = saved_dest;
         return -1;
     }
-    // ONCE, AFTER THE WHOLE LIST, both colonies — `Send_Cluster`'s own
-    // order (colmove.cpp:476-479).
+    // The long form: whoever is still unassigned was in hand and did not
+    // go - back to their jobs, as the client keeps them in its own hand.
+    for (int i = 0; i < (int)(uint8_t)source.n_pops; ++i) {
+        source.pop[i] |= POP::MASK_ASSIGNED;
+    }
+    // ONCE, AFTER THE WHOLE LIST, both colonies - `Send_Cluster`'s own
+    // order (colmove.cpp:476-479), then, when someone went, the second
+    // calculation after its notice (:524-525).
     COLONY::Col_Calc_Wrapper(source_idx);
     COLONY::Col_Calc_Wrapper(dest_idx);
+    if (extended) {
+        if (settled > 0) {
+            COLCALC::Colony_Calculation(source_idx);
+            COLCALC::Colony_Calculation(dest_idx);
+        }
+        out.settled = (uint8_t)settled;
+        g_settle_outcome = out;
+    }
     return settled;
 }
 
@@ -2992,7 +3144,8 @@ static void ProcessInput() {
             break;
 
         case MSG_SETTLE_POPS:
-            Settle_Pops_(cmd.param1, cmd.param2, cmd.pairs);  // OrionLayer, open fix 92.
+            Settle_Pops_(cmd.param1, cmd.param2, cmd.pairs,  // OrionLayer, open fix 92.
+                         cmd.settle_extended, cmd.settle_answers, cmd.settle_job);  // OrionLayer, open fix 103.
             break;
 
         case MSG_SET_SPIES:

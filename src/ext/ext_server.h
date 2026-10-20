@@ -58,6 +58,7 @@ constexpr uint16_t MSG_SET_SPIES      = 0x89;
 // OrionLayer, open fix 89. uint16: a key code as platform.cpp translates F1-F10 (0x3B00-0x4400), Alt+F1-F10 (0x6800-0x7100) and Alt+letter (scan << 8, 0x1000-0x3200); anything else is dropped.
 constexpr uint16_t MSG_INJECT_RAW_KEY = 0x8A;
 // OrionLayer, open fix 92. Colonists of the colony screen's colony to another colony at the same star: int16 source colony, int16 destination colony, uint8 n, n x uint8 pop index; all or nothing.
+// OrionLayer, open fix 103. Two more bytes after the pop list - uint8 answers (bit 0: YES to "go on past the limit?", bit 1: YES to "unavailable for N turns, are you sure?"), int8 job (-1 keeps it) - make it the original's Send_Cluster to any colony of the player: the colony screen or the Colonies list, any star, colonist by colonist up to the first that may not go; its outcome is "STLR".
 constexpr uint16_t MSG_SETTLE_POPS = 0x8B;
 
 // Subscription flags (bitmask)
@@ -81,6 +82,10 @@ struct InputCommand {
     // Empty for every other command, which keeps all of those on
     // the two fixed fields exactly as before.
     std::vector<uint8_t> pairs;
+    // MSG_SETTLE_POPS of open fix 103 only (OrionLayer): the long form.
+    bool    settle_extended = false;
+    uint8_t settle_answers = 0;
+    int8_t  settle_job = -1;
 };
 
 // Per-client state
