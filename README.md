@@ -158,6 +158,7 @@ off on request).
 | `35486477` | Open Fix 101: a combat command reaches the original's refusal boxes (BOARD at an own unit, FIRE at a phased enemy) |
 | `f93344f6` | Open Fix 102: the galaxy map's merge-relocation mode on the wire |
 | `96c39753` | Open Fix 103: colonists to any colony of the player — the transport to another star, the Colonies list's move, the original's questions (MSG_SETTLE_POPS long form, STLR) |
+| `4b77ed0b` | Open Fix 104: the slider popup on the wire (the freighter scrap's count, the leader cheat; TPOP kind 20, id 80) |
 
 ---
 
