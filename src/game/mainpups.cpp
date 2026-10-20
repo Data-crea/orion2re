@@ -490,6 +490,13 @@ namespace MAINPUPS {
         }
     }
 
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 108. The bribe's message as
+    // Draw_Dragon_New_Star_Popup last formatted it: the draw's own buffer is
+    // a local, gone before a snapshot is written.
+    static char ext_dragon_message[300];
+#endif
+
     int16_t __cdecl Dragon_New_Star_Popup(int16_t player_idx, int16_t star_idx) {
         int16_t ret_val;
         int16_t scanned_input;
@@ -520,6 +527,23 @@ namespace MAINPUPS {
         fields::Assign_Auto_Function(Draw_Dragon_New_Star_Popup, 1);
         ERICHELP::Set_Dragon_New_Star_Popup_Help_List();
         Update_Dragon_New_Star_Fields();
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 108. The Space Dragon's bribe on the wire
+        // while its loop runs: id 84, TPOP kind 24, the message as last
+        // drawn. The fields are added once, here, for all three modes; YES
+        // moves field_mode to 1 (paid: choose a star) or 2 (too poor) inside
+        // the loop, so the mode is set again after every input, and the
+        // star fields of mode 1 are the tail's, re-read every snapshot
+        // (ext_api.cpp).
+        ext_dragon_message[0] = '\0';
+        ext::TurnPopupGuard ext_popup(84, 24, nullptr, ext_dragon_message);
+        ext_popup.arg(0, star_idx);       // the dragon's star (refused as the new one)
+        ext_popup.arg(1, player_idx);     // the player asked
+        ext_popup.arg(2, (int16_t)(COMBFIND::dragon_bribe_bc > 0x7FFF ? 0x7FFF : COMBFIND::dragon_bribe_bc));
+        ext_popup.arg(3, field_mode);     // 0 the offer, 1 choose a star, 2 too poor
+        ext_popup.arg(4, mp_fields[2]);   // refuse / close (ESC): -1, no bribe
+        ext_popup.arg(5, mp_fields[25]);  // YES (E 561), added in mode 0
+#endif
         Draw_Dragon_New_Star_Popup();
         RUSS::Mox_Sync_Update();
         video::Set_Refresh_Differential();
@@ -530,8 +554,14 @@ namespace MAINPUPS {
             ret_val = Evaluate_Dragon_New_Star_Input(&input_val, &scanned_input, &flag, star_idx);
             Draw_Dragon_New_Star_Popup();
             RUSS::Mox_Sync_Update();
+#ifdef ORION2RE_EXT
+            ext_popup.arg(3, field_mode);  // the mode the next snapshot shows
+#endif
         } while (flag == 0);
 
+#ifdef ORION2RE_EXT
+        ext_popup.end();  // before the fields are released
+#endif
         Do_Popup_Cleanup();
         fields::Deactivate_Help_List();
 
@@ -2598,6 +2628,10 @@ namespace MAINPUPS {
                 snprintf(msg_buffer, sizeof(msg_buffer), ESTRINGS::E_Strings(str_idx), COMBFIND::dragon_bribe_bc, MOX::player[g_player_n].name, MOX::star[g_star_n].name);
             }
 
+#ifdef ORION2RE_EXT
+            // OrionLayer, open fix 108. The message as formatted, for TPOP.
+            strlcpy(ext_dragon_message, msg_buffer, sizeof(ext_dragon_message));
+#endif
             BILL::Squeeze_Formatted_Paragraph_Centered(188, 271, 262, 35, msg_buffer, 2);
             video::Copy_Off_To_Back();
             COLONY::full_draw = 0;

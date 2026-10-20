@@ -304,6 +304,25 @@ static void WriteMutationTail(std::vector<uint8_t>& buf) {
     Write16(buf, raceopt::accept);
 }
 
+// OrionLayer, open fix 108. The Space Dragon's bribe's TPOP tail (kind 24):
+// the mode as Evaluate_Dragon_New_Star_Input leaves it and, in mode 1, every
+// star's field of the popup's galaxy map (Update_Dragon_New_Star_Fields adds
+// them through MOVEBOX::Add_Galaxy_Map_Fields_2; a click on one sends the
+// dragon to that star, mainpups.cpp's Evaluate_Dragon_New_Star_Input).
+static void WriteDragonTail(std::vector<uint8_t>& buf) {
+    static_assert(sizeof(MOX::galaxy_map_star_field) / sizeof(int16_t) == MAX_STARS, "galaxy_map_star_field");
+    const int16_t mode = MAINPUPS::field_mode;
+    int16_t n = mode == 1 ? MOX::NUM_STARS : (int16_t)0;
+    if (n < 0) n = 0;
+    if (n > MAX_STARS) n = MAX_STARS;
+    Write16(buf, mode);
+    Write16(buf, n);
+    for (int16_t i = 0; i < n; i++) {
+        Write16(buf, MOX::galaxy_map_star_field[i]);
+        Write16(buf, i);
+    }
+}
+
 static void WriteInvasionTail(std::vector<uint8_t>& buf, uint8_t kind) {
     if (kind == 10) {
         const s_colony_combat_popup_data* p = g_invasion.popup;
@@ -1345,6 +1364,20 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //                                                          (a group's level 1-3
     //                                                          where it matches);
     //                                                          the tail below
+    //     24    84  the Space Dragon's bribe (MAINPUPS::Dragon_New_Star_Popup,
+    //               combfind.cpp:157, the network's :482; open fix 108)
+    //                                                        [0] the dragon's star
+    //                                                          [1] the player [2] the bribe
+    //                                                          (COMBFIND::dragon_bribe_bc,
+    //                                                          capped at 32767) [3] field_mode
+    //                                                          0 the offer, 1 paid: choose a
+    //                                                          star, 2 too poor (set again
+    //                                                          after every input) [4]
+    //                                                          mp_fields[2] refuse / close
+    //                                                          [5] mp_fields[25] YES (-1000
+    //                                                          when not added); text = the
+    //                                                          message as last drawn; the
+    //                                                          tail below
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:
@@ -1404,6 +1437,14 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //       int16 option_toggle, 36 x int16 group_button (group g's level
     //       l at [g * 4 + l], [g * 4] -1000), 22 x int16 option_button,
     //       int16 accept; -1000 a field not added (not offered).
+    //     - 24 (open fix 108): MAINPUPS::field_mode as it is now (int16),
+    //       then int16 n, n x (int16 star field, int16 star) — kind 4's
+    //       (field, index) pairs: the hidden fields
+    //       MOVEBOX::Add_Galaxy_Map_Fields_2 added for each star of the
+    //       popup's galaxy map (MOX::galaxy_map_star_field), the field a
+    //       click on the star activates; n is NUM_STARS in mode 1 and 0 in
+    //       modes 0 and 2, where Evaluate_Dragon_New_Star_Input reads no
+    //       star. Re-read every snapshot: the mode moves inside the loop.
     if (g_turn_popup.kind != 0) {
         buf.push_back((uint8_t)'T');
         buf.push_back((uint8_t)'P');
@@ -1514,6 +1555,9 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
         if (g_turn_popup.kind == 23) {
             WriteMutationTail(buf);  // OrionLayer, open fix 107.
+        }
+        if (g_turn_popup.kind == 24) {
+            WriteDragonTail(buf);  // OrionLayer, open fix 108.
         }
     }
 
