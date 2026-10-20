@@ -159,6 +159,7 @@ off on request).
 | `f93344f6` | Open Fix 102: the galaxy map's merge-relocation mode on the wire |
 | `96c39753` | Open Fix 103: colonists to any colony of the player — the transport to another star, the Colonies list's move, the original's questions (MSG_SETTLE_POPS long form, STLR) |
 | `4b77ed0b` | Open Fix 104: the slider popup on the wire (the freighter scrap's count, the leader cheat; TPOP kind 20, id 80) |
+| `29c61acd` | Open Fix 105: the Antaran room on the wire (its ANTARMSG message; TPOP kind 22, id 82) |
 
 ---
 
