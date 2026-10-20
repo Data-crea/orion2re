@@ -157,6 +157,7 @@ off on request).
 | `29047f2d` | Open Fix 99: a bitmap line too short for its picture is not drawn (a SIGFPE on a clipped tractor beam) |
 | `35486477` | Open Fix 101: a combat command reaches the original's refusal boxes (BOARD at an own unit, FIRE at a phased enemy) |
 | `f93344f6` | Open Fix 102: the galaxy map's merge-relocation mode on the wire |
+| `96c39753` | Open Fix 103: colonists to any colony of the player — the transport to another star, the Colonies list's move, the original's questions (MSG_SETTLE_POPS long form, STLR) |
 
 ---
 
