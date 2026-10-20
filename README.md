@@ -163,6 +163,7 @@ off on request).
 | `435627ff` | Open Fix 104, amended: the comments cite the slider's steps in the patched tree |
 | `29c61acd` | Open Fix 105: the Antaran room on the wire (its ANTARMSG message; TPOP kind 22, id 82) |
 | `c7205769` | Open Fix 105, amended: the comments say the message set follows the Antarans' invasion stardate |
+| `86842dfe` | Open Fix 106: the ship detail view on the wire outside a battle (id 81, SHPV: the view's ship, fields, name and derived combat record) |
 
 ---
 
