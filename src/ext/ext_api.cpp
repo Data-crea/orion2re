@@ -2675,7 +2675,10 @@ static int Set_Jobs_(int16_t colony_idx, const uint8_t* pairs,
 ///
 /// **THE SHORT FORM (open fix 92)** is the colony screen's drop on a colony
 /// at its own star: only what needs no question, and a list with one pop
-/// that would need one is refused whole, both colonies put back.
+/// that would need one is refused whole, both colonies put back. Open fix
+/// 103 added two refusals both forms share: a job outside -1..2, and a
+/// list that leaves another pop of the source unassigned (the walk takes
+/// every unassigned pop, so such a list would move pops it does not name).
 ///
 /// **THE LONG FORM (OrionLayer, open fix 103)** is `Send_Cluster_` to any
 /// colony from the colony screen or the Colonies list. The client asks the
@@ -2730,6 +2733,14 @@ static int Settle_Pops_(int16_t source_idx, int16_t dest_idx,
     // player with the original's own words (dest_owner_mismatch, E 0x211).
     if (source.owner != MOX::PLAYER_NUM ||
             (!extended && dest.owner != MOX::PLAYER_NUM)) {
+        return -1;
+    }
+    // OrionLayer, open fix 103, amended: but never an empty slot. A
+    // destroyed colony keeps its slot with planet -1 and owner -1
+    // (BOMB::Destroy_Colony, bomb.cpp:83-85), and `Pop_Tries_To_Settle_`
+    // reads `planet[dest->planet].star_index` (settler.cpp:237) before its
+    // owner test, and `Col_Calc_Wrapper` would recalculate the empty slot.
+    if (dest.owner < 0 || dest.planet < 0 || dest.planet >= MAX_PLANETS) {
         return -1;
     }
     // No cluster of the game's own in hand (see Set_Jobs_).
@@ -2838,13 +2849,24 @@ static int Settle_Pops_(int16_t source_idx, int16_t dest_idx,
     }
     // ONCE, AFTER THE WHOLE LIST, both colonies - `Send_Cluster`'s own
     // order (colmove.cpp:476-479), then, when someone went, the second
-    // calculation after its notice (:524-525).
+    // calculation after its notice (:524-525). The destination only while
+    // it is a player's colony (open fix 103, amended; the test above holds
+    // it, this one keeps it held).
+    // DEVIATION (open fix 103, amended) `job_refusal_calc`: after a job
+    // refusal the original returns from `Send_Cluster_` (colmove.cpp:
+    // 283-286) with no calculation and the cluster still in hand; here the
+    // rest go back to their jobs, so both colonies are calculated as after
+    // any other stop.
     COLONY::Col_Calc_Wrapper(source_idx);
-    COLONY::Col_Calc_Wrapper(dest_idx);
+    if (dest.owner >= 0) {
+        COLONY::Col_Calc_Wrapper(dest_idx);
+    }
     if (extended) {
         if (settled > 0) {
             COLCALC::Colony_Calculation(source_idx);
-            COLCALC::Colony_Calculation(dest_idx);
+            if (dest.owner >= 0) {
+                COLCALC::Colony_Calculation(dest_idx);
+            }
         }
         out.settled = (uint8_t)settled;
         g_settle_outcome = out;
