@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 107. TurnPopupGuard.
+#endif
 
 namespace raceopt {
 
@@ -251,6 +254,20 @@ namespace raceopt {
         fonts::Set_Font_Style(4, &color_opt);
 
         Add_Race_Options_Fields_EM(baseline_flags, orig_picks);
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 107. The evolutionary mutation on the wire
+        // while the screen is up, its opening box and refusals included:
+        // id 83, TPOP kind 23; args [0] orig_picks, [1]..[10] the baseline
+        // flags 0-9 (fixed from here on); the picks, the selections and the
+        // field ids are the tail ext_api.cpp reads from raceopt's globals on
+        // every snapshot, as the loop changes and re-adds them. Ended right
+        // after the loop, before the fields are released.
+        ext::TurnPopupGuard ext_popup(83, 23, nullptr, nullptr);
+        ext_popup.arg(0, orig_picks);
+        for (int16_t i = 0; i < 10; ++i) {
+            ext_popup.arg((int16_t)(i + 1), baseline_flags[i]);
+        }
+#endif
 
         for (int i = 0; i < 10; ++i) {
             previous_button_values[i] = button_variable[i];
@@ -409,6 +426,9 @@ namespace raceopt {
                 }
             }
         }
+#ifdef ORION2RE_EXT
+        ext_popup.end();
+#endif
 
         Convert_Flags_To_Player_EM(traits);
         fields::Deactivate_Help_List();

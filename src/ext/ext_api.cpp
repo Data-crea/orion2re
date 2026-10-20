@@ -278,6 +278,32 @@ static void WriteTroopTail(std::vector<uint8_t>& buf) {
     }
 }
 
+// OrionLayer, open fix 107. The evolutionary mutation's TPOP tail (kind 23):
+// raceopt's globals as Evolutionary_Mutation_Screen's loop leaves them —
+// re-read on every snapshot, because each input changes the picks and the
+// selections and Add_Race_Options_Fields_EM adds the fields again.
+static void WriteMutationTail(std::vector<uint8_t>& buf) {
+    static_assert(sizeof(raceopt::button_variable) / sizeof(int16_t) == 10, "button_variable");
+    static_assert(sizeof(raceopt::option_toggle) / sizeof(int16_t) >= raceopt::SPECIAL_PICK_COUNT, "option_toggle");
+    static_assert(sizeof(raceopt::group_button) / sizeof(int16_t) >= raceopt::PRIMARY_PICK_COUNT * 4, "group_button");
+    static_assert(sizeof(raceopt::option_button) / sizeof(int16_t) == raceopt::SPECIAL_PICK_COUNT, "option_button");
+    Write16(buf, raceopt::picks);
+    Write16(buf, raceopt::negative_picks);
+    for (int i = 0; i < 10; i++) {
+        Write16(buf, raceopt::button_variable[i]);
+    }
+    for (int i = 0; i < raceopt::SPECIAL_PICK_COUNT; i++) {
+        Write16(buf, raceopt::option_toggle[i]);
+    }
+    for (int i = 0; i < raceopt::PRIMARY_PICK_COUNT * 4; i++) {
+        Write16(buf, raceopt::group_button[i]);
+    }
+    for (int i = 0; i < raceopt::SPECIAL_PICK_COUNT; i++) {
+        Write16(buf, raceopt::option_button[i]);
+    }
+    Write16(buf, raceopt::accept);
+}
+
 static void WriteInvasionTail(std::vector<uint8_t>& buf, uint8_t kind) {
     if (kind == 10) {
         const s_colony_combat_popup_data* p = g_invasion.popup;
@@ -1312,6 +1338,13 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //                                                          antarans.invasion_stardate
     //                                                          < 35000) [1] the full-screen
     //                                                          field; text = the message
+    //     23    83  evolutionary mutation (raceopt::Evolutionary_Mutation_Screen,
+    //               the human's Setup_Evolutionary_Upgrade, report.cpp:537;
+    //               open fix 107)                            [0] orig_picks [1]..[10]
+    //                                                          the baseline flags 0-9
+    //                                                          (a group's level 1-3
+    //                                                          where it matches);
+    //                                                          the tail below
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:
@@ -1365,6 +1398,12 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //       strength), each int16 length + raw; then uint8 n summary lines,
     //       per line its label (int16 length + raw) and int16 value, as
     //       Print_Data printed them.
+    //     - 23 (open fix 107): raceopt's globals, re-read every snapshot:
+    //       int16 picks, int16 negative_picks, 10 x int16 button_variable
+    //       (groups 0-8: 0 none, 1-3 the level; [9] the government), 22 x
+    //       int16 option_toggle, 36 x int16 group_button (group g's level
+    //       l at [g * 4 + l], [g * 4] -1000), 22 x int16 option_button,
+    //       int16 accept; -1000 a field not added (not offered).
     if (g_turn_popup.kind != 0) {
         buf.push_back((uint8_t)'T');
         buf.push_back((uint8_t)'P');
@@ -1472,6 +1511,9 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
         if (g_turn_popup.kind == 10 || g_turn_popup.kind == 11) {
             WriteInvasionTail(buf, g_turn_popup.kind);
+        }
+        if (g_turn_popup.kind == 23) {
+            WriteMutationTail(buf);  // OrionLayer, open fix 107.
         }
     }
 
