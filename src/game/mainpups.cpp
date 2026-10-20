@@ -769,8 +769,8 @@ namespace MAINPUPS {
         ext_popup.arg(1, g_max);
         ext_popup.arg(2, g_var);
         ext_popup.arg(3, mp_fields[11]);  // the scroll field, bound to g_var
-        ext_popup.arg(4, mp_fields[10]);  // down (--g_var, :1955)
-        ext_popup.arg(5, mp_fields[9]);   // up (++g_var, :1951)
+        ext_popup.arg(4, mp_fields[10]);  // down (--g_var, :1972)
+        ext_popup.arg(5, mp_fields[9]);   // up (++g_var, :1968)
         ext_popup.arg(6, mp_fields[2]);   // cancel (g_var = -1)
         ext_popup.arg(7, mp_fields[3]);   // OK
         ext_popup.arg(8, popup_style);
