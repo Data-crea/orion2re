@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 105. TurnPopupGuard.
+#endif
 
 namespace ANTAROOM {
     s_colors antaran_room_normal_colors = {{250, 254, 255, 251, 252, 253, 254, 255}};
@@ -43,6 +46,14 @@ namespace ANTAROOM {
 
         Reload_Main_Antaran_Room_Screen();
         Get_Antaran_Room_Message(1 - message_set_index);
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 105. The Antaran room on the wire while its
+        // loop runs: id 82, TPOP kind 22, the message as drawn (ext_api.cpp).
+        // Ended right after the loop: the message lives in screen_seg, which
+        // the way out releases.
+        ext::TurnPopupGuard ext_popup(82, 22, nullptr, antaran_room_message);
+        ext_popup.arg(0, message_set_index);
+#endif
 
         bool is_done = false;
         fields::Assign_Auto_Function(Draw_Main_Antaran_Room_Screen, 2);
@@ -52,6 +63,9 @@ namespace ANTAROOM {
             fields::Clear_Fields();
 
             int16_t hidden_field = fields::Add_Hidden_Field(0, 0, 639, 479, "", 0);
+#ifdef ORION2RE_EXT
+            ext_popup.arg(1, hidden_field);  // re-added every pass
+#endif
 
             if (fields::Get_Input() == hidden_field || key::Keyboard_Status()) {
                 is_done = true;
@@ -64,6 +78,9 @@ namespace ANTAROOM {
             }
         }
 
+#ifdef ORION2RE_EXT
+        ext_popup.end();
+#endif
         MOX::auto_turn_exit = 1;
         fields::Deactivate_Auto_Function();
         fields::Clear_Fields();
