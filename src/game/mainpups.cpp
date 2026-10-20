@@ -761,6 +761,20 @@ namespace MAINPUPS {
         fields::Deactivate_Auto_Function();
         fields::Assign_Auto_Function(Draw_Slider_Popup, 1);
         Load_Slider_Fields();
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 104. The slider popup on the wire while its
+        // loop runs: id 80, TPOP kind 20, the message as drawn (ext_api.cpp).
+        const ext::TurnPopupGuard ext_popup(80, 20, nullptr, g_msg);
+        ext_popup.arg(0, g_min);
+        ext_popup.arg(1, g_max);
+        ext_popup.arg(2, g_var);
+        ext_popup.arg(3, mp_fields[11]);  // the scroll field, bound to g_var
+        ext_popup.arg(4, mp_fields[10]);  // down (--g_var, :1955)
+        ext_popup.arg(5, mp_fields[9]);   // up (++g_var, :1951)
+        ext_popup.arg(6, mp_fields[2]);   // cancel (g_var = -1)
+        ext_popup.arg(7, mp_fields[3]);   // OK
+        ext_popup.arg(8, popup_style);
+#endif
         Draw_Slider_Popup();
         RUSS::Mox_Sync_Update();
 
@@ -770,6 +784,9 @@ namespace MAINPUPS {
             Draw_Slider_Popup();
             RUSS::Mox_Sync_Update();
             Evaluate_Slider_Input(&input, &scanned_field, &done);
+#ifdef ORION2RE_EXT
+            ext_popup.arg(2, g_var);  // the value the next snapshot shows
+#endif
         } while (done == 0);
 
         Do_Popup_Cleanup();

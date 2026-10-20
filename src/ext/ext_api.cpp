@@ -1300,6 +1300,13 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //               marines and armour; open fix 98)         [0] the planet shown
     //                                                          (-1 before its first
     //                                                          draw); the tail below
+    //     20    80  slider popup (MAINPUPS::Slider_Popup: the Freighters count,
+    //               mainscr2.cpp:274, the leader cheat, officer.cpp:559;
+    //               open fix 104)                            [0] min [1] max [2] value
+    //                                                          now [3] scroll field
+    //                                                          [4] down [5] up [6] cancel
+    //                                                          [7] OK [8] popup style;
+    //                                                          text = the message
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:
