@@ -165,6 +165,7 @@ off on request).
 | `c7205769` | Open Fix 105, amended: the comments say the message set follows the Antarans' invasion stardate |
 | `86842dfe` | Open Fix 106: the ship detail view on the wire outside a battle (id 81, SHPV: the view's ship, fields, name and derived combat record) |
 | `ec66171a` | Open Fix 107: the evolutionary mutation on the wire (TPOP kind 23, id 83: the picks, the selections and the field ids, re-read every snapshot) |
+| `39c5cc6d` | Open Fix 108: the Space Dragon's bribe on the wire (TPOP kind 24, id 84: the star, the player, the bribe, the mode, the two buttons, the message, and in mode 1 every star's field of the popup's galaxy map) |
 
 ---
 
