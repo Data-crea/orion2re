@@ -3338,20 +3338,25 @@ static void Set_Spies_(const std::vector<uint8_t>& p) {
 }
 
 // OrionLayer, open fix 111. The building field MSG_DEMOLISH activated, for
-// Take_Demolish_Field; 0 when none waits.
+// Take_Demolish_Field; 0 when none waits. Armed with its activation and
+// dropped by the first Tick after that activation was taken (amended), so it
+// cannot outlive an input a popup ate or a pass that never reached the walk.
 static int16_t g_demolish_field = 0;
 
 /// OrionLayer, open fix 111: the colony screen's demolish, addressed by id.
 ///
 /// The original demolishes a building when the player LEFT-clicks it on the
-/// colony screen: a satellite in orbit through its own field
-/// (`Check_Satellite_Fields`, colony.cpp:1563-1589), a building of the scene
-/// through its hidden field or, on the full-screen field, through the
-/// building polygon under the real pointer (`Check_Bldg_Fields`,
-/// colony.cpp:1932-1971). Its walk over the scene's 36 cells also tests the
-/// pointer's polygon and the scanned field at every cell BEFORE the clicked
-/// one and returns there (:1999-2011), so an activated field alone lands
-/// wherever the hidden window's pointer happens to be.
+/// colony screen: a satellite in orbit - the Star Base, Battlestation, Star
+/// Fortress, Artemis System Net and Dimensional Portal
+/// (`Satellite_Anim_Pic`, colony.cpp:196-211; colony_main.cpp:539-540) -
+/// through its own field (`Check_Satellite_Fields`, colony.cpp:1563-1589),
+/// which asks for every one of them; a building of the scene through its
+/// hidden field or, on the full-screen field, through the building polygon
+/// under the real pointer (`Check_Bldg_Fields`, colony.cpp:1932-1971), which
+/// answers the Capitol with nothing. Its walk over the scene's 36 cells also
+/// tests the pointer's polygon and the scanned field at every cell BEFORE
+/// the clicked one and returns there (:1999-2011), so an activated field
+/// alone lands wherever the hidden window's pointer happens to be.
 ///
 /// This finds the field the original would have been clicked on - the
 /// satellite slot first, as `Evaluate_Input` asks satellites first
@@ -3359,16 +3364,27 @@ static int16_t g_demolish_field = 0;
 /// building - and activates it as MSG_ACTIVATE does (g_pending_field). For a
 /// cell it also arms Take_Demolish_Field, which makes the walk read the
 /// pointer as on no polygon. Everything after is the original's, unchanged:
-/// the buildings it ignores (:1942-1950), the once-a-turn refusal (E 0x243),
+/// the Capitol's silence (:1942-1950), the once-a-turn refusal (E 0x243),
 /// the confirmation (E 0x107: the name and half the cost), the rubble, the
 /// removal, the recalculation and the refund. Its boxes run in the colony
 /// screen's own loop, not in this handler, and reach a client as MSGB.
 ///
 /// Refused, writing nothing: another screen; a colony that is not the one
-/// on screen or not the player's; a building it does not have or that has
-/// no field (the original draws at most 18, colony_main.cpp:538); the planet
-/// view (drawing_display 2), in which Evaluate_Input skips the walk
-/// (colony.cpp:1319); an activation that is still waiting.
+/// on screen; a building it does not have; the planet view (drawing_display
+/// 2), in which Evaluate_Input skips the walk (colony.cpp:1319); an
+/// activation that is still waiting. Amended: also while anything runs its
+/// own input loop over the colony screen - a box (MSGB: the refusal E 0x243
+/// is a Help box that keeps the colony's fields, gendraw.cpp:25-27), a
+/// turn-time popup (TPOP: the troop popup, kind 13, newpup.cpp:21), a
+/// reported id (ScreenOverride), a list field or a film - and when the
+/// field found is no longer the one the colony screen made (its rect, as
+/// Add_Bldg_Fields and Add_Satellite_Fields set it, colony.cpp:1677-1733),
+/// which covers a popup that replaced the fields (COLXPORT::Xport_Popup,
+/// colxport.cpp:179). A building with no field is refused too: a superseded
+/// station (`Sat_Should_Be_Replaced`, colony.cpp:229-246) and a building the
+/// full grid has no cell for (`Find_Replacement_Slot_For_Building`, :263).
+/// The colony is the player's by construction: the colony screen sets
+/// PLAYER_NUM to its owner (colony_main.cpp:280), so no owner test is made.
 static void Demolish_(int16_t colony_idx, int16_t building) {
     if (MOX::current_screen != SCREEN_COLONY || colony_idx != COLONY::colony_handle ||
             colony_idx < 0 || colony_idx >= MOX::NUM_COLONIES ||
@@ -3376,21 +3392,33 @@ static void Demolish_(int16_t colony_idx, int16_t building) {
             COLONY::drawing_display == 2 || g_pending_field > 0) {
         return;
     }
-    const s_colony& colony = MOX::colony[colony_idx];
-    if (colony.owner != MOX::PLAYER_NUM || colony.buildings[building] == 0) {
+    if (g_screen_override >= 0 || g_message_box.kind != 0 || g_turn_popup.kind != 0 ||
+            g_list_field.items != nullptr || g_film.active) {
         return;
     }
-    auto live = [](int16_t field) { return field > 0 && field < fields::fields_count; };
+    if (MOX::colony[colony_idx].buildings[building] == 0) {
+        return;
+    }
+    auto made = [](int16_t field, int16_t x, int16_t y) {
+        return field > 0 && field < fields::fields_count &&
+            fields::fields[field].x == x && fields::fields[field].y == y;
+    };
     for (int i = 0; i < 10; ++i) {
-        if (COLONY::colony_satellites[i] == building && live(COLONY::colony_satellite_fields[i])) {
-            g_pending_field = COLONY::colony_satellite_fields[i];
+        const int16_t field = COLONY::colony_satellite_fields[i];
+        const int16_t x = (int16_t)((i % 2 == 0 ? 1 : -1) * i * 50 + 295);
+        if (COLONY::colony_satellites[i] == building && made(field, x, 162)) {
+            g_pending_field = field;
             g_pending_checked = false;
             return;
         }
     }
     for (int cell = 0; cell < 36; ++cell) {
         const int16_t field = COLONY::colony_bldg_fields[cell];
-        if (COLONY::colony_bldgs[cell / 6].buildings[cell % 6] == building && live(field)) {
+        const int cx = COLONY::Bldg_Coords_To_Centered_Screen_Coord(cell / 6, cell % 6, 0);
+        const int cy = COLONY::Bldg_Coords_To_Centered_Screen_Coord(cell / 6, cell % 6, 1);
+        if (COLONY::colony_bldgs[cell / 6].buildings[cell % 6] == building &&
+                made(field, (int16_t)(cx - 20), (int16_t)(cy - 30)) &&
+                fields::fields[field].x_end == cx + 20 && fields::fields[field].y_end == cy + 10) {
             g_pending_field = field;
             g_pending_checked = false;
             g_demolish_field = field;
@@ -4147,6 +4175,13 @@ void Tick(int16_t current_screen) {
 
     // Read input from clients
     g_server.ReadInput();
+
+    // OrionLayer, open fix 111, amended. The demolish's arm lives while its
+    // activation waits and for the pass that took it: once that activation
+    // is gone, the next Tick drops the arm, whoever took it.
+    if (g_demolish_field != 0 && g_pending_field != g_demolish_field) {
+        g_demolish_field = 0;
+    }
 
     // Process queued input commands
     ProcessInput();
