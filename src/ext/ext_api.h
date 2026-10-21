@@ -105,6 +105,7 @@ constexpr int16_t SCREEN_EXT_COMBAT = 65;
 constexpr int16_t SCREEN_EXT_COMBAT_SCAN = 66;
 constexpr int16_t SCREEN_EXT_SHIP_VIEW = 81;  // OrionLayer, open fix 106. The same view outside a battle.
 constexpr int16_t SCREEN_EXT_COMBAT_BOARD = 67;
+constexpr int16_t SCREEN_EXT_FILM = 86;  // OrionLayer, open fix 112. A film plays (FilmGuard).
 extern bool g_combat_live;
 extern uint16_t g_combat_serial;
 
@@ -521,5 +522,45 @@ struct ColsumListGuard {
 /// scene (colony.cpp:1928-2012), so the hidden window's pointer, wherever it
 /// is, cannot claim the click for another building. Cleared by the call.
 bool Take_Demolish_Field(int16_t input_field);
+
+/// OrionLayer, open fix 112. A film is playing. SMACK::Play_Cinematic
+/// (smack.cpp:45) runs its own frame loop (smack.cpp:108-130): it tests
+/// Keyboard_Status and Mouse_Button, draws the next frame and presents, and
+/// calls no Get_Input, so no Tick ran while a film played: nothing was sent,
+/// and an injected click or key was never applied (ProcessInput runs only
+/// inside Tick). FilmGuard lives for the whole of Play_Cinematic: it reports
+/// SCREEN_EXT_FILM and the film's name (copied: E_Strings hands out a
+/// shared buffer). Film_Frame, called once per frame of the loop, records
+/// the frame and ticks at most every k_film_tick_ms, so a client gets the
+/// film's picture (MSG_VISUAL), the "FILM" block and the chance to answer.
+/// The film keeps its pacing: smckplay schedules each frame from the last
+/// frame's target, not from when it was drawn (smckplay.cpp:244-251), so a
+/// tick shorter than the frame's slack costs the film nothing.
+///
+/// The skip is the original's own test. A key reaches Keyboard_Status as
+/// any key does. A click is pushed as a press and a release, and both are
+/// applied in the same Pump_Game_Input_Queue, so Mouse_Button, which reads
+/// the button state (mouse.cpp:34-41), would see the release only; while a
+/// film plays the release is held back and pushed when the film ends, as a
+/// real button is held for longer than a frame. What is SENT, plus the
+/// input the original takes; nothing the game reads.
+constexpr uint32_t k_film_tick_ms = 50;
+
+struct FilmView {
+    bool active;
+    char name[32];
+    int16_t frame;
+    int16_t total;
+};
+extern FilmView g_film;
+
+struct FilmGuard {
+    FilmView previous;
+    int16_t previous_screen;
+    explicit FilmGuard(const char* name);
+    ~FilmGuard();
+};
+
+void Film_Frame(int16_t frame, int16_t total);
 
 } // namespace ext

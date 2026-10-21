@@ -27,6 +27,9 @@ int16_t g_activated_input = 0;
 static bool g_pending_checked = false;
 static int16_t g_pending_rect[4] = {0, 0, 0, 0};
 bool g_injected_mouse_pending = false;
+// OrionLayer, open fix 112. An injected click's release, held while a film plays (FilmGuard).
+static SDL_Event g_film_release{};
+static bool g_film_release_pending = false;
 
 static Server g_server;
 static int16_t g_last_screen = -99;
@@ -2714,6 +2717,25 @@ static void SerializeState(std::vector<uint8_t>& buf,
             Write16(buf, COLSUM::list_buy_fields[i]);
         }
     }
+
+    // 37. The film that plays: "FILM", written ONLY while a FilmGuard lives
+    //     (SMACK::Play_Cinematic, smack.cpp:45), LAST. OrionLayer, open fix
+    //     112. A version byte, the length of the film's file name and its
+    //     bytes (as the caller named it, e.g. "PLNTDFIN.LBX"), the frame
+    //     smckplay last drew (0-based) and the film's total frames. The
+    //     picture itself is MSG_VISUAL's, as for every screen.
+    if (g_film.active) {
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'I');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'M');
+        Write8(buf, 1);                                   // block version
+        const size_t n = strnlen(g_film.name, sizeof(g_film.name));
+        Write8(buf, (uint8_t)n);
+        WriteBytes(buf, g_film.name, n);
+        Write16(buf, g_film.frame);
+        Write16(buf, g_film.total);
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -3451,7 +3473,13 @@ static void ProcessInput() {
                 up.button.x = wx;
                 up.button.y = wy;
                 up.button.down = false;
-                SDL_PushEvent(&up);
+                // OrionLayer, open fix 112. A film's loop reads the button state, not a click: the release waits for the film's end (FilmGuard).
+                if (g_film.active) {
+                    g_film_release = up;
+                    g_film_release_pending = true;
+                } else {
+                    SDL_PushEvent(&up);
+                }
             }
             break;
 
@@ -3617,6 +3645,41 @@ ScreenOverride::ScreenOverride(int16_t id) : previous(g_screen_override) {
 
 ScreenOverride::~ScreenOverride() {
     g_screen_override = previous;
+}
+
+// OrionLayer, open fix 112. The film that plays (ext_api.h).
+FilmView g_film = {false, {0}, 0, 0};
+static uint64_t g_film_last_tick = 0;
+
+FilmGuard::FilmGuard(const char* name)
+    : previous(g_film), previous_screen(g_screen_override) {
+    g_film.active = true;
+    SDL_strlcpy(g_film.name, name != nullptr ? name : "", sizeof(g_film.name));
+    g_film.frame = 0;
+    g_film.total = 0;
+    g_film_last_tick = 0;
+    g_screen_override = SCREEN_EXT_FILM;
+}
+
+FilmGuard::~FilmGuard() {
+    if (g_film_release_pending) {
+        g_film_release_pending = false;
+        g_injected_mouse_pending = true;
+        SDL_PushEvent(&g_film_release);
+    }
+    g_film = previous;
+    g_screen_override = previous_screen;
+}
+
+void Film_Frame(int16_t frame, int16_t total) {
+    g_film.frame = frame;
+    g_film.total = total;
+    const uint64_t now = SDL_GetTicks();
+    if (g_film_last_tick != 0 && now - g_film_last_tick < k_film_tick_ms) {
+        return;
+    }
+    g_film_last_tick = now;
+    Tick(MOX::current_screen);
 }
 
 // OrionLayer, open fix 110. The Colonies screen's list while it exists (ext_api.h).

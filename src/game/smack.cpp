@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 112. FilmGuard, Film_Frame.
+#endif
 
 namespace SMACK {
     s_mouse_list smack_mouse = {0, 0, 0, 0, 639, 479};
@@ -45,6 +48,9 @@ namespace SMACK {
         int32_t animation_height;
         int16_t total_frames;
         int16_t current_frame;
+#ifdef ORION2RE_EXT
+        const ext::FilmGuard ext_film(smacker_name);  // OrionLayer, open fix 112. The film is reported while it plays.
+#endif
 
         buffer::Free_Buffer_Space();
         video::Set_Page_Off();
@@ -115,6 +121,9 @@ namespace SMACK {
             RUSS::Mox_Update();
 
             current_frame = smckplay::Get_Smacker_Animation_Frame();
+#ifdef ORION2RE_EXT
+            ext::Film_Frame(current_frame, total_frames);  // OrionLayer, open fix 112. The frame just presented goes out; an answer reaches the next pass's tests.
+#endif
             if (total_frames - current_frame == 1) {
                 exit_requested = 1;
             }

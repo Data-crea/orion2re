@@ -158,7 +158,7 @@ palette (256 x RGB).
 |---|---|---|
 | `ACTIVATE` 0x80 | int16 field index [, int16 x, y, x_end, y_end] | activates a field as if clicked; with the rectangle, only if the field there still is the one the client saw |
 | `INJECT_KEY` 0x81 | int16 key | a key press |
-| `INJECT_CLICK` 0x82 | int16 x, y | a left click at a point of the 640x480 screen |
+| `INJECT_CLICK` 0x82 | int16 x, y | a left click at a point of the 640x480 screen; while a film plays, the release follows when the film ends |
 | `CANCEL_FIELD` 0x83 | int16 field index | the right-button form of `ACTIVATE` |
 | `SET_JOBS` 0x84 | int16 colony, uint8 n, n x (uint8 pop, uint8 job) | sets colonists' jobs in one colony |
 | `SELECT_SHIP` 0x85 | int16 ship, uint8 selected | selects a ship in the open fleet box |
