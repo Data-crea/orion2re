@@ -169,6 +169,7 @@ off on request).
 | `90656654` | Open Fix 109: the diplomacy system picker on the wire (TPOP kind 25, id 85: the giver, the receiver, offer or demand, CANCEL, the ambassador, every star's field, and per system of the giver's what its hover shows) |
 | `c024495c` | Open Fix 110: the Colonies list's numbers on the wire (CSUM on screen 20: the list window's first row, and per colony of the game's list the product, its cost, the cost to buy, the turns and whether it can be bought; the ten BUY fields) |
 | `da87ff51` | Open Fix 111: the colony screen's demolish addressed by id (DEMOLISH 0x8C, CAP_DEMOLISH: a colony and a building start the original's own click on it, with its refusals, its confirmation box and its refund) |
+| `ca4ea2e5` | Open Fix 112: the films on the wire, and their skip (id 86 and FILM while SMACK::Play_Cinematic plays: the file name, the frame, the total; a throttled tick in its frame loop sends the picture and lets an injected click or key end the film by the original's own test) |
 
 ---
 
