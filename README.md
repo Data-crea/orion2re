@@ -168,6 +168,7 @@ off on request).
 | `39c5cc6d` | Open Fix 108: the Space Dragon's bribe on the wire (TPOP kind 24, id 84: the star, the player, the bribe, the mode, the two buttons, the message, and in mode 1 every star's field of the popup's galaxy map) |
 | `90656654` | Open Fix 109: the diplomacy system picker on the wire (TPOP kind 25, id 85: the giver, the receiver, offer or demand, CANCEL, the ambassador, every star's field, and per system of the giver's what its hover shows) |
 | `c024495c` | Open Fix 110: the Colonies list's numbers on the wire (CSUM on screen 20: the list window's first row, and per colony of the game's list the product, its cost, the cost to buy, the turns and whether it can be bought; the ten BUY fields) |
+| `da87ff51` | Open Fix 111: the colony screen's demolish addressed by id (DEMOLISH 0x8C, CAP_DEMOLISH: a colony and a building start the original's own click on it, with its refusals, its confirmation box and its refund) |
 
 ---
 
