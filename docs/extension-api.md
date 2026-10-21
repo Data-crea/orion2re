@@ -47,7 +47,8 @@ Every message is one frame:
    `0x04` the 640x480 picture and palette, `0x08` events.
 2. The server answers `HELLO_REPLY` (0x01): `uint16 protocol version,
    uint16 capabilities`. Capability bit `0x0001` (`CAP_LAYOUT`) means a
-   `LAYOUT` message follows at once.
+   `LAYOUT` message follows at once; bit `0x0002` (`CAP_DEMOLISH`) means
+   the server takes `DEMOLISH`.
 3. The server sends `LAYOUT` (0x15), then the current field list, and from
    then on whatever the client subscribed to.
 
@@ -167,10 +168,11 @@ palette (256 x RGB).
 | `SET_SPIES` 0x89 | uint8 n, n x (player, spies, mission), uint8 pool | the Races screen's spies |
 | `INJECT_RAW_KEY` 0x8A | uint16 code | F1-F10, Alt+F1-F10, Alt+letter |
 | `SETTLE_POPS` 0x8B | int16 from, int16 to, uint8 n, n x pop | colonists to another colony at the same star |
+| `DEMOLISH` 0x8C | int16 colony, int16 building | the colony screen's demolish of one building: the original's own click on it, its refusals, confirmation box and refund |
 
 An input is applied the next time the game reads its input, never in the
 middle of its logic. The commands that change game data directly
-(`SET_JOBS`, `SELECT_SHIP`, `SET_SPIES`, `SETTLE_POPS`, `COMBAT_COMMAND`)
+(`SET_JOBS`, `SELECT_SHIP`, `SET_SPIES`, `SETTLE_POPS`, `COMBAT_COMMAND`, `DEMOLISH`)
 check the game's own conditions first and write nothing when one fails.
 
 ## Environment variables

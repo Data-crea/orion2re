@@ -515,4 +515,11 @@ struct ColsumListGuard {
     ~ColsumListGuard();
 };
 
+/// OrionLayer, open fix 111. True once for the building field MSG_DEMOLISH
+/// activated, when COLONY::Check_Bldg_Fields takes it as its input: the walk
+/// then reads that field as clicked and the pointer as on no polygon of the
+/// scene (colony.cpp:1928-2012), so the hidden window's pointer, wherever it
+/// is, cannot claim the click for another building. Cleared by the call.
+bool Take_Demolish_Field(int16_t input_field);
+
 } // namespace ext

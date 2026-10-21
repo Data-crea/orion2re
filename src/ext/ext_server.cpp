@@ -189,7 +189,7 @@ void Server::HandleClientMessage(Client& client) {
         // OrionLayer, open fix 93. HELLO_REPLY, then the layout of every raw record (CAP_LAYOUT):
         // a client finds each member by name, so a record that grows or
         // moves in the engine needs no change in the client.
-        uint16_t reply[2] = { PROTO_VERSION, CAP_LAYOUT };
+        uint16_t reply[2] = { PROTO_VERSION, CAP_LAYOUT | CAP_DEMOLISH };  // OrionLayer, open fix 111: CAP_DEMOLISH.
         SendFrame(client.fd, MSG_HELLO_REPLY, 0,
                   client.sequence++, (uint8_t*)reply, sizeof(reply));
         const std::vector<uint8_t>& layout = LayoutTable();
@@ -288,6 +288,17 @@ void Server::HandleClientMessage(Client& client) {
                 cmd.settle_answers = payload[5 + payload[4]];
                 cmd.settle_job = (int8_t)payload[6 + payload[4]];
             }
+            input_queue_.push_back(cmd);
+        }
+        break;
+    }
+    case MSG_DEMOLISH: {
+        // OrionLayer, open fix 111. int16 colony, int16 building; shorter is dropped, never guessed.
+        if (payload_len >= 4) {
+            InputCommand cmd{};
+            cmd.type = MSG_DEMOLISH;
+            memcpy(&cmd.param1, payload, 2);
+            memcpy(&cmd.param2, payload + 2, 2);
             input_queue_.push_back(cmd);
         }
         break;

@@ -32,6 +32,8 @@ constexpr uint16_t MSG_LAYOUT        = 0x15;
 
 // HELLO_REPLY's second word: what this server sends beyond protocol 1.
 constexpr uint16_t CAP_LAYOUT        = 0x0001;
+// OrionLayer, open fix 111. The server takes MSG_DEMOLISH; a client offers the demolish only then.
+constexpr uint16_t CAP_DEMOLISH      = 0x0002;
 
 // Client → Server message types
 constexpr uint16_t MSG_HELLO         = 0x01;
@@ -60,6 +62,8 @@ constexpr uint16_t MSG_INJECT_RAW_KEY = 0x8A;
 // OrionLayer, open fix 92. Colonists of the colony screen's colony to another colony at the same star: int16 source colony, int16 destination colony, uint8 n, n x uint8 pop index; all or nothing.
 // OrionLayer, open fix 103. Two more bytes after the pop list - uint8 answers (bit 0: YES to "go on past the limit?", bit 1: YES to "unavailable for N turns, are you sure?"), int8 job (-1 keeps it) - make it the original's Send_Cluster to any colony of the player: the colony screen or the Colonies list, any star, colonist by colonist up to the first that may not go; its outcome is "STLR".
 constexpr uint16_t MSG_SETTLE_POPS = 0x8B;
+// OrionLayer, open fix 111. Demolish one building of the colony the colony screen shows, through the original's own click on it: int16 colony, int16 building id. The game's refusals, its confirmation box and its refund stay its own (colony.cpp:1563-1589, :1932-1971); a command whose colony or building is not on screen writes nothing.
+constexpr uint16_t MSG_DEMOLISH = 0x8C;
 
 // Subscription flags (bitmask)
 constexpr uint16_t SUB_STATE         = 0x01;

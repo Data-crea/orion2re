@@ -3313,6 +3313,78 @@ static void Set_Spies_(const std::vector<uint8_t>& p) {
     BILL::Set_My_Agent_Number((uint8_t)agents);
 }
 
+// OrionLayer, open fix 111. The building field MSG_DEMOLISH activated, for
+// Take_Demolish_Field; 0 when none waits.
+static int16_t g_demolish_field = 0;
+
+/// OrionLayer, open fix 111: the colony screen's demolish, addressed by id.
+///
+/// The original demolishes a building when the player LEFT-clicks it on the
+/// colony screen: a satellite in orbit through its own field
+/// (`Check_Satellite_Fields`, colony.cpp:1563-1589), a building of the scene
+/// through its hidden field or, on the full-screen field, through the
+/// building polygon under the real pointer (`Check_Bldg_Fields`,
+/// colony.cpp:1932-1971). Its walk over the scene's 36 cells also tests the
+/// pointer's polygon and the scanned field at every cell BEFORE the clicked
+/// one and returns there (:1999-2011), so an activated field alone lands
+/// wherever the hidden window's pointer happens to be.
+///
+/// This finds the field the original would have been clicked on - the
+/// satellite slot first, as `Evaluate_Input` asks satellites first
+/// (:1323-1324), then the first cell of the walk's own order that holds the
+/// building - and activates it as MSG_ACTIVATE does (g_pending_field). For a
+/// cell it also arms Take_Demolish_Field, which makes the walk read the
+/// pointer as on no polygon. Everything after is the original's, unchanged:
+/// the buildings it ignores (:1942-1950), the once-a-turn refusal (E 0x243),
+/// the confirmation (E 0x107: the name and half the cost), the rubble, the
+/// removal, the recalculation and the refund. Its boxes run in the colony
+/// screen's own loop, not in this handler, and reach a client as MSGB.
+///
+/// Refused, writing nothing: another screen; a colony that is not the one
+/// on screen or not the player's; a building it does not have or that has
+/// no field (the original draws at most 18, colony_main.cpp:538); the planet
+/// view (drawing_display 2), in which Evaluate_Input skips the walk
+/// (colony.cpp:1319); an activation that is still waiting.
+static void Demolish_(int16_t colony_idx, int16_t building) {
+    if (MOX::current_screen != SCREEN_COLONY || colony_idx != COLONY::colony_handle ||
+            colony_idx < 0 || colony_idx >= MOX::NUM_COLONIES ||
+            building <= BUILDING_NO_BUILDING || building >= BUILDING_COUNT ||
+            COLONY::drawing_display == 2 || g_pending_field > 0) {
+        return;
+    }
+    const s_colony& colony = MOX::colony[colony_idx];
+    if (colony.owner != MOX::PLAYER_NUM || colony.buildings[building] == 0) {
+        return;
+    }
+    auto live = [](int16_t field) { return field > 0 && field < fields::fields_count; };
+    for (int i = 0; i < 10; ++i) {
+        if (COLONY::colony_satellites[i] == building && live(COLONY::colony_satellite_fields[i])) {
+            g_pending_field = COLONY::colony_satellite_fields[i];
+            g_pending_checked = false;
+            return;
+        }
+    }
+    for (int cell = 0; cell < 36; ++cell) {
+        const int16_t field = COLONY::colony_bldg_fields[cell];
+        if (COLONY::colony_bldgs[cell / 6].buildings[cell % 6] == building && live(field)) {
+            g_pending_field = field;
+            g_pending_checked = false;
+            g_demolish_field = field;
+            return;
+        }
+    }
+}
+
+bool Take_Demolish_Field(int16_t input_field) {
+    // Only the activation Get_Input returned in this pass (g_activated_input,
+    // fields.cpp:190-194): a field id that a later real click happens to
+    // share is not armed.
+    const bool armed = g_demolish_field > 0 && input_field == g_demolish_field &&
+        g_activated_input == input_field;
+    g_demolish_field = 0;
+    return armed;
+}
+
 static void ProcessInput() {
     InputCommand cmd;
     while (g_server.PopInput(cmd)) {
@@ -3455,6 +3527,10 @@ static void ProcessInput() {
 
         case MSG_SET_SPIES:
             Set_Spies_(cmd.pairs);  // OrionLayer, open fix 64.
+            break;
+
+        case MSG_DEMOLISH:
+            Demolish_(cmd.param1, cmd.param2);  // OrionLayer, open fix 111.
             break;
 
         case MSG_INJECT_RAW_KEY:

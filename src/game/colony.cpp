@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 111. Take_Demolish_Field.
+#endif
 
 namespace COLONY {
     bool Can_Scrap_Building(const s_colony& colony, uint16_t stardate) {
@@ -1905,6 +1908,19 @@ namespace COLONY {
 
         int16_t mouse_x = mouse::Pointer_X();
         int16_t mouse_y = mouse::Pointer_Y();
+
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 111. A building's field activated by MSG_DEMOLISH
+        // is a click on that field: the field under the pointer is the clicked
+        // one, and no polygon of the scene holds the pointer, so the walk below
+        // passes every earlier cell and demolishes the named one as a click on
+        // its field does (ext_api.h).
+        if (ext::Take_Demolish_Field(*input_field)) {
+            mouse_x = -1000;
+            mouse_y = -1000;
+            *scan_field = *input_field;
+        }
+#endif
 
         char buffer[1000];
 
