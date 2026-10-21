@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 110. ColsumListGuard.
+#endif
 
 #include "build_queue.h"
 
@@ -206,6 +209,11 @@ namespace COLSUM {
             COLSUM::Reset_List_Col_Array();
             COLSUM::Update_Col_List();
         }
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 110. The list just built and sorted, named for
+        // "CSUM" until the screen returns (ext_api.h).
+        ext::ColsumListGuard ext_colsum_list(colony_list_buffer);
+#endif
 
         fonts::Set_Font_Style_Shadow_Down(1, &COLONY::font_color_array);
         MOX2::Get_Auto_Function(&saved_auto_fn);

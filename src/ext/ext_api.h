@@ -500,4 +500,19 @@ extern bool g_timed_wait;
 /// keep the next wait.
 extern bool g_animation_poll;
 
+/// OrionLayer, open fix 110. The Colonies screen's own colony list, for
+/// "CSUM". COLSUM::Colony_Summary_Screen keeps the list in a buffer on its
+/// stack (colsum.cpp:190-193) that COLXPORT::g_colony_list_ptr points at
+/// while the screen runs and after it has returned. ColsumListGuard names
+/// the buffer from the moment the list is built and sorted to the
+/// screen's return, so the snapshot reads it only while it exists. What
+/// is SENT, nothing the game reads.
+extern const int16_t* g_colsum_list;
+
+struct ColsumListGuard {
+    const int16_t* previous;
+    explicit ColsumListGuard(const int16_t* list);
+    ~ColsumListGuard();
+};
+
 } // namespace ext

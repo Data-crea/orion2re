@@ -2656,6 +2656,64 @@ static void SerializeState(std::vector<uint8_t>& buf,
                       "STLR sends the fifteen bytes of s_settler_settle_result");
         WriteBytes(buf, &o.result, sizeof(o.result));
     }
+
+    // 36. The Colonies list's numbers: "CSUM", written ONLY while
+    //     SCREEN_COLONY_SUMMARY is up and its list exists (ColsumListGuard),
+    //     after STLR. OrionLayer, open fix 110.
+    //
+    //     The list prints "name - Nt" from
+    //     COLONY::Calculate_Current_Production_Turn_Count (colsum.cpp:741,
+    //     :751-768) and adds a BUY button where COLONY::Colony_Can_Buy_Product_0
+    //     or bought_outright holds (Add_Fields, colsum.cpp:405-413) - for the
+    //     ten rows its window shows. Both follow from
+    //     COLCALC::Colony_Product_Cost (colcalc.cpp:2645), whose tables v2
+    //     reads from its config, so a client cannot compute them. Sent for
+    //     every colony of the list, in the game's order
+    //     (COLXPORT::g_colony_list_ptr, built by Build_Global_Colony_List and
+    //     sorted by Sort_Col_List): a version byte, COLSUM::first, n (the
+    //     entries before the -1 that ends the list, at most MAX_COLONIES,
+    //     each a colony index below NUM_COLONIES), then per colony the index,
+    //     producing[0], Colony_Producing_Product_Cost,
+    //     Colony_Cost_To_Buy_Producing_Product,
+    //     Calculate_Current_Production_Turn_Count and Colony_Can_Buy_Product_0
+    //     - each only reads the colony, its player and its star, and the
+    //     screen calls them itself (cmp_Prod asks the turn count of every
+    //     colony, colsum.cpp:1295); a colony whose planet is out of range gets
+    //     -1 and 0 instead; then the ten list_buy_fields. Read only; nothing
+    //     here changes the game.
+    if (current_screen == SCREEN_COLONY_SUMMARY && g_colsum_list != nullptr &&
+            g_colsum_list == COLXPORT::g_colony_list_ptr) {
+        int16_t n = 0;
+        while (n < MAX_COLONIES && g_colsum_list[n] >= 0 &&
+               g_colsum_list[n] < MOX::NUM_COLONIES) {
+            ++n;
+        }
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'U');
+        buf.push_back((uint8_t)'M');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, COLSUM::first);
+        Write16(buf, n);
+        for (int16_t i = 0; i < n; ++i) {
+            const int16_t idx = g_colsum_list[i];
+            s_colony* c = &MOX::colony[idx];
+            const bool ok = c->planet >= 0 && c->planet < MAX_PLANETS;
+            Write16(buf, idx);
+            Write16(buf, c->producing[0]);
+            Write32(buf, ok ? COLCALC::Colony_Producing_Product_Cost(c) : -1);
+            Write32(buf, ok ? COLCALC::Colony_Cost_To_Buy_Producing_Product(c) : -1);
+            Write16(buf, ok ? COLONY::Calculate_Current_Production_Turn_Count(idx)
+                            : (int16_t)-1);
+            Write8(buf, (ok && COLONY::Colony_Can_Buy_Product_0(idx)) ? (uint8_t)1
+                                                                      : (uint8_t)0);
+        }
+        static_assert(sizeof(COLSUM::list_buy_fields) == 10 * sizeof(int16_t),
+                      "CSUM sends the ten list_buy_fields");
+        for (int i = 0; i < 10; ++i) {
+            Write16(buf, COLSUM::list_buy_fields[i]);
+        }
+    }
 }
 
 // ── Field list ───────────────────────────────────────────
@@ -3483,6 +3541,17 @@ ScreenOverride::ScreenOverride(int16_t id) : previous(g_screen_override) {
 
 ScreenOverride::~ScreenOverride() {
     g_screen_override = previous;
+}
+
+// OrionLayer, open fix 110. The Colonies screen's list while it exists (ext_api.h).
+const int16_t* g_colsum_list = nullptr;
+
+ColsumListGuard::ColsumListGuard(const int16_t* list) : previous(g_colsum_list) {
+    g_colsum_list = list;
+}
+
+ColsumListGuard::~ColsumListGuard() {
+    g_colsum_list = previous;
 }
 
 // OrionLayer, open fix 50. The Hall of Fame takes input (ext_api.h).
