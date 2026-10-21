@@ -538,7 +538,7 @@ bool Take_Demolish_Field(int16_t input_field);
 /// tick shorter than the frame's slack costs the film nothing.
 ///
 /// The skip is the original's own test. A key reaches Keyboard_Status as
-/// any key does. A click is pushed as a press and a release, and both are
+/// any key does. A click (left or right) is pushed as a press and a release, and both are
 /// applied in the same Pump_Game_Input_Queue, so Mouse_Button, which reads
 /// the button state (mouse.cpp:34-41), would see the release only; while a
 /// film plays the release is held back and pushed when the film ends, as a

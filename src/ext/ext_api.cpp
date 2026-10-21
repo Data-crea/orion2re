@@ -2721,8 +2721,10 @@ static void SerializeState(std::vector<uint8_t>& buf,
     // 37. The film that plays: "FILM", written ONLY while a FilmGuard lives
     //     (SMACK::Play_Cinematic, smack.cpp:45), LAST. OrionLayer, open fix
     //     112. A version byte, the length of the film's file name and its
-    //     bytes (as the caller named it, e.g. "PLNTDFIN.LBX"), the frame
-    //     smckplay last drew (0-based) and the film's total frames. The
+    //     bytes (as the caller named it, e.g. "PLNTDFIN.LBX"), the frames
+    //     drawn so far (Get_Smacker_Animation_Frame after the draw: the
+    //     draw decodes the next frame, smckplay.cpp:236-241, so the last
+    //     frame drawn, 0-based, plus one) and the film's total frames. The
     //     picture itself is MSG_VISUAL's, as for every screen.
     if (g_film.active) {
         buf.push_back((uint8_t)'F');
@@ -3544,7 +3546,13 @@ static void ProcessInput() {
                 up.button.x = wx;
                 up.button.y = wy;
                 up.button.down = false;
-                SDL_PushEvent(&up);
+                // OrionLayer, open fix 112, amended. The right button ends a film as the left does (FilmGuard).
+                if (g_film.active) {
+                    g_film_release = up;
+                    g_film_release_pending = true;
+                } else {
+                    SDL_PushEvent(&up);
+                }
             }
             break;
 

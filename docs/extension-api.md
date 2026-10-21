@@ -163,7 +163,7 @@ palette (256 x RGB).
 | `SET_JOBS` 0x84 | int16 colony, uint8 n, n x (uint8 pop, uint8 job) | sets colonists' jobs in one colony |
 | `SELECT_SHIP` 0x85 | int16 ship, uint8 selected | selects a ship in the open fleet box |
 | `SHOW_WINDOW` 0x86 | uint8 show | shows or hides the engine's own window |
-| `INJECT_RIGHT_CLICK` 0x87 | int16 x, y | a right click at a point |
+| `INJECT_RIGHT_CLICK` 0x87 | int16 x, y | a right click at a point; while a film plays, the release follows when the film ends |
 | `COMBAT_COMMAND` 0x88 | uint16 serial, int16 unit, uint8 op, int16 a, b, c | one battle action |
 | `SET_SPIES` 0x89 | uint8 n, n x (player, spies, mission), uint8 pool | the Races screen's spies |
 | `INJECT_RAW_KEY` 0x8A | uint16 code | F1-F10, Alt+F1-F10, Alt+letter |
