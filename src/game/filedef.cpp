@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "game/savegame.h"
+#include "game/config_refresh.h"
 
 namespace FILEDEF {
     const char s_Auto_Save_00556938[12] = "(Auto Save)";
@@ -211,6 +212,7 @@ namespace FILEDEF {
 
         HAROLD::Restore_Mouse_List();
         RUSS::Release_All_Blocks(MOX::screen_seg);
+        CONFIG_REFRESH::Request_Resource_Reload();
 
         return 1;
     }

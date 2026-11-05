@@ -20,6 +20,9 @@ namespace buffer {
     /** Frees the allocated cache arena and file-buffer metadata. */
     void __cdecl Free_Buffer_Space();
 
+    /** Invalidates all cached entries without reallocating the arena. Call only between screens. */
+    void Reset_Buffer_Cache();
+
     /** Resets cached segment usage counters and clears the global load count.
      *  @param unused_context Unused legacy callback/context parameter.
      */

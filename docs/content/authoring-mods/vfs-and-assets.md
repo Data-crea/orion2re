@@ -30,6 +30,20 @@ The VFS is used for read-only data including:
 
 It does not redirect save games, `ORION2RE.SET`, `language.ini`, `orioncd.ini`, temporary files, or other write paths. A mod must not expect a file placed under its public `data/` subtree to become a writable save or settings location.
 
+## Resource lifetime
+
+Save loading refreshes shared string tables, fonts, persistent gameplay artwork,
+and the graphics and sound-effect caches before entering the destination screen.
+Returning to the main menu restores the user's launch configuration and its
+resources. Screen-specific artwork continues to load on demand. Resource refresh
+does not rename saved players or ships.
+
+Music is not included in this refresh. Live music and animation streams are not
+automatically reopened when packages change. In particular, a stream opened from
+a mod ZIP can retain references to an archive closed by a package remount; this
+stream-lifetime limitation remains unresolved. Avoid runtime switches of packages
+providing active streamed assets until stream ownership/reopening is implemented.
+
 ## Resolution order
 
 For each virtual asset, version 2.00 searches:

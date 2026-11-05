@@ -710,7 +710,7 @@ namespace CMBTDRW1 {
             }
         }
 
-        if (MOX::cur_ship >= 0) {
+        if (MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count) {
             int16_t new_last_ship_status = MOX::last_ship_status;
 
             if (ptr_x / 20 < COMBAT_GRID_VIEW_WIDTH && ptr_y / 20 < COMBAT_GRID_VIEW_HEIGHT) {
@@ -895,7 +895,7 @@ namespace CMBTDRW1 {
             }
         }
 
-        if (MOX::dont_draw_ship != MOX::cur_ship && MOX::cur_ship != 0) {
+        if (MOX::cur_ship > 0 && MOX::cur_ship < MOX::combat_total_ship_count && MOX::dont_draw_ship != MOX::cur_ship) {
             if (MOX::combat_data[MOX::cur_ship].unit_status == 0) {
                 if (COMBAT1::Ship_Controlled_By_Computer(MOX::cur_ship) == 0) {
                     if (MOX::combat_data[MOX::cur_ship].owner == MOX::PLAYER_NUM || MOX::game_type == 1) {
@@ -943,7 +943,7 @@ namespace CMBTDRW1 {
         fonts::Set_Font_Style_Shadow_Down(2, &MOX::combat_green);
         fonts::Set_Outline_Color(0, 0);
 
-        if (MOX::missile_warning > 0 &&
+        if (MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count && MOX::missile_warning > 0 &&
             MOX::combat_data[MOX::cur_ship].owner < MAX_PLAYERS &&
             MOX::player[MOX::combat_data[MOX::cur_ship].owner].objectives == PLAYER_OBJECTIVE_HUMAN) {
             if (MOX::missile_warning == 1) {
@@ -1189,6 +1189,8 @@ namespace CMBTDRW1 {
     }
 
     void __cdecl Draw_Current_Ship_Blip() {
+        if (MOX::cur_ship < 0 || MOX::cur_ship >= MOX::combat_total_ship_count) return;
+
         int16_t blip_x = (MOX::combat_data[MOX::cur_ship].x * 3) / 2 + 500;
         int16_t blip_y = Reduced_Map_Y(MOX::combat_data[MOX::cur_ship].y);
 
@@ -2706,7 +2708,9 @@ namespace CMBTDRW1 {
 
         uint8_t status_flag = MOX::combat_data[ship_idx].special_status_flag;
         if (status_flag == 4) {
-            if (MOX::combat_data[MOX::cur_ship].owner == MOX::PLAYER_NUM || MOX::game_type == 1) {
+            if (MOX::game_type == 1 ||
+                (MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count &&
+                    MOX::combat_data[MOX::cur_ship].owner == MOX::PLAYER_NUM)) {
                 bitmap::Outline_Bitmap(MOX::ship_bitmap, MOX::draw_ship_bitmap, 5, 0);
                 bitmap::Mask_Out_Bitmap_With_Bitmap(0, 0, MOX::ship_bitmap, MOX::draw_ship_bitmap, 0);
                 animate::Draw(x_offset + draw_x, y_offset + draw_y, MOX::ship_bitmap);

@@ -899,6 +899,7 @@ namespace config {
         active_manifest_sources.clear();
         delete staged;
         *transaction = nullptr;
+        CONFIG_REFRESH::Request_Resource_Reload();
         return true;
     }
 

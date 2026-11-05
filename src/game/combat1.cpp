@@ -155,7 +155,7 @@ namespace COMBAT1 {
         const char* info_hotkey;
         int16_t info_y_coord;
 
-        if (MOX::cur_ship > -1) {
+        if (MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count) {
             if (MOX::combat_data[MOX::cur_ship].owner != MOX::combat_attacker_player) {
                 auto_combat_idx = 1;
             }
@@ -164,7 +164,7 @@ namespace COMBAT1 {
         Set_Combat_Help_Fields();
 
         if (MOX::auto_combat_flag[auto_combat_idx] == 1 ||
-            (MOX::game_type != 1 && MOX::cur_ship > -1 &&
+            (MOX::game_type != 1 && MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count &&
                 MOX::combat_data[MOX::cur_ship].owner != MOX::PLAYER_NUM &&
                 MOX::take_control_flag == 0)) {
             for (int i = 0; i < MAX_COMBAT_FLYERS; ++i) {
@@ -3039,7 +3039,8 @@ namespace COMBAT1 {
         MOX::help_entry_list[entry_idx].y2 = 0x1d7;
         entry_idx++;
 
-        if (MOX::ship_status_display == 0) {
+        const bool has_current_ship = MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count;
+        if (has_current_ship && MOX::ship_status_display == 0) {
             for (int j = 0; j < 8; j++) {
                 uint16_t tech_app_id = TECHDATA::weapons[MOX::combat_data[MOX::cur_ship].weapons[j].weapon_id].tech_app_id;
                 if (tech_app_id != 0) {
@@ -3048,16 +3049,20 @@ namespace COMBAT1 {
                     MOX::help_entry_list[entry_idx + j].help_id = -1;
                 }
             }
-        } else {
+        } else if (has_current_ship) {
             int special_count = 0;
-            for (int j = 0; j < 39; j++) {
+            for (int k = 0; k < 8; k++) {
+                MOX::help_entry_list[entry_idx + k].help_id = -1;
+            }
+            for (int j = 0; j < 39 && special_count < 8; j++) {
                 if (struct_::Test_Bit_Field(MOX::combat_data[MOX::cur_ship].special_device_flags, j) == 1) {
                     MOX::help_entry_list[entry_idx + special_count].help_id = TECHDATA::specials[j].tech_app_id;
                     special_count++;
                 }
             }
-            for (int k = 0; k < 8; k++) {
-                MOX::help_entry_list[entry_idx + special_count + k].help_id = -1;
+        } else {
+            for (int j = 0; j < 8; j++) {
+                MOX::help_entry_list[entry_idx + j].help_id = -1;
             }
         }
 
