@@ -172,6 +172,7 @@ off on request).
 | `ca4ea2e5` | Open Fix 112: the films on the wire, and their skip (id 86 and FILM while SMACK::Play_Cinematic plays: the file name, the frame, the total; a throttled tick in its frame loop sends the picture and lets an injected click or key end the film by the original's own test) |
 | `3096e0ee` | Open Fix 112, amended: the right button ends a film as the left does (its release held until the film ends); FILM's frame named as the frames drawn so far |
 | `f6177a05` | Open Fix 111, amended: refused while a box, popup, list or film runs over the colony screen, or when the field is no longer the colony screen's; the arm dropped by the next Tick; the comments name the satellites, the Capitol and the buildings with no field |
+| `5a09e0ba` | Open Fix 115: the Turn Summary's messages carry their engine type (the TPOP block of kind 2 is version 2: per message the MSG_TYPE_*, the MSG_COLONY_SUBTYPE_* or 255, a colony message's planet or -1, and two numbers: a scrapped building's id and refund, a finished product's id and 0) |
 
 ---
 
