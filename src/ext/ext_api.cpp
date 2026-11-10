@@ -1462,6 +1462,11 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //       to a colony (MSG_::Goto_Msg_Colony's test), int16 that colony
     //       or -1, uint8 its list page, int16 its first field on the page
     //       shown or -1, uint8 its field count there (0 if not shown).
+    //       Block version 2 (open fix 115) adds per message: uint8 its
+    //       MSG_TYPE_*, uint8 its MSG_COLONY_SUBTYPE_* (255 when not a
+    //       colony message), int16 the planet of a colony message (-1
+    //       otherwise), int16 a, int16 b (a scrapped building's id and
+    //       refund; a finished product's id and 0; else 0 and 0).
     //     - 4, 5, 8: the system display's live fields: int16 star, int16
     //       the grid field (asteroids: picked by POINTER position), 5 x
     //       (int16 planet field, int16 planet) per orbit slot, 15 x (int16
@@ -1538,7 +1543,10 @@ static void SerializeState(std::vector<uint8_t>& buf,
         buf.push_back((uint8_t)'P');
         buf.push_back((uint8_t)'O');
         buf.push_back((uint8_t)'P');
-        Write8(buf, 1);                                   // block version
+        // Open fix 115: the Turn Summary's block (kind 2) is version 2, a
+        // message's engine type after its field count; every other kind
+        // stays version 1.
+        Write8(buf, g_turn_popup.kind == 2 ? 2 : 1);      // block version
         Write8(buf, g_turn_popup.kind);
         int16_t n_args = g_turn_popup.n_args;
         if (n_args < 0) n_args = 0;
@@ -1599,6 +1607,30 @@ static void SerializeState(std::vector<uint8_t>& buf,
                 Write8(buf, page);
                 Write16(buf, first_field);
                 Write8(buf, n_fields);
+                // Open fix 115: what the message is (MSG_TYPE_*), and for a
+                // colony message its MSG_COLONY_SUBTYPE_*, else 255: a client
+                // ranks the summary by it without reading the line's words.
+                Write8(buf, (uint8_t)msg.msg_type);
+                Write8(buf, msg.msg_type == MSG_TYPE_COLONY
+                                ? (uint8_t)msg.u.colony.subtype
+                                : (uint8_t)255);
+                // ... and for a colony message the planet it is about (-1
+                // otherwise) and its two numbers: a scrapped building's id
+                // and refund (c.scrap), a finished product's id (c.build.
+                // build_id) and 0; 0 and 0 for the other subtypes.
+                int16_t planet = -1, arg_a = 0, arg_b = 0;
+                if (msg.msg_type == MSG_TYPE_COLONY) {
+                    planet = msg.u.colony.planet_idx;
+                    if (msg.u.colony.subtype == MSG_COLONY_SUBTYPE_BUILDING_SCRAPPED) {
+                        arg_a = msg.u.colony.c.scrap.building_id;
+                        arg_b = msg.u.colony.c.scrap.bc;
+                    } else if (msg.u.colony.subtype == MSG_COLONY_SUBTYPE_PRODUCTION_COMPLETED) {
+                        arg_a = msg.u.colony.c.build.build_id;
+                    }
+                }
+                Write16(buf, planet);
+                Write16(buf, arg_a);
+                Write16(buf, arg_b);
             }
         }
 
