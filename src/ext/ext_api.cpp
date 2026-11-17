@@ -1512,6 +1512,19 @@ static void SerializeState(std::vector<uint8_t>& buf,
     //                                                          "Choose A System:", text = the
     //                                                          statement (diplomacy_message);
     //                                                          the tail below
+    //     26    88  the reply to a human player's diplomacy request in a network
+    //               game (MAINSCR::Do_Reply_To_Diplomacy_Request, mainscr.cpp:2475,
+    //               called from Check_For_Diplomacy_Request in the main screen's
+    //               loop, mainscr_main.cpp:394-396; open fix 122)
+    //                                                        [0] the requester [1] accept
+    //                                                          (reply 1, hotkey A) [2] invoke
+    //                                                          (reply 2 = refuse, hotkey I,
+    //                                                          the picture reads IGNORE) [3] wait
+    //                                                          (reply 3, hotkey W) [4] the
+    //                                                          requester's colour; text = the
+    //                                                          message H 0xDB with the
+    //                                                          requester's name and race name;
+    //                                                          no tail
     //
     //     Written: version, kind, n_args + args, title, text (int16
     //     length + raw bytes each), then per kind:

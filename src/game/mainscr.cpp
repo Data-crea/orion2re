@@ -6,6 +6,9 @@
 #include "game/serialization.h"
 #include "lua/lua_mod_runtime.h"
 #include "lua/lua_network.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 122. TurnPopupGuard.
+#endif
 
 namespace MAINSCR {
     constexpr uint32_t k_max_game_data_payload_bytes = NETMOX::NETMOX_MAX_GAME_DATA_PAYLOAD_BYTES;
@@ -2511,6 +2514,35 @@ namespace MAINSCR {
 
         EVANHELP::Set_Diplomacy_Request_Help_List(popup_x, popup_y);
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 122. The reply popup on the wire while its loop
+        // runs: id 88, TPOP kind 26. The message is formatted here exactly as
+        // Draw_Reply_To_Diplomacy_Request does (H_Message 0xDB over the
+        // requester's name and race name, :4732-4752), once, into a buffer that
+        // outlives the loop (MOX::temp_string is the original's scratch).
+        // args [0] the requester, [1] accept (the original's reply 1,
+        // Accept_Diplomacy_Request, hotkey A), [2] invoke (reply 2,
+        // Refuse_Diplomacy_Request, hotkey I; its picture reads IGNORE),
+        // [3] wait (reply 3, Tell_Diplomacy_Requester_To_Wait, hotkey W),
+        // [4] the requester's colour. ESC (the hidden whole-screen field
+        // Add_Reply_To_Diplomacy_Request_Fields adds, its handle thrown away
+        // as unused_field) selects nothing in the original: the loop goes on,
+        // so no dismiss field is sent.
+        static char ext_text[256];
+        ext_text[0] = '\0';
+        if (requester_id >= 0 && requester_id < MOX::NUM_PLAYERS && requester_id < MAX_PLAYERS) {
+            snprintf(ext_text, sizeof(ext_text), HAROLD::H_Message(0xDB),
+                     MOX::player[requester_id].name, MOX::player[requester_id].race_name);
+        }
+        ext::TurnPopupGuard ext_popup(88, 26, nullptr, ext_text);
+        ext_popup.arg(0, requester_id);
+        ext_popup.arg(1, first_reply_field);
+        ext_popup.arg(2, second_reply_field);
+        ext_popup.arg(3, third_reply_field);
+        ext_popup.arg(4, (requester_id >= 0 && requester_id < MOX::NUM_PLAYERS && requester_id < MAX_PLAYERS)
+                             ? (int16_t)MOX::player[requester_id].color : (int16_t)-1);
+#endif
+
         while (!has_selection) {
             const int16_t input_field = fields::Get_Input();
 
@@ -2532,6 +2564,9 @@ namespace MAINSCR {
             }
         }
 
+#ifdef ORION2RE_EXT
+        ext_popup.end();  // OrionLayer, open fix 122. The popup is no longer the screen's.
+#endif
         allocate::Pop_Block(MOX::screen_seg);
         EVANHELP::Set_Main_Screen_Help_List();
         MAINSCR::already_faded_into_main_screen = 0;
