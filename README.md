@@ -174,6 +174,7 @@ off on request).
 | `f6177a05` | Open Fix 111, amended: refused while a box, popup, list or film runs over the colony screen, or when the field is no longer the colony screen's; the arm dropped by the next Tick; the comments name the satellites, the Capitol and the buildings with no field |
 | `5a09e0ba` | Open Fix 115: the Turn Summary's messages carry their engine type (the TPOP block of kind 2 is version 2: per message the MSG_TYPE_*, the MSG_COLONY_SUBTYPE_* or 255, a colony message's planet or -1, and two numbers: a scrapped building's id and refund, a finished product's id and 0) |
 | `72959b62` | Open Fix 114: the map's two event banners on the wire (the block "EVTB" on every screen: a version byte, the warp beast's event active, the hyperspace flux's event active, as `EVENTS::Event_Check_*` answer them) |
+| `fff33608` | Open Fix 118: the auto-turn banner on the wire (the block "AUTO" while the chain of turns that run by themselves is armed: `in_auto_next_turn_mode`, the whole-screen exit field's index, the box Do_Begin_Of_Turn drew, its text "<race> stardate X.Y") |
 
 ---
 
