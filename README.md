@@ -178,6 +178,7 @@ off on request).
 | `9557b23f` | Open Fix 119: the multiplayer bar's lights on the wire (the block "PLRL" in a hotseat or network game: the game type, whether the lights are bright, the diplomacy request mask, and per player whether done and the colour) |
 | `1d308edc` | Open Fix 120: the end-of-game score screen on the wire (id 87 and the block "SCOR" while `Hi_Score_Screen` takes input: the nine scores, the subtotal, the modifier, the total, each line as the game words it, the defeated players and the field that ends it) |
 | `9e436604` | Open Fix 121: the Fleets screen's move preview on the wire (the block "FMOV" on SCREEN_FLEET too: the verdict `Ships_Try_To_Move_To` gives the selected big icons' ships at every star, or no star at all when nothing is selected or in RELOCATE mode) |
+| `62af0dac` | Open Fix 122: the reply to a human player's diplomacy request on the wire (id 88 and TPOP kind 26 while `Do_Reply_To_Diplomacy_Request` takes input: the requester, the accept, ignore and wait fields, the requester's colour and the message the game prints) |
 
 ---
 
