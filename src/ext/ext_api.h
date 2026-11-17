@@ -563,4 +563,22 @@ struct FilmGuard {
 
 void Film_Frame(int16_t frame, int16_t total);
 
+/// OrionLayer, open fix 118. The auto-turn banner. While "end of turn wait" is
+/// off and nothing needs the player, MAINSCR2::Do_Begin_Of_Turn
+/// (mainscr2.cpp:533-596 unpatched) draws the mini main screen with a darkened box that
+/// says "<race> stardate X.Y" (H 0xE9) and runs the next turn by itself;
+/// MAINSCR::check_next_turn_exit_field is the engine's own "the chain is
+/// armed" flag (set there, cleared by every way out, mainscr.cpp:2938-2948 and
+/// the first branch of Do_Begin_Of_Turn). Do_Begin_Of_Turn hands over the text
+/// it printed and the box it drew; the block "AUTO" is sent while both that and
+/// the engine's flag hold. What is SENT, nothing the game reads.
+struct AutoTurnBanner {
+    bool set;
+    char text[80];
+    int16_t x, y, w, h;
+};
+extern AutoTurnBanner g_auto_turn;
+void Auto_Turn_Banner(const char* text, int16_t x, int16_t y, int16_t w, int16_t h);
+void Auto_Turn_Banner_Clear();
+
 } // namespace ext

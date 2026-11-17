@@ -2770,6 +2770,38 @@ static void SerializeState(std::vector<uint8_t>& buf,
         Write8(buf, EVENTS::Event_Check_Hyperspace_Flux() != 0 ? (uint8_t)1 : (uint8_t)0);
     }
 
+    // 36b. The auto-turn banner: "AUTO", written ONLY while the chain of
+    //     turns that run by themselves is armed, before FILM.
+    //     OrionLayer, open fix 118.
+    //     Do_Begin_Of_Turn (mainscr2.cpp:533-596 in the unpatched file) draws the darkened box with
+    //     H 0xE9's text and calls Do_Next_Turn(&out, 1); the chain ends when
+    //     Get_Input returns anything (mainscr.cpp:2937-2947: the
+    //     whole-screen hidden field with the hotkey ESC that Do_Next_Turn
+    //     adds while end_of_turn_wait is 0, mainscr.cpp:2924-2926, or a key
+    //     that returns -1) or when the first branch of Do_Begin_Of_Turn runs.
+    //     Written while the banner was handed over (Auto_Turn_Banner) and
+    //     MAINSCR::check_next_turn_exit_field, the engine's own flag, still
+    //     holds. A version byte (1), uint8 MAINSCR::in_auto_next_turn_mode,
+    //     int16 MOX::global_exit_field (the whole-screen field's index, 0xFC18
+    //     = -1000 when none), int16 the box's x, y, w, h (native pixels, as
+    //     Do_Begin_Of_Turn drew it), uint8 the text's length and its bytes.
+    if (g_auto_turn.set && MAINSCR::check_next_turn_exit_field != 0) {
+        buf.push_back((uint8_t)'A');
+        buf.push_back((uint8_t)'U');
+        buf.push_back((uint8_t)'T');
+        buf.push_back((uint8_t)'O');
+        Write8(buf, 1);                                   // block version
+        Write8(buf, MAINSCR::in_auto_next_turn_mode);
+        Write16(buf, (int16_t)MOX::global_exit_field);
+        Write16(buf, g_auto_turn.x);
+        Write16(buf, g_auto_turn.y);
+        Write16(buf, g_auto_turn.w);
+        Write16(buf, g_auto_turn.h);
+        const size_t n = strnlen(g_auto_turn.text, sizeof(g_auto_turn.text));
+        Write8(buf, (uint8_t)n);
+        WriteBytes(buf, g_auto_turn.text, n);
+    }
+
     // 37. The film that plays: "FILM", written ONLY while a FilmGuard lives
     //     (SMACK::Play_Cinematic, smack.cpp:45), LAST. OrionLayer, open fix
     //     112. A version byte, the length of the film's file name and its
@@ -3768,6 +3800,22 @@ void Film_Frame(int16_t frame, int16_t total) {
     }
     g_film_last_tick = now;
     Tick(MOX::current_screen);
+}
+
+// OrionLayer, open fix 118. The auto-turn banner's text and box (ext_api.h).
+AutoTurnBanner g_auto_turn = {false, {0}, 0, 0, 0, 0};
+
+void Auto_Turn_Banner(const char* text, int16_t x, int16_t y, int16_t w, int16_t h) {
+    g_auto_turn.set = true;
+    SDL_strlcpy(g_auto_turn.text, text != nullptr ? text : "", sizeof(g_auto_turn.text));
+    g_auto_turn.x = x;
+    g_auto_turn.y = y;
+    g_auto_turn.w = w;
+    g_auto_turn.h = h;
+}
+
+void Auto_Turn_Banner_Clear() {
+    g_auto_turn.set = false;
 }
 
 // OrionLayer, open fix 110. The Colonies screen's list while it exists (ext_api.h).

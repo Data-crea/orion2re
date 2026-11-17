@@ -1,4 +1,7 @@
 #include "pch.h"
+#ifdef ORION2RE_EXT
+#include "ext/ext_api.h"  // OrionLayer, open fix 118. Auto_Turn_Banner.
+#endif
 
 namespace MAINSCR2 {
     s_mouse_list mouse_list_from[5] = {
@@ -555,6 +558,9 @@ namespace MAINSCR2 {
             mouse::Set_Mouse_List(&MOX::mouse_list_arrow, 1);
             MAINSCR::next_turn_hit = 0;
             fields::Clear_Fields();
+#ifdef ORION2RE_EXT
+            ext::Auto_Turn_Banner_Clear();  // OrionLayer, open fix 118. The chain ends here: no banner.
+#endif
 
         } else {
             MAINSCR::check_next_turn_exit_field = 1;
@@ -589,6 +595,9 @@ namespace MAINSCR2 {
 
             MISC::Draw_Darkened_Box(box_x, box_y, box_w, box_h, font_colors.colors[1]);
             fonts::Print(box_x + 8, box_y + 6, msg_buffer);
+#ifdef ORION2RE_EXT
+            ext::Auto_Turn_Banner(msg_buffer, box_x, box_y, box_w, box_h);  // OrionLayer, open fix 118. What was printed and where, for the client's banner.
+#endif
 
             RUSS::Mox_Sync_Update();
             fields::Enable_Draw_All_Fields();
