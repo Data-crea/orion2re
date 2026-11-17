@@ -2750,6 +2750,26 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
     }
 
+    // 36a. The map's two event banners: "EVTB", written on EVERY screen
+    //     (HD reads it on the galaxy map), before FILM.
+    //     OrionLayer, open fix 114.
+    //     The main screen prints the warp beast's banner at the
+    //     top left while EVENTS::Event_Check_Warp_Beast holds
+    //     (mainscr_main.cpp:28-43) and the hyperspace flux's at the right
+    //     while Event_Check_Hyperspace_Flux does (:45-59); event_data is in
+    //     no other block. A version byte (1), then uint8 each: the beast
+    //     (status 2, 4 or 6 for every player, events.cpp:217-225) and the
+    //     flux (events.cpp:207-215). Both functions only read event_data.
+    {
+        buf.push_back((uint8_t)'E');
+        buf.push_back((uint8_t)'V');
+        buf.push_back((uint8_t)'T');
+        buf.push_back((uint8_t)'B');
+        Write8(buf, 1);                                   // block version
+        Write8(buf, EVENTS::Event_Check_Warp_Beast() != 0 ? (uint8_t)1 : (uint8_t)0);
+        Write8(buf, EVENTS::Event_Check_Hyperspace_Flux() != 0 ? (uint8_t)1 : (uint8_t)0);
+    }
+
     // 37. The film that plays: "FILM", written ONLY while a FilmGuard lives
     //     (SMACK::Play_Cinematic, smack.cpp:45), LAST. OrionLayer, open fix
     //     112. A version byte, the length of the film's file name and its
