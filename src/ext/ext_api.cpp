@@ -2802,6 +2802,55 @@ static void SerializeState(std::vector<uint8_t>& buf,
         WriteBytes(buf, g_auto_turn.text, n);
     }
 
+    // 36c. The multiplayer bar's lights: "PLRL", written on EVERY screen in
+    //     a hotseat or network game (MOX::game_type 1, 2 or 3), before FILM.
+    //     OrionLayer, open fix 119.
+    //     The main screen draws a coloured light per player who has pressed
+    //     TURN (MAINSCR::Draw_Player_Done_Lights, mainscr.cpp:2958-3005,
+    //     called from mainscr_main.cpp:1060-1062) and, in a network game, one
+    //     per pending diplomacy request (Draw_Diplomacy_Request_Lights,
+    //     mainscr.cpp:1067-1100, :1057-1059). The numbers are
+    //     NETMOX::net.players_hit_next_turn[] (network), MULTPLAY::
+    //     Hotseat_Player_Status (hotseat: 1 is "done"), NETMOX::
+    //     Humans_Requesting_Diplomacy() and HAROLD::Get_N_Remaining_Humans();
+    //     none was on a wire block of screen 0 (MPLY belongs to the
+    //     multiplayer screens' steps). A version byte (1), uint8 game_type,
+    //     uint8 the lights are bright (every human but the player is done:
+    //     n_humans - 1 <= done count, the test that decides whether
+    //     Draw_Player_Done_Lights dims them, mainscr.cpp:2993-2995), uint8 the
+    //     diplomacy request mask (NETMOX::Humans_Requesting_Diplomacy(), 0
+    //     outside a network game: the original draws those lights only in
+    //     games 2 and 3), uint8 n players, then per player uint8 done (the
+    //     rule Draw_Player_Done_Lights draws a light by) and uint8 the
+    //     player's colour (MOX::player[i].color). Read only.
+    if (MOX::game_type >= 1 && MOX::game_type <= 3) {
+        const int16_t n_players = (int16_t)MOX::NUM_PLAYERS;
+        const bool network = MOX::game_type == 2 || MOX::game_type == 3;
+        int16_t done_count = 0;
+        uint8_t done[MAX_PLAYERS] = {0};
+        for (int16_t i = 0; i < n_players && i < MAX_PLAYERS; ++i) {
+            if (network) {
+                done[i] = NETMOX::net.players_hit_next_turn[i] != 0 ? 1 : 0;
+            } else {
+                done[i] = (int16_t)MULTPLAY::Hotseat_Player_Status(i) == 1 ? 1 : 0;
+            }
+            done_count += done[i];
+        }
+        buf.push_back((uint8_t)'P');
+        buf.push_back((uint8_t)'L');
+        buf.push_back((uint8_t)'R');
+        buf.push_back((uint8_t)'L');
+        Write8(buf, 1);                                   // block version
+        Write8(buf, (uint8_t)MOX::game_type);
+        Write8(buf, (HAROLD::Get_N_Remaining_Humans() - 1) <= done_count ? (uint8_t)1 : (uint8_t)0);
+        Write8(buf, network ? NETMOX::Humans_Requesting_Diplomacy() : (uint8_t)0);
+        Write8(buf, (uint8_t)(n_players < MAX_PLAYERS ? n_players : MAX_PLAYERS));
+        for (int16_t i = 0; i < n_players && i < MAX_PLAYERS; ++i) {
+            Write8(buf, done[i]);
+            Write8(buf, (uint8_t)MOX::player[i].color);
+        }
+    }
+
     // 37. The film that plays: "FILM", written ONLY while a FilmGuard lives
     //     (SMACK::Play_Cinematic, smack.cpp:45), LAST. OrionLayer, open fix
     //     112. A version byte, the length of the film's file name and its
