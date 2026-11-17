@@ -512,6 +512,11 @@ namespace SCORE {
         MISC::Fade_Into_Screen(SCORE::Draw_Hi_Score_Screen, &SCORE::hi->is_first_draw, 12);
         remap::Update_Glass_Remap_Colors();
 
+#ifdef ORION2RE_EXT
+        // OrionLayer, open fix 120. The tally's own id (SCREEN_EXT_SCORE) and its nine numbers on the wire while it takes input.
+        const ext::ScreenOverride ext_screen_guard(ext::SCREEN_EXT_SCORE);
+        ext::g_score_live = true;
+#endif
         while (true) {
             int16_t input = fields::Get_Input();
             if (SCORE::hi->screen_field_handle == input) {
@@ -527,6 +532,9 @@ namespace SCORE {
             RUSS::Mox_Sync_Update();
         }
 
+#ifdef ORION2RE_EXT
+        ext::g_score_live = false;  // OrionLayer, open fix 120. The tally is no longer the screen's.
+#endif
         video::Set_Page_Off();
         SCORE::Draw_Hi_Score_Screen();
         video::Copy_Off_To_Back();

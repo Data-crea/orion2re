@@ -89,6 +89,15 @@ struct ListFieldGuard {
 /// file is read, so the pointer alone cannot say the table is current.
 extern bool g_hof_live;
 
+/// OrionLayer, open fix 120. True while SCORE::Hi_Score_Screen takes input (the
+/// end-of-game tally of nine scores, score.cpp:490-545): set just before its
+/// loop, after the scores are calculated and the fields added, cleared when
+/// the loop ends; it reports SCREEN_EXT_SCORE (87, the next free id after 86
+/// in both trees) through a ScreenOverride, as the Hall of Fame reports 14.
+/// The block "SCOR" is sent while it holds. What is SENT, nothing the game
+/// reads.
+extern bool g_score_live;
+
 /// OrionLayer, open fix 52. A tactical battle: its own id and the gate every combat block is written under.
 ///
 /// Nothing in cmbt*/comb*/combat* writes MOX::current_screen, so a client
@@ -105,6 +114,7 @@ constexpr int16_t SCREEN_EXT_COMBAT = 65;
 constexpr int16_t SCREEN_EXT_COMBAT_SCAN = 66;
 constexpr int16_t SCREEN_EXT_SHIP_VIEW = 81;  // OrionLayer, open fix 106. The same view outside a battle.
 constexpr int16_t SCREEN_EXT_COMBAT_BOARD = 67;
+constexpr int16_t SCREEN_EXT_SCORE = 87;  // OrionLayer, open fix 120. The end-of-game score screen (g_score_live).
 constexpr int16_t SCREEN_EXT_FILM = 86;  // OrionLayer, open fix 112. A film plays (FilmGuard).
 extern bool g_combat_live;
 extern uint16_t g_combat_serial;

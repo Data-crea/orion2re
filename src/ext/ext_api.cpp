@@ -2851,6 +2851,131 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
     }
 
+    // 36d. The end-of-game score screen: "SCOR", written ONLY while
+    //     SCORE::Hi_Score_Screen takes input (g_score_live, reported under
+    //     SCREEN_EXT_SCORE), before FILM. OrionLayer, open fix 120.
+    //     Draw_Hi_Score_Screen (score.cpp:86-120) prints nine components
+    //     that Calculate_Hi_Scores (score.cpp:816-845) has put in SCORE::hi:
+    //     time (Draw_Time_Score), population, elimination, captured colonies,
+    //     technology, Orion, Antares, the council (only when above 0) and the
+    //     total (Draw_Total_Score), each as the words of a H_Message line.
+    //     None of it was on the wire; HOFM carries the Hall of Fame's ten
+    //     rows only. A version byte (1), then int16: the player the tally is
+    //     for (hi->player_idx), the whole-screen field that ends it
+    //     (hi->screen_field_handle, hotkey ESC), the nine scores in the
+    //     order time, population, elimination, captured colonists,
+    //     technology, Orion, Antares, council, then the raw subtotal, the
+    //     modifier in percent (hi->score_modifier_pct) and the final score,
+    //     then the raw numbers the lines print: the stardate figure of the
+    //     time line (stardate + 30536 as an int16), the raw population, the
+    //     opponents defeated and the captured colonies; then each line as the
+    //     game formats it (uint8 length and bytes, capped at 80): time,
+    //     population, elimination, captured colonies, technology, Orion,
+    //     Antares, the council (empty when its score is not above 0), the
+    //     total's label and the total's figure; the player's name and race
+    //     name (20 each); then uint8 n defeated players and per player uint8
+    //     index, uint8 race and uint16 the defeat's figure
+    //     (player_defeated[i], printed "%d.%d" by tenths), name (uint8 length
+    //     and bytes, 20). The strings are formatted here with the same
+    //     H_Message ids and formats as the Draw_* functions; the pictures of
+    //     population icons (Draw_Pop) are not sent.
+    if (current_screen == SCREEN_EXT_SCORE && g_score_live && SCORE::hi != nullptr) {
+        const s_hiscore& h = *SCORE::hi;
+        char line[80];
+        buf.push_back((uint8_t)'S');
+        buf.push_back((uint8_t)'C');
+        buf.push_back((uint8_t)'O');
+        buf.push_back((uint8_t)'R');
+        Write8(buf, 1);                                   // block version
+        Write16(buf, (int16_t)h.player_idx);
+        Write16(buf, h.screen_field_handle);
+        Write16(buf, h.score_time);
+        Write16(buf, h.score_population);
+        Write16(buf, h.score_elimination);
+        Write16(buf, h.score_captured_colonists);
+        Write16(buf, h.score_technology);
+        Write16(buf, h.score_orion);
+        Write16(buf, h.score_antares);
+        Write16(buf, h.score_council);
+        Write16(buf, h.score_raw_subtotal);
+        Write16(buf, h.score_modifier_pct);
+        Write16(buf, h.score_final);
+        const int16_t stardate_calc = (int16_t)((uint16_t)MOX::stardate + 30536);
+        Write16(buf, stardate_calc);
+        Write16(buf, h.raw_population);
+        Write16(buf, h.num_opponents_defeated);
+        Write16(buf, h.raw_captured_colonies);
+        // the lines, as Draw_Time_Score (:699), Draw_Population_Score (:638),
+        // Draw_Elimination_Score (:652), Draw_Captured_Colonies_Score (:678),
+        // Draw_Technology_Score (:792), Draw_Orion_Score (:797),
+        // Draw_Antares_Score (:802) and Draw_Council_Score (:807) format them
+        snprintf(line, sizeof(line), HAROLD::H_Message(350), (int32_t)stardate_calc);
+        WriteStr8(buf, line, sizeof(line));
+        snprintf(line, sizeof(line), HAROLD::H_Message(0x15C), (int)h.raw_population);
+        WriteStr8(buf, line, sizeof(line));
+        if (h.num_opponents_defeated == 0) {
+            strlcpy(line, HAROLD::H_Message(0x158), sizeof(line));
+        } else {
+            snprintf(line, sizeof(line),
+                     HAROLD::H_Message(h.num_opponents_defeated == 1 ? 0x159 : 0x15a),
+                     (int32_t)h.num_opponents_defeated);
+        }
+        WriteStr8(buf, line, sizeof(line));
+        snprintf(line, sizeof(line),
+                 HAROLD::H_Message(h.raw_captured_colonies == 1 ? 0x154 : 0x155),
+                 (int32_t)h.raw_captured_colonies);
+        WriteStr8(buf, line, sizeof(line));
+        strlcpy(line, HAROLD::H_Message(349), sizeof(line));
+        WriteStr8(buf, line, sizeof(line));
+        strlcpy(line, HAROLD::H_Message(0x15B), sizeof(line));
+        WriteStr8(buf, line, sizeof(line));
+        strlcpy(line, HAROLD::H_Message(0x153), sizeof(line));
+        WriteStr8(buf, line, sizeof(line));
+        if (h.score_council > 0) {
+            strlcpy(line, HAROLD::H_Message(342), sizeof(line));
+        } else {
+            line[0] = '\0';
+        }
+        WriteStr8(buf, line, sizeof(line));
+        // the total (Draw_Total_Score, score.cpp:847-): label H 0x157 and the figure
+        strlcpy(line, HAROLD::H_Message(0x157), sizeof(line));
+        WriteStr8(buf, line, sizeof(line));
+        if (h.score_raw_subtotal == h.score_final) {
+            snprintf(line, sizeof(line), "%d", (int)h.score_final);
+        } else {
+            char modifier_str[16];
+            if (h.score_modifier_pct < 100) {
+                snprintf(modifier_str, sizeof(modifier_str), ".%d", (int)h.score_modifier_pct);
+            } else {
+                snprintf(modifier_str, sizeof(modifier_str), "%d.%d", (int)(h.score_modifier_pct / 100),
+                         (int)(h.score_modifier_pct % 100));
+            }
+            snprintf(line, sizeof(line), "(%d x %s) %d", (int)h.score_raw_subtotal, modifier_str,
+                     (int)h.score_final);
+        }
+        WriteStr8(buf, line, sizeof(line));
+        const int16_t who = h.player_idx;
+        const bool who_ok = who >= 0 && who < (int16_t)MOX::NUM_PLAYERS && who < MAX_PLAYERS;
+        WriteStr8(buf, who_ok ? MOX::player[who].name : "", 20);
+        WriteStr8(buf, who_ok ? MOX::player[who].race_name : "", 20);
+        // Draw_Eliminated_Race_Pictures (score.cpp:700-): the players the tally's player defeated
+        uint8_t n_def = 0;
+        const size_t n_def_at = buf.size();
+        Write8(buf, 0);
+        for (int16_t i = 0; who_ok && i < (int16_t)MOX::NUM_PLAYERS && i < MAX_PLAYERS; ++i) {
+            const uint16_t figure = MOX::player[who].player_defeated[i];
+            if (figure == 0) {
+                continue;
+            }
+            Write8(buf, (uint8_t)i);
+            Write8(buf, (uint8_t)MOX::player[i].race);
+            Write16(buf, (int16_t)figure);
+            WriteStr8(buf, MOX::player[i].name, 20);
+            ++n_def;
+        }
+        buf[n_def_at] = n_def;
+    }
+
     // 37. The film that plays: "FILM", written ONLY while a FilmGuard lives
     //     (SMACK::Play_Cinematic, smack.cpp:45), LAST. OrionLayer, open fix
     //     112. A version byte, the length of the film's file name and its
@@ -3880,6 +4005,9 @@ ColsumListGuard::~ColsumListGuard() {
 
 // OrionLayer, open fix 50. The Hall of Fame takes input (ext_api.h).
 bool g_hof_live = false;
+
+// OrionLayer, open fix 120. The score screen takes input (ext_api.h).
+bool g_score_live = false;
 
 // OrionLayer, open fix 52. A tactical battle is up (ext_api.h).
 bool g_combat_live = false;
