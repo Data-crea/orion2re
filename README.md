@@ -176,6 +176,7 @@ off on request).
 | `72959b62` | Open Fix 114: the map's two event banners on the wire (the block "EVTB" on every screen: a version byte, the warp beast's event active, the hyperspace flux's event active, as `EVENTS::Event_Check_*` answer them) |
 | `fff33608` | Open Fix 118: the auto-turn banner on the wire (the block "AUTO" while the chain of turns that run by themselves is armed: `in_auto_next_turn_mode`, the whole-screen exit field's index, the box Do_Begin_Of_Turn drew, its text "<race> stardate X.Y") |
 | `9557b23f` | Open Fix 119: the multiplayer bar's lights on the wire (the block "PLRL" in a hotseat or network game: the game type, whether the lights are bright, the diplomacy request mask, and per player whether done and the colour) |
+| `1d308edc` | Open Fix 120: the end-of-game score screen on the wire (id 87 and the block "SCOR" while `Hi_Score_Screen` takes input: the nine scores, the subtotal, the modifier, the total, each line as the game words it, the defeated players and the field that ends it) |
 
 ---
 
