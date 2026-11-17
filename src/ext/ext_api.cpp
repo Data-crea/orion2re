@@ -1285,6 +1285,64 @@ static void SerializeState(std::vector<uint8_t>& buf,
         }
     }
 
+    // 14a. The move verdict of the FLEET SCREEN's selection: "FMOV" again,
+    //     same layout, written ONLY on SCREEN_FLEET (every other screen's
+    //     condition is the one above), and before FILM.
+    //     OrionLayer, open fix 121.
+    //
+    //     Print_Fltscrn_Scanned_Star_Name (flt2.cpp:338-522) and
+    //     Draw_Fltscrn_Ship_Destination_Lines (flt1.cpp:121-170) read
+    //     g_ship_move_info, which the former fills on hover from
+    //     Ships_Try_To_Move_To over Build_Fltscrn_Ship_List's ships
+    //     (flt2.cpp:349-354) unless the relocate button's mode is 1. The
+    //     galaxy map's box does not select these ships, so the block above
+    //     is silent here. The ships are gathered as Build_Fltscrn_Ship_List
+    //     does (flt2.cpp:863-890: the big icons with selected != 0, in
+    //     display order), WITHOUT calling it: it opens a User_Box when the
+    //     list is full. A full list (MAX_SHIPS) gives no verdict, as its
+    //     return value 0 does in the original.
+    //
+    //     THE COUNT SAYS WHETHER THE ORIGINAL RAN THE VERDICT: with a
+    //     selection and the relocate mode off it is the star count and
+    //     every star has its 14-byte record; with none selected, or in
+    //     RELOCATE mode, it is 0 and no record follows (the original takes
+    //     its else branch, flt2.cpp:355-381, which zeroes the struct). So
+    //     on this screen the block is ALWAYS written, and a client reads
+    //     "FMOV present" as "this engine knows the question".
+    if (current_screen == SCREEN_FLEET) {
+        static int16_t fids[SHIP_LIST_CAPACITY];
+        int16_t fcount = 0;
+        if (FLT1::relocate_button_mode != 1 && MOX::fltscrn_big_icon != nullptr) {
+            int16_t icons = MOX::n_fltscrn_big_icons;
+            if (icons > SHIP_LIST_CAPACITY) icons = SHIP_LIST_CAPACITY;
+            for (int16_t i = 0; i < icons && fcount >= 0; i++) {
+                if (MOX::fltscrn_big_icon[i].selected == 0) continue;
+                // A ship the table has no record for would be read unchecked.
+                if (MOX::fltscrn_big_icon[i].ship_idx < 0 ||
+                    MOX::fltscrn_big_icon[i].ship_idx >= MOX::NUM_SHIPS) continue;
+                fids[fcount++] = MOX::fltscrn_big_icon[i].ship_idx;
+                if (fcount >= MAX_SHIPS) fcount = -1;   // the original's "Too many ships"
+            }
+        }
+        if (fcount > 0) {
+            fids[fcount] = -1;   // Ships_Try_To_Move_To reads the list up to its -1
+        }
+        buf.push_back((uint8_t)'F');
+        buf.push_back((uint8_t)'M');
+        buf.push_back((uint8_t)'O');
+        buf.push_back((uint8_t)'V');
+        Write8(buf, 1);                                         // block version
+        Write16(buf, fcount > 0 ? MOX::NUM_STARS : (int16_t)0);
+        Write8(buf, (uint8_t)sizeof(s_ship_move_info));         // 14
+        if (fcount > 0) {
+            for (int16_t s = 0; s < MOX::NUM_STARS; s++) {
+                s_ship_move_info mi;
+                SHIPMOVE::Ships_Try_To_Move_To(fids, s, &mi);
+                WriteBytes(buf, &mi, sizeof(mi));
+            }
+        }
+    }
+
     // 15. The generic message box that is up: "MSGB", written on ANY screen
     //     while one is (the boxes run under their caller's id), and LAST.
     //     OrionLayer, open fix 29.
