@@ -1,5 +1,7 @@
 #include "pch.h"
 
+#include "game/config_refresh.h"
+
 namespace MAINSCR {
     /**
      * Draws the main-screen HUD summaries for stardate, economy, command points, food, freighters, and research.
@@ -390,7 +392,8 @@ namespace MAINSCR {
             }
         }
 
-        while (exit_flag == 0 && MOX::global_esc == 0) {
+        while (exit_flag == 0 && MOX::global_esc == 0 &&
+            !CONFIG_REFRESH::Resource_Reload_Pending()) {
             if (MOX::game_type == 2 || MOX::game_type == 3) {
                 if (MAINSCR::Check_For_Diplomacy_Request() == 1) {
                     fields::Assign_Auto_Function(MAINSCR::Draw_Main_Screen, 1);
@@ -612,6 +615,13 @@ namespace MAINSCR {
 
                 MAINSCR::Check_Function_Keys(input, &exit_flag);
                 MAINSCR::Check_Hot_Keys(input, 0);
+            }
+
+            if (CONFIG_REFRESH::Resource_Reload_Pending()) {
+                if (MOX::zoom_in != 0) {
+                    MAINSCR::Exit_Zooming_Mode(&boxes_saved_flag);
+                }
+                break;
             }
 
             if (input == exit_game_hot_key && MOX::skip_fields == 0) {

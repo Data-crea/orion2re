@@ -273,20 +273,12 @@ namespace invasion {
     }
 
     void __cdecl Find_Troops(s_invasion_side_info* side_info) {
-        if (side_info->unit_counts[(uint8_t)side_info->current_troop_type_idx] == 0) {
-            uint8_t idx = 0;
-            do {
-                idx = (uint8_t)side_info->current_troop_type_idx;
-
-                if (idx >= 4) {
-                    break;
-                }
-
-                idx++;
-                side_info->current_troop_type_idx = (int8_t)idx;
-            } while (side_info->unit_counts[idx] == 0);
+        uint8_t idx = (uint8_t)side_info->current_troop_type_idx;
+        while (idx < UNIT_COUNT && side_info->unit_counts[idx] == 0) {
+            idx++;
         }
 
+        side_info->current_troop_type_idx = (int8_t)idx;
         side_info->current_unit_damage = 0;
     }
 

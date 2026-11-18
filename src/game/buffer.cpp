@@ -12,6 +12,18 @@ namespace buffer {
     int32_t buffer_space_size;
     void* buffer_space_ptr;
 
+    void Reset_Buffer_Cache() {
+        if (buffer_space_ptr == nullptr || file_buffer == nullptr) {
+            return;
+        }
+        auto* header = (allocate::s_alloc_header*)buffer_space_ptr;
+        header->current = 0;
+        header->reserved2 = 0;
+        memset(file_buffer, 0, ORION2RE_BUFFER_METADATA_SIZE);
+        file_buffer_count = 0;
+        global_load_count = 0;
+    }
+
     int8_t __cdecl Flush_Buffer_Space(void* unused_context) {
         (void)unused_context;
 
@@ -30,6 +42,11 @@ namespace buffer {
             free(buffer_space_ptr);
             free(file_buffer);
             buffer_space_ptr = nullptr;
+            buffer_space_seg = nullptr;
+            file_buffer = nullptr;
+            buffer_space_size = 0;
+            file_buffer_count = 0;
+            global_load_count = 0;
         }
     }
 

@@ -276,6 +276,76 @@ DOCTEST_TEST_CASE("attacking ground Commando ties select the last listed officer
     DOCTEST_CHECK(bonuses.officer_idx == 1);
 }
 
+DOCTEST_TEST_CASE("troop search stops at the exhausted-side sentinel") {
+    for (int8_t start = 0; start <= UNIT_COUNT; ++start) {
+        s_invasion_side_info side = {};
+        side.current_troop_type_idx = start;
+        side.current_unit_damage = 1;
+
+        invasion::Find_Troops(&side);
+
+        DOCTEST_CHECK(side.current_troop_type_idx == UNIT_COUNT);
+        DOCTEST_CHECK(side.current_unit_damage == 0);
+        for (int16_t count : side.unit_counts) {
+            DOCTEST_CHECK(count == 0);
+        }
+    }
+}
+
+DOCTEST_TEST_CASE("troop search selects each available troop type") {
+    for (int8_t type = 0; type < UNIT_COUNT; ++type) {
+        s_invasion_side_info side = {};
+        side.unit_counts[type] = 1;
+
+        invasion::Find_Troops(&side);
+
+        DOCTEST_CHECK(side.current_troop_type_idx == type);
+        DOCTEST_CHECK(side.unit_counts[type] == 1);
+    }
+}
+
+DOCTEST_TEST_CASE("undefended ground combat preserves all invading infantry") {
+    test_ground_commando_runtime::Reset_();
+    s_invasion_player_bonuses bonuses = {};
+    s_invasion_side_info attacker = {};
+    s_invasion_side_info defender = {};
+    attacker.unit_counts[1] = 33;
+
+    invasion::Compute_Ground_Combat_Info(&attacker, &bonuses, nullptr);
+    invasion::Compute_Ground_Combat_Info(&defender, &bonuses, nullptr);
+    DOCTEST_REQUIRE(defender.current_troop_type_idx == UNIT_COUNT);
+    invasion::Resolve_Ground_Combat(&attacker, &defender);
+
+    DOCTEST_CHECK(attacker.current_troop_type_idx == 1);
+    DOCTEST_CHECK(attacker.unit_counts[1] == 33);
+    DOCTEST_CHECK(defender.current_troop_type_idx == UNIT_COUNT);
+    DOCTEST_CHECK(test_ground_commando_runtime::Random_Call_Count_() == 0);
+    for (int16_t count : defender.unit_counts) {
+        DOCTEST_CHECK(count == 0);
+    }
+}
+
+DOCTEST_TEST_CASE("ground combat stops after the last defending unit is killed") {
+    test_ground_commando_runtime::Reset_();
+    s_invasion_player_bonuses bonuses = {};
+    s_invasion_side_info attacker = {};
+    s_invasion_side_info defender = {};
+    attacker.unit_counts[1] = 33;
+    defender.unit_counts[1] = 1;
+
+    invasion::Compute_Ground_Combat_Info(&attacker, &bonuses, nullptr);
+    invasion::Compute_Ground_Combat_Info(&defender, &bonuses, nullptr);
+    attacker.unit_strengths[1] = 100;
+    invasion::Resolve_Ground_Combat(&attacker, &defender);
+
+    DOCTEST_CHECK(attacker.unit_counts[1] == 33);
+    DOCTEST_CHECK(defender.current_troop_type_idx == UNIT_COUNT);
+    DOCTEST_CHECK(test_ground_commando_runtime::Random_Call_Count_() == 2);
+    for (int16_t count : defender.unit_counts) {
+        DOCTEST_CHECK(count == 0);
+    }
+}
+
 DOCTEST_TEST_CASE("ground combat uses the configured troop type modifiers") {
     s_invasion_player_bonuses bonuses = {};
     s_invasion_side_info side = {};

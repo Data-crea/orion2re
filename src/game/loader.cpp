@@ -1,105 +1,112 @@
 #include "pch.h"
 
 namespace LOADER {
-    void __cdecl Load_Main_Screen_Pictures() {
-        allocate::Get_Remaining_Block_Space(MOX::global_screen_seg);
+    namespace {
+        void* picture_pool;
 
-        MOX::main_game_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 1, MOX::global_screen_seg);
-        MOX::main_next_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 2, MOX::global_screen_seg);
-        MOX::main_colonies_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 3, MOX::global_screen_seg);
-        MOX::main_planets_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 4, MOX::global_screen_seg);
-        MOX::main_fleets_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 5, MOX::global_screen_seg);
-        MOX::main_zoom_in_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 6, MOX::global_screen_seg);
-        MOX::main_zoom_out_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 7, MOX::global_screen_seg);
-        MOX::main_leaders_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 8, MOX::global_screen_seg);
-        MOX::main_races_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 9, MOX::global_screen_seg);
-        MOX::main_info_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 10, MOX::global_screen_seg);
-        MOX::fleet_box_selection_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 11, MOX::global_screen_seg);
-        MOX::darkened_turn_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 12, MOX::global_screen_seg);
-
-        allocate::Get_Remaining_Block_Space(MOX::global_screen_seg);
-
-        MOX::moveable_box_pict[4] = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x52, MOX::global_screen_seg);
-
-        RUSS::Mox_Update();
-
-        allocate::Get_Remaining_Block_Space(MOX::global_screen_seg);
-
-        MOX::moveable_box_pict[14] = nullptr;
-        MOX::fleet_box_scroll_up_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x3A, MOX::global_screen_seg);
-        MOX::fleet_box_scroll_dn_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x3B, MOX::global_screen_seg);
-        MOX::fleet_box_all_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x3C, MOX::global_screen_seg);
-
-        RUSS::Mox_Update();
-
-        MOX::fleet_box_att_xenons_lg_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x3D, MOX::global_screen_seg);
-        MOX::fleet_box_colonize_lg_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x3E, MOX::global_screen_seg);
-        MOX::fleet_box_engage_lg_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x3F, MOX::global_screen_seg);
-        MOX::fleet_box_transport_lg_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x40, MOX::global_screen_seg);
-        MOX::fleet_box_outpost_lg_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x41, MOX::global_screen_seg);
-        MOX::fleet_box_close_lg_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x42, MOX::global_screen_seg);
-        MOX::fleet_box_att_xenons_sm_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x43, MOX::global_screen_seg);
-        MOX::fleet_box_engage_sm_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x44, MOX::global_screen_seg);
-        MOX::fleet_box_colonize_sm_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x45, MOX::global_screen_seg);
-        MOX::fleet_box_transport_sm_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x46, MOX::global_screen_seg);
-        MOX::fleet_box_outpost_sm_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x47, MOX::global_screen_seg);
-        MOX::fleet_box_close_sm_button_seg = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", 0x48, MOX::global_screen_seg);
-
-        int32_t picture_idx = 0xF1;
-        allocate::Get_Remaining_Block_Space(MOX::global_screen_seg);
-
-        for (int32_t i = 0; i < 6; ++i) {
-            for (int32_t j = 0; j < 4; ++j) {
-                int32_t index = j + i * 4;
-                MOX::hl_antaran_ship_icon_seg[index] = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", picture_idx, MOX::global_screen_seg);
-                MOX::antaran_ship_icons[index] = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", picture_idx, MOX::global_screen_seg);
-                picture_idx++;
+        template <typename Visitor>
+        void Visit_Pictures(Visitor visit) {
+            s_animation_header** buttons[] = {
+                &MOX::main_game_button_seg,
+                &MOX::main_next_button_seg,
+                &MOX::main_colonies_button_seg,
+                &MOX::main_planets_button_seg,
+                &MOX::main_fleets_button_seg,
+                &MOX::main_zoom_in_button_seg,
+                &MOX::main_zoom_out_button_seg,
+                &MOX::main_leaders_button_seg,
+                &MOX::main_races_button_seg,
+                &MOX::main_info_button_seg,
+                &MOX::fleet_box_selection_seg,
+                &MOX::darkened_turn_button_seg,
+            };
+            for (int i = 0; i < 12; ++i) {
+                visit("BUFFER0.LBX", i + 1, buttons[i]);
+            }
+            visit("BUFFER0.LBX", 0x52, &MOX::moveable_box_pict[4]);
+            s_animation_header** fleet_buttons[] = {
+                &MOX::fleet_box_scroll_up_button_seg,
+                &MOX::fleet_box_scroll_dn_button_seg,
+                &MOX::fleet_box_all_button_seg,
+                &MOX::fleet_box_att_xenons_lg_button_seg,
+                &MOX::fleet_box_colonize_lg_button_seg,
+                &MOX::fleet_box_engage_lg_button_seg,
+                &MOX::fleet_box_transport_lg_button_seg,
+                &MOX::fleet_box_outpost_lg_button_seg,
+                &MOX::fleet_box_close_lg_button_seg,
+                &MOX::fleet_box_att_xenons_sm_button_seg,
+                &MOX::fleet_box_engage_sm_button_seg,
+                &MOX::fleet_box_colonize_sm_button_seg,
+                &MOX::fleet_box_transport_sm_button_seg,
+                &MOX::fleet_box_outpost_sm_button_seg,
+                &MOX::fleet_box_close_sm_button_seg,
+            };
+            for (int i = 0; i < 15; ++i) {
+                visit("BUFFER0.LBX", 0x3A + i, fleet_buttons[i]);
+            }
+            for (int i = 0; i < 24; ++i) {
+                visit("BUFFER0.LBX", 0xF1 + i, &MOX::hl_antaran_ship_icon_seg[i]);
+                visit("BUFFER0.LBX", 0xF1 + i, &MOX::antaran_ship_icons[i]);
+            }
+            for (int i = 0; i < 11; ++i) {
+                visit("gstar.lbx", i + 1, &MOX::star_colors_seg[i]);
+            }
+            for (int i = 0; i < MAX_PLAYERS; ++i) {
+                visit("BUFFER0.LBX", 0x109 + i, &MAINSCR::player_lights_seg[i]);
             }
         }
+    } // namespace
 
-        allocate::Get_Remaining_Block_Space(MOX::global_screen_seg);
+    uint32_t Persistent_Picture_Space() {
+        uint64_t size = 0xDC + 2 * 0x3A4 + 3 * sizeof(allocate::s_alloc_header);
+        Visit_Pictures([&](const char* filename, int entry, s_animation_header**) {
+            s_vfs_file* file = vfs::fopen_lbx(filename, entry);
+            if (file == nullptr) {
+                farload::Error_Handler(filename, 1, entry);
+            }
+            const int32_t bytes = vfs::fsize(file);
+            vfs::fclose(file);
+            if (bytes < (int32_t)sizeof(s_animation_header)) {
+                farload::Error_Handler(filename, 7, entry);
+            }
+            size += allocate::Nested_No_Header_Pool_Size((uint32_t)bytes);
+            if (size > INT32_MAX - sizeof(allocate::s_alloc_header)) {
+                exitm::Exit_With_Message("Persistent picture arena exceeds supported size");
+            }
+        });
+        return (uint32_t)size;
+    }
 
-        MOX::star_width = 0x21;
-        MOX::star_height = 0x21;
-        RUSS::Mox_Update();
-
-        int32_t star_picture_idx = 1;
-        for (int32_t i = 0; i < 11; ++i) {
-            RUSS::Mox_Update();
-            MOX::star_colors_seg[i] = (s_animation_header*)farload::Far_Reload_Next("gstar.lbx", star_picture_idx, MOX::global_screen_seg);
-            star_picture_idx++;
+    void Free_Pictures() {
+        if (picture_pool != nullptr) {
+            free((allocate::s_alloc_header*)picture_pool - 1);
+            picture_pool = nullptr;
         }
+    }
 
-        SYS::sys_data_buffer = allocate::Allocate_Next_Block(MOX::global_screen_seg, 0xDC);
-
-        int32_t player_light_idx = 0x109;
-        for (int32_t i = 0; i < MAX_PLAYERS; ++i) {
-            MAINSCR::player_lights_seg[i] = (s_animation_header*)farload::Far_Reload_Next("BUFFER0.LBX", player_light_idx, MOX::global_screen_seg);
-            player_light_idx++;
-        }
-
-        allocate::Get_Remaining_Block_Space(MOX::global_screen_seg);
+    void __cdecl Load_Main_Screen_Pictures() {
+        const uint32_t size = Persistent_Picture_Space();
+        Free_Pictures();
+        picture_pool = allocate::Allocate_Space(size);
+        Visit_Pictures([](const char* filename, int entry, s_animation_header** target) {
+            *target = (s_animation_header*)farload::Far_Reload_Next(filename, entry, picture_pool);
+        });
+        MOX::moveable_box_pict[14] = nullptr;
+        MOX::star_width = MOX::star_height = 0x21;
+        SYS::sys_data_buffer = allocate::Allocate_Next_Block(picture_pool, 0xDC);
+        MOX::star_name_loaded_string = nullptr;
+        MOX::sys_disp = nullptr;
+        COLONY::swap_bitm = (s_animation_header*)allocate::Allocate_Next_Block(picture_pool, 0x3A4);
+        COLONY::mouse_bitm = (s_animation_header*)allocate::Allocate_Next_Block(picture_pool, 0x3A4);
     }
 
     void __cdecl Load_Pictures() {
+        MOX::screen_seg = (s_animation_header*)MOX::global_screen_seg;
+        memset(Animation_Frame_Offsets_((s_animation_header*)MOX::screen_seg), 0, sizeof(uint32_t) * 5);
         Load_Main_Screen_Pictures();
-        RUSS::Mox_Update();
-        COLONY::Load_Colony_Anims();
         RUSS::Mox_Update();
         TECHINIT::Init_Tech();
         RUSS::Mox_Update();
-
-        void* screen_block = MOX::global_screen_seg;
-        int32_t remaining_space = allocate::Get_Remaining_Block_Space(screen_block);
-
-        // Allocate block and leave space for the animation header
-        s_animation_header* screen_anim = (s_animation_header*)allocate::Allocate_Next_Block(
-            screen_block,
-            remaining_space - (int32_t)sizeof(s_animation_header));
-        MOX::screen_seg = screen_anim;
-
-        // Initialize the start of the frame offset data area
-        memset(Animation_Frame_Offsets_(screen_anim), 0, sizeof(uint32_t) * 5);
     }
 
     void __cdecl Load_Player_Special_Names() {

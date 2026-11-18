@@ -38,6 +38,9 @@ namespace sound {
 
     void __cdecl Set_Audio_Buffer(void* buffer);
 
+    /** Stops effects and invalidates cached samples, leaving music and audio settings unchanged. */
+    void Reset_Effect_Cache();
+
     void __cdecl Sound_On();
 
     void __cdecl Stop_All_Sounds();

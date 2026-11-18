@@ -426,7 +426,10 @@ namespace sound {
     }
 
     void __cdecl Audio_Clear_Cache() {
-        sound::Stop_All_Sounds();
+        for (int i = 0; i < SOUND_CHANNEL_COUNT; ++i) {
+            Destroy_SDL_Stream(soundChannels[i].buffer);
+            Reset_Sound_Channel((int8_t)i);
+        }
 
         uint32_t buffer_size = sound::soundBufferSize;
         if (sound::soundBuffer != nullptr) {
@@ -434,6 +437,11 @@ namespace sound {
         }
 
         Initialize_Sound_Indices(buffer_size);
+    }
+
+    void Reset_Effect_Cache() {
+        Sound_State_Guard_ guard;
+        Audio_Clear_Cache();
     }
 
     void __cdecl Fade_Stream_Down(uint8_t fade_rate) {

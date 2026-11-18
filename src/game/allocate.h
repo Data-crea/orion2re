@@ -109,7 +109,7 @@ namespace allocate {
     /// @param size Requested no-header payload size in bytes.
     /// @return Padded payload size that can satisfy one Allocate_First_Block_No_Header request.
     constexpr uint32_t Nested_No_Header_Pool_Size(uint32_t size) {
-        return (size & 1u) != 0 ? ((size & 0xFFFFFFFCu) + 4u) : size;
+        return (size & 1u) != 0 ? ((size + 3u) & ~3u) : size;
     }
 
     /// Allocates a header-backed sub-block sized for later reuse as a no-header pool.

@@ -195,6 +195,22 @@ orion2re_add_unit_test(test_allocate
         src/game/allocate.cpp
 )
 
+orion2re_add_unit_test(test_resource_reload
+    SOURCES tests/unit/resource_reload_test.cpp
+    PRODUCTION_SOURCES
+        $<TARGET_OBJECTS:orion2re_game_objects>
+        vendors/libsmacker/smacker.c
+        vendors/libsmacker/smk_bitstream.c
+        vendors/libsmacker/smk_hufftree.c
+        vendors/yyjson/src/yyjson.c
+    LIBRARIES
+        uv_a orion2re_lz4 orion2re_lua orion2re_scalers miniz orion2re_imgui
+    LINK_SDL
+)
+target_include_directories(test_resource_reload PRIVATE
+    vendors/libsmacker vendors/yyjson/src
+)
+
 if(MSVC)
     target_compile_options(test_allocate PRIVATE /Gy)
     target_link_options(test_allocate PRIVATE /OPT:REF)

@@ -27,9 +27,12 @@ namespace TEST_CONFIG_REFRESH {
         expected_path = path;
         expected_contents = contents;
     }
-}
+} // namespace TEST_CONFIG_REFRESH
 
 namespace CONFIG_REFRESH {
+    void Request_Resource_Reload() {
+    }
+
     void Refresh_After_Config_Group_Reload(config::t_config_group group) {
         ++TEST_CONFIG_REFRESH::group_refresh_count[group];
     }
@@ -58,4 +61,4 @@ namespace CONFIG_REFRESH {
                 TEST_CONFIG_REFRESH::expected_scroll_interval &&
             read && closed && contents == TEST_CONFIG_REFRESH::expected_contents;
     }
-}
+} // namespace CONFIG_REFRESH
