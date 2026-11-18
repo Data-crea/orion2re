@@ -1,6 +1,7 @@
 # orion2re for OrionLayer
 
-This is [orion2re](https://github.com/orion2re/orion2re) **v2.0.0** with the
+This is [orion2re](https://github.com/orion2re/orion2re) **v2.0.1**, with
+upstream's `main` of 17 November 2026 merged in, and the
 changes [OrionLayer](https://github.com/Data-crea/orionlayerv3) needs: the
 **Extension API** (a local TCP interface a frontend reads the game from and
 sends input through) and the engine fixes OrionLayer asked for, one commit
@@ -69,7 +70,10 @@ working when a record grows or moves.
 ## OrionLayer's changes
 
 One commit per change on top of v2.0.0 (and upstream's own `6f86fc0e`,
-"Normalize tracked text to LF", which the ports need); each commit's message
+"Normalize tracked text to LF", which the ports need). Upstream's v2.0.1 and
+its `main` of 17 November 2026 are merged into the branch as two merge
+commits (their own changes are not listed here; where upstream moved code, the
+hooks below were put back in the new place); each commit's message
 says what it changes and why, and every changed place carries a one-line
 comment `OrionLayer, open fix N.` The changes sit inside
 `#ifdef ORION2RE_EXT` — except three small ones that change the game
