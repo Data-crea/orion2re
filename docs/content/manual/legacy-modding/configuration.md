@@ -2,7 +2,11 @@
 
 The `data/orion2re.cfg` file contains player settings and the list of enabled mods. It is a plain text file and can be edited with a text editor while the game is closed.
 
-If the file does not exist, version 2.00 uses its built-in defaults. The game does not rewrite the file. To restore all defaults, close the game and temporarily rename or remove `data/orion2re.cfg`.
+The game automatically loads `data/user.cfg` after the main configuration if it exists. Put personal settings and build queue presets there to keep them separate from the shipped `orion2re.cfg` when upgrading. You create this optional file yourself; it uses the same syntax and supports settings, `enable`, and `include` commands just like the main file.
+
+Both files execute top to bottom: an `enable` applies the package's dependencies and then its configuration at that point, and an `include` executes its contents at that point. Later assignments to the same field win. Cross-field validation checks the combined final state, and loading commits only if the complete configuration succeeds. File boundaries do not change these rules.
+
+Missing optional configuration files are skipped. If neither file exists, Orion2 Redone uses its built-in defaults. The game does not rewrite either file. To restore all defaults, close the game and temporarily rename or remove both `data/orion2re.cfg` and `data/user.cfg`.
 
 ## Startup options
 
@@ -16,7 +20,7 @@ Use `/` before option names on Windows and a single `-` on Linux and macOS:
 
 Options with values also accept `=`, for example `/config=configs/test.cfg` or `-load-save=1`. Quote an entire path argument if it contains spaces. Unknown options, repeated options, missing values, and out-of-range save numbers are errors.
 
-Configuration paths use forward slashes on all platforms and are VFS paths, not absolute filesystem paths; for example, `configs/test.cfg` normally selects `data/configs/test.cfg`. An explicitly selected configuration must exist. Only the implicit `orion2re.cfg` falls back to defaults when missing. Configuration selection does not create separate saved games or `ORION2RE.SET` files. Reloading configuration uses the selected file.
+Configuration paths use forward slashes on all platforms and are VFS paths, not absolute filesystem paths; for example, `configs/test.cfg` normally selects `data/configs/test.cfg`. An explicitly selected configuration must exist. The implicit `orion2re.cfg` may be missing; `user.cfg` is still loaded if present. Configuration selection does not create separate saved games or `ORION2RE.SET` files. Reloading configuration uses the selected file followed by the optional `user.cfg` at the VFS root, not beside the selected file.
 
 Automatic save loading is attempted once and follows the normal Continue path, including its interactive error messages and multiplayer-save restrictions. A failed attempt returns to the main menu after any error is dismissed; it is not a headless test mode. Combine it with `skip-intro` to reach a saved game faster.
 
@@ -28,6 +32,17 @@ Each assignment ends with a semicolon. For example, this enables vertical synchr
 interface vsync_enabled = true;
 interface scaler = pixelart;
 ```
+
+To override one mod setting, put the assignment after the mod's `enable` line in the same file:
+
+```text
+enable v150i;
+colony android_morale = all_droids;
+```
+
+An assignment before `enable` can be overridden by that mod. A package activates only once per configuration evaluation, including when loaded as a dependency; repeating `enable` does not reapply its settings or change its priority. To reset a value, assign it explicitly.
+
+This replaces the older behavior where all mod settings overrode main/user settings regardless of statement position. Later independent `enable` lines now also have higher resource priority, instead of the first one winning. When upgrading an existing multi-mod configuration, review its order; reverse independent `enable` lines to retain their previous resource priority, and move settings before `enable` if the mod should override them.
 
 The [configuration reference](../../generated/configuration/index.md) lists current setting names, effects, accepted values, and built-in defaults. Copy the configuration path and example from the relevant entry rather than relying on a 1.50 parameter name.
 
@@ -70,7 +85,7 @@ The configuration must parse and validate completely before the game starts. An 
 - a missing included file; or
 - an invalid `enable` line or mod package.
 
-If the error is unclear, close the game, rename `data/orion2re.cfg`, and start with built-in defaults. Restore the file and add its settings back in small groups until the invalid entry is found.
+If the error is unclear, close the game, rename both `data/orion2re.cfg` and `data/user.cfg`, and start with built-in defaults. Restore the files and add their settings back in small groups until the invalid entry is found. User settings are not automatically migrated between versions; update any entries that a newer version rejects.
 
 ## Reloading settings
 
@@ -81,6 +96,8 @@ Restarting the game is safer after changing enabled packages or gameplay rules. 
 ## Saves and multiplayer
 
 Saved games record the game configuration and required package IDs and versions. Loading a save restores the configuration used by that game. Keep its required packages installed.
+
+When restoring a save or adopting the host's configuration, the recorded package list and priority replace the local `enable` selection. Recorded packages supply the baseline, followed by local configuration assignments; local `enable` lines do not activate additional packages. Saved or synchronized gameplay values are then restored over that result, while local interface preferences remain local.
 
 Before testing a save with another build or package set, copy the save and preserve the configuration and mods used to create it. Do not overwrite the only copy.
 

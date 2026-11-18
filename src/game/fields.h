@@ -154,6 +154,9 @@ struct s_field {
 #pragma pack(pop)
 
 namespace fields {
+    inline constexpr int16_t INPUT_HOME = -30001;
+    inline constexpr int16_t INPUT_END = -30002;
+
     inline constexpr int32_t NON_ENTITY_FIELDS_COUNT = 250;
     inline constexpr int32_t MAX_ENTITY_FIELDS_COUNT =
         MAX_SHIPS > MAX_COLONIES
@@ -162,6 +165,7 @@ namespace fields {
     inline constexpr int32_t MAX_FIELDS_COUNT =
         NON_ENTITY_FIELDS_COUNT + MAX_ENTITY_FIELDS_COUNT;
     static_assert(MAX_FIELDS_COUNT <= INT16_MAX, "field indices do not fit in int16_t");
+    static_assert(MAX_FIELDS_COUNT < -INPUT_HOME, "navigation commands overlap right-click field IDs");
 
     extern MOX2::action_func_t update_function;
     extern uint16_t auto_active_flag;
@@ -482,6 +486,18 @@ namespace fields {
 
     void __cdecl Increment_Scroll_Bar(int16_t field_idx);
     void __cdecl Decrement_Scroll_Bar(int16_t field_idx);
+
+    /// Steps by max(1, range / 10), clamped to the field's limits.
+    void __cdecl Step_Scroll_Bar(int16_t field_idx, int16_t steps);
+
+    /// Positive steps select earlier items, skipping disabled rows.
+    int16_t __cdecl Move_List_Selection(int16_t hovered_field_idx, int16_t steps);
+
+    /// Returns a scrolled field, 0 for no event, or -1 for a consumed event.
+    int16_t __cdecl Handle_Mouse_Wheel();
+
+    /// Clears queued events and fractional movement when the input context changes.
+    void __cdecl Reset_Mouse_Wheel_Input();
 
     // Type 4 is the older inline input field renderer/editor.
     // It uses detail.input, including input_mode and a cursor color ramp.

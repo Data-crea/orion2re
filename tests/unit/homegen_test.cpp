@@ -13,6 +13,14 @@ namespace TEST_HOMEGEN {
     int32_t Spectral_Generation_Count_();
 }
 
+DOCTEST_TEST_CASE("home-world distances use the real sorter for more than two candidates") {
+    HOMEGEN::s_star_dist candidates[] = {{20, 1}, {4, 2}, {12, 3}};
+    Legacy_Qsort(candidates, 3, sizeof(candidates[0]), HOMEGEN::qsort_star_dist_list);
+    DOCTEST_CHECK((candidates[0].index == 2));
+    DOCTEST_CHECK((candidates[1].index == 3));
+    DOCTEST_CHECK((candidates[2].index == 1));
+}
+
 DOCTEST_TEST_CASE("minimum-distance planet generation preserves existing satellite records") {
     TEST_HOMEGEN::Reset_();
     int16_t home_stars[1] = {0};
@@ -55,6 +63,38 @@ DOCTEST_TEST_CASE("minimum-distance conversion runs configured generation before
     DOCTEST_CHECK((MOX::star[1].planet_index[2] == 0));
     DOCTEST_CHECK(MOX::planet[0].planet_type == PLANET_TYPE_PLANET);
     DOCTEST_CHECK(HAROLD::N_Planets_In_System(1) == 2);
+}
+
+DOCTEST_TEST_CASE("minimum-distance planet guarantee promotes brown dwarfs to red stars") {
+    TEST_HOMEGEN::Reset_();
+    MOX::star[1].spectral_class = STAR_CLASS_DWARF;
+    int16_t home_stars[1] = {0};
+
+    DOCTEST_SUBCASE("existing brown dwarf") {
+    }
+    DOCTEST_SUBCASE("black hole rerolled as a brown dwarf") {
+        MOX::star[1].spectral_class = STAR_CLASS_BLACK_HOLE;
+        TEST_HOMEGEN::Set_Generated_Spectral_Class_(STAR_CLASS_DWARF);
+        TEST_HOMEGEN::Set_Satellite_Count_(1);
+    }
+
+    HOMEGEN::Guarantee_A_Planet_At_Min_Dist(0, 4, home_stars);
+
+    DOCTEST_CHECK(MOX::star[1].spectral_class == STAR_CLASS_M);
+    DOCTEST_CHECK(HAROLD::N_Planets_In_System(1) == 2);
+}
+
+DOCTEST_TEST_CASE("minimum-distance planet guarantee preserves normal star classes") {
+    for (int8_t spectral_class = STAR_CLASS_B; spectral_class <= STAR_CLASS_M; ++spectral_class) {
+        TEST_HOMEGEN::Reset_();
+        MOX::star[1].spectral_class = spectral_class;
+        int16_t home_stars[1] = {0};
+
+        HOMEGEN::Guarantee_A_Planet_At_Min_Dist(0, 4, home_stars);
+
+        DOCTEST_CHECK(MOX::star[1].spectral_class == spectral_class);
+        DOCTEST_CHECK(HAROLD::N_Planets_In_System(1) == 2);
+    }
 }
 
 DOCTEST_TEST_CASE("food-world generation rerolls unsuitable stars without allowing black holes") {

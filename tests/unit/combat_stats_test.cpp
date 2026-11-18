@@ -14,6 +14,16 @@ namespace {
     s_planet_data planets[1];
     s_player players[MAX_PLAYERS];
     s_ship_data ships[MAX_COMBAT_SHIPS];
+
+    const game::s_view* AI_World_() {
+        static const game::s_view world{
+            .players = players,
+            .ships = ships,
+            .colonies = colonies,
+            .settings = &MOX::settings,
+        };
+        return &world;
+    }
     int16_t best_armor;
     int16_t best_bomb_weapon;
     int16_t best_point_defense_weapon;
@@ -613,7 +623,7 @@ DOCTEST_TEST_CASE("fighter garrison AI strength is independent of tactical slot 
 
         for (uint8_t slot_count = 1; slot_count <= 3; ++slot_count) {
             COMBINIT::ground_defense.garrison_slots = slot_count;
-            DOCTEST_CHECK(AIPOWER::Fighter_Garrison_Strength(0, 1) ==
+            DOCTEST_CHECK(AIPOWER::Fighter_Garrison_Strength(AI_World_(), legacy_world::Player_Id(0), legacy_world::Player_Id(1)) ==
                 test_case.expected_strength);
         }
     }
@@ -627,10 +637,10 @@ DOCTEST_TEST_CASE("Stellar Converter AI strength is independent of tactical amou
     MOX::colony[0].buildings[BUILDING_STELLAR_CONVERTER] = 1;
 
     MOX::settings.strategic_combat_flag = 1;
-    DOCTEST_CHECK(AIPOWER::Colony_Ground_Strength_Vs_Player(0, 1) == 200);
+    DOCTEST_CHECK(AIPOWER::Colony_Ground_Strength_Vs_Player(AI_World_(), legacy_world::Colony_Id(0), legacy_world::Player_Id(1)) == 200);
 
     MOX::settings.strategic_combat_flag = 0;
-    DOCTEST_CHECK(AIPOWER::Colony_Ground_Strength_Vs_Player(0, 1) == 500);
+    DOCTEST_CHECK(AIPOWER::Colony_Ground_Strength_Vs_Player(AI_World_(), legacy_world::Colony_Id(0), legacy_world::Player_Id(1)) == 500);
 
     COMBINIT::ground_defense.stellar_amount = 1;
 }
@@ -826,6 +836,36 @@ DOCTEST_TEST_CASE("auto combat disable packet tolerates no selected ship") {
     MOX::combat_data[1].owner = 0;
     CMBTMOV1::Tactical_Combat_Receive_Message(0, TACTICAL_NET_PACKET_AUTO_COMBAT_DISABLED, sizeof(message), &message);
     DOCTEST_CHECK(MOX::auto_combat == 0);
+}
+
+DOCTEST_TEST_CASE("tactical actions reject truncated and out-of-range input before queuing") {
+    MOX::combat_total_ship_count = 2;
+    const auto send = [](int16_t code, int16_t arg1, int16_t arg2, int32_t size = sizeof(s_net_tactical_combat_message)) {
+        s_net_tactical_combat_message message = {};
+        message.message_code = code;
+        message.arg1 = arg1;
+        message.arg2 = arg2;
+        MOX::new_message = {};
+        MOX::tactical_net_choice = 0;
+        CMBTMOV1::Tactical_Combat_Receive_Message(0, TACTICAL_NET_PACKET_ACTION, size, &message);
+        return MOX::tactical_net_choice;
+    };
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_SELECT_SHIP, 1, 0, 2) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_SELECT_SHIP, -1, 0) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_SELECT_SHIP, 2, 0) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_REMOVE_STASIS, 30000, 0) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_BOARDING_ACTION, 2, 5) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_TOGGLE_WEAPON, 8, 0) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_FIRE_WEAPON, 2, 0) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_FIRE_WEAPON, MAX_COMBAT_FLYERS, 1) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_MOVE_SHIP, MOX::combat_grid_width, 0) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_MOVE_SHIP, 0, MOX::combat_grid_height) == 0);
+    DOCTEST_CHECK(send(9999, 0, 0) == 0);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_SELECT_SHIP, 1, 0) == TACTICAL_NET_MSG_SELECT_SHIP);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_TOGGLE_WEAPON, 7, 0) == TACTICAL_NET_MSG_TOGGLE_WEAPON);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_FIRE_WEAPON, MAX_COMBAT_FLYERS - 1, 1) == TACTICAL_NET_MSG_FIRE_WEAPON);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_MOVE_SHIP, MOX::combat_grid_width - 1, MOX::combat_grid_height - 1) == TACTICAL_NET_MSG_MOVE_SHIP);
+    DOCTEST_CHECK(send(TACTICAL_NET_MSG_SHIP_DONE, 0, 0) == TACTICAL_NET_MSG_SHIP_DONE);
 }
 
 DOCTEST_TEST_CASE("current ship blip is skipped without a current ship") {

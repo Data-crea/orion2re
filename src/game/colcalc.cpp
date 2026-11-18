@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "legacy_world.h"
 
 #include "build_queue.h"
 #include "lua/lua_game.h"
@@ -36,13 +37,13 @@ namespace COLCALC {
             ignore_mixed_race_penalty[government] != 0;
     }
 
-    static int16_t Prepare_Production_Item(s_colony* colony) {
+    static int16_t Prepare_Production_Item(uint32_t colony_id, s_colony* colony) {
         int16_t current_product = colony->producing[0];
         if (BUILD_QUEUE::Is_Legacy_Autobuild(colony->auto_building) &&
             (current_product == COLONY_PRODUCTION_HOUSING ||
                 current_product == COLONY_PRODUCTION_TRADE_GOODS ||
                 current_product == COLONY_PRODUCTION_NONE)) {
-            AIBUILD::Player_Colony_Autobuild(colony);
+            AIBUILD::Player_Colony_Autobuild(&AIDATA::state, &game::current, legacy_world::Colony_Id(colony_id), colony);
         }
 
         colony->just_produced = COLONY_PRODUCTION_NONE;
@@ -787,7 +788,7 @@ namespace COLCALC {
     void __cdecl Colony_Pop_Grows(s_colony* colony) {
         int total_pops = static_cast<uint8_t>(colony->n_pops);
         if (total_pops == 0) {
-            for (int i = 0; i < 10; ++i) {
+            for (int i = 0; i < COLONY_POP_RACE_COUNT; ++i) {
                 colony->pop_growth[i] = 0;
                 colony->pop_roundoff[i] = 0;
             }
@@ -796,7 +797,7 @@ namespace COLCALC {
 
         int16_t colony_idx = (int16_t)(colony - MOX::colony);
         if (EVENTS::Event_Check_Space_Anomaly(colony_idx)) {
-            for (int i = 0; i < 10; ++i) {
+            for (int i = 0; i < COLONY_POP_RACE_COUNT; ++i) {
                 colony->pop_growth[i] = 0;
             }
             return;
@@ -853,7 +854,7 @@ namespace COLCALC {
             ind_needs_conquered--;
         }
 
-        for (int i = 0; i < 10; ++i) colony->pop_growth[i] = 0;
+        for (int i = 0; i < COLONY_POP_RACE_COUNT; ++i) colony->pop_growth[i] = 0;
 
         int owner_penalty_sum = ind_needs_empire + food_needs_empire;
         colony->pop_growth[static_cast<uint8_t>(colony->owner)] = (owner_penalty_sum < 1) ? 0 : static_cast<int16_t>(owner_penalty_sum * -25);
@@ -872,11 +873,11 @@ namespace COLCALC {
             }
         }
 
-        uint8_t race_pop_count[10] = {0};
-        uint8_t race_conquered_count[10] = {0};
+        uint8_t race_pop_count[COLONY_POP_RACE_COUNT] = {0};
+        uint8_t race_conquered_count[COLONY_POP_RACE_COUNT] = {0};
         for (int i = 0; i < total_pops; ++i) {
             int8_t r = POP::Get_Race(colony->pop[i]);
-            if (r < 10) {
+            if (r < COLONY_POP_RACE_COUNT) {
                 race_pop_count[r]++;
                 if (POP::Is_Conquered(colony->pop[i])) {
                     race_conquered_count[r]++;
@@ -991,7 +992,7 @@ namespace COLCALC {
                     return Colony_Race_Pop_Limit(colony, player_idx);
                 }
 
-                uint8_t races_present[10];
+                uint8_t races_present[COLONY_POP_RACE_COUNT];
                 memset(races_present, 0, sizeof(races_present));
 
                 for (int i = 0; i < (int)colony->n_pops; ++i) {
@@ -999,7 +1000,7 @@ namespace COLCALC {
                 }
 
                 int16_t max_limit = 0;
-                for (int race = 0; race < 10; ++race) {
+                for (int race = 0; race < COLONY_POP_RACE_COUNT; ++race) {
                     if (races_present[race]) {
                         int16_t race_limit = Colony_Race_Pop_Limit(colony, (int16_t)race);
                         if (max_limit < race_limit) {
@@ -1692,6 +1693,7 @@ namespace COLCALC {
     }
 
     void __cdecl Ensure_Uncreative_Field_OK(s_player* player, int field_idx) {
+        if (player == nullptr || field_idx < 0 || field_idx >= TECH_FIELD_COUNT) return;
         int selected_tech_id = -1;
         int candidates_count = 0;
         int owned_count = 0;
@@ -1745,6 +1747,7 @@ namespace COLCALC {
     }
 
     void __cdecl Advance_Player_Field(s_player* player, int field_idx, bool skip_first_advance) {
+        if (player == nullptr || field_idx < 0 || field_idx >= TECH_FIELD_COUNT) return;
         if (field_idx == TECH_FIELD_STARTING_TECH) {
             return;
         }
@@ -1773,20 +1776,6 @@ namespace COLCALC {
 
             loop_count++;
         } while (techs_known == 0 && field_idx < 75);
-    }
-
-    bool __cdecl Field_Is_Gray_Box(int32_t field_id) {
-        switch (field_id) {
-            case 0x16:
-            case 0x17:
-            case 0x1c:
-            case 0x1d:
-            case 0x37:
-            case 0x39:
-                return true;
-            default:
-                return false;
-        }
     }
 
     void __cdecl Compute_Potential_Colony_Info(s_player* plr, s_planet_data* planet, s_potential_colony_info* results) {
@@ -2217,8 +2206,8 @@ namespace COLCALC {
         s_player* const owner_player = &MOX::player[owner_idx];
         const bool preserve_last_population =
             planet_extinction == 0 || owner_player->objectives != PLAYER_OBJECTIVE_HUMAN;
-        int16_t race_counts[10] = {};
-        uint8_t protected_race[10] = {};
+        int16_t race_counts[COLONY_POP_RACE_COUNT] = {};
+        uint8_t protected_race[COLONY_POP_RACE_COUNT] = {};
         bool had_negative_growth = false;
 
         {
@@ -2250,7 +2239,7 @@ namespace COLCALC {
             }
         }
 
-        for (int32_t race_idx = 0; race_idx < 10; ++race_idx) {
+        for (int32_t race_idx = 0; race_idx < COLONY_POP_RACE_COUNT; ++race_idx) {
             if (race_idx >= MOX::NUM_PLAYERS && race_idx != 8 && race_idx != 9) {
                 continue;
             }
@@ -2296,6 +2285,11 @@ namespace COLCALC {
 
                     const int16_t remove_idx = (special_count > 0) ? selected_special : selected_normal;
 
+                    if (remove_idx == -1) {
+                        colony->pop_roundoff[race_idx] = 0;
+                        break;
+                    }
+
                     --race_counts[race_idx];
                     --colony->n_pops;
                     colony->pop[remove_idx] = colony->pop[static_cast<uint8_t>(colony->n_pops)];
@@ -2332,7 +2326,7 @@ namespace COLCALC {
             }
         }
 
-        int16_t player_order[10] = {};
+        int16_t player_order[COLONY_POP_RACE_COUNT] = {};
 
         for (int16_t i = 0; i < MOX::NUM_PLAYERS; ++i) {
             player_order[i] = i;
@@ -2592,6 +2586,7 @@ namespace COLCALC {
     }
 
     void __cdecl Give_Player_Field(s_player* player, int field_id, char get_all_flag) {
+        if (player == nullptr || field_id < 0 || field_id >= TECH_FIELD_COUNT) return;
         if (field_id < 75 /* HYPER_ADVANCED_THRESHOLD */) {
             Advance_Player_Field(player, field_id, false);
 
@@ -3624,7 +3619,12 @@ namespace COLCALC {
 
     void __cdecl Apply_Production(s_colony* colony) {
         const int32_t owner_player_idx = static_cast<int32_t>(colony->owner);
-        const int16_t colony_idx = (int16_t)(colony - MOX::colony);
+        const game::s_view world{.colonies = MOX::colony, .colony_count = &MOX::NUM_COLONIES};
+        const auto colony_id = legacy_world::Colony_Id(&world, colony);
+        if (!colony_id) return;
+        const auto legacy_colony = legacy_world::Index(*colony_id);
+        if (!legacy_colony) return;
+        const int16_t colony_idx = *legacy_colony;
         s_player& player = MOX::player[owner_player_idx];
 
         if (EVENTS::Event_Check_Space_Anomaly(colony_idx) != 0) {
@@ -3635,7 +3635,7 @@ namespace COLCALC {
             colony->producing[0] == COLONY_PRODUCTION_AI_TRADE_GOODS ||
             colony->producing[0] == COLONY_PRODUCTION_NONE) {
             // Income for this turn was calculated before legacy autobuild selects a new item.
-            Prepare_Production_Item(colony);
+            Prepare_Production_Item(colony_idx, colony);
             return;
         }
 
@@ -3648,7 +3648,7 @@ namespace COLCALC {
         bool completed_product = false;
         for (;;) {
             bool removed_existing_pop = false;
-            const int16_t current_product = Prepare_Production_Item(colony);
+            const int16_t current_product = Prepare_Production_Item(colony_idx, colony);
 
             if (current_product == COLONY_PRODUCTION_HOUSING) {
                 if (disable_housing != 0) {
@@ -3909,7 +3909,7 @@ namespace COLCALC {
 
                 if (colony->producing[0] == COLONY_PRODUCTION_NONE &&
                     BUILD_QUEUE::Is_Legacy_Autobuild(colony->auto_building)) {
-                    AIBUILD::Player_Colony_Autobuild(colony);
+                    AIBUILD::Player_Colony_Autobuild(&AIDATA::state, &game::current, *colony_id, colony);
                     build_msg.u.colony.c.build.append_fmt = 1;
                 }
 

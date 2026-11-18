@@ -27,6 +27,7 @@ namespace TEST_CRYSTAL_FLEET {
 namespace TEST_BEAM_MODIFIERS {
     void Reset_();
     void Set_Has_HEF_(bool has_hef);
+    void Set_Has_Rangemaster_(bool value);
 } // namespace TEST_BEAM_MODIFIERS
 
 namespace TEST_FAIR_BEAMS {
@@ -496,6 +497,41 @@ DOCTEST_TEST_CASE("absorber and damper percentage calculations preserve classic 
     CMBTFIRE::damper_field_ratio = 25;
 }
 
+DOCTEST_TEST_CASE("fighter bombs select the source empire weapon and missile-owner ordnance bonus") {
+    TEST_FIGHTER_ORDNANCE::Reset_();
+    TEST_STASIS::Capture_Internal_Damage_();
+    MOX::combat_data[0].owner = 0;
+    MOX::combat_data[1].owner = 1;
+    MOX::combat_data[1].structure_max = 100;
+    MOX::combat_data[1].armor_remaining = 100;
+    MOX::missile[0].source_unit_idx = 0;
+    MOX::missile[0].target_unit_idx = 1;
+    MOX::missile[0].owner = 1;
+    MOX::missile[0].quantity = 2;
+    MOX::fighter_bomb_type[0] = WEAPON_NUCLEAR_BOMB;
+    MOX::ordnance_bonus[0] = 100;
+    MOX::ordnance_bonus[1] = 150;
+    TECHDATA::weapons[WEAPON_NUCLEAR_BOMB].min_damage = 10;
+    TECHDATA::weapons[WEAPON_NUCLEAR_BOMB].max_damage = 10;
+    TECHDATA::weapons[WEAPON_NUCLEAR_BOMB].natural_mods = WEAPON_NATURAL_FLAG_IGNORES_SHIELDS;
+    int16_t damage = -1, internal = -1;
+    CMBTFIRE::Fire_Fighter_Bomb(0, 0, &damage, &internal);
+    DOCTEST_CHECK(damage == 30);
+    DOCTEST_CHECK(internal == 0);
+    DOCTEST_CHECK(TEST_STASIS::Captured_Internal_Damage_() == 30);
+    TEST_FIGHTER_ORDNANCE::Reset_();
+}
+
+DOCTEST_TEST_CASE("full absorber charge destroys its ship") {
+    TEST_STASIS::Reset_();
+    MOX::combat_data[1].structure_max = 100;
+    MOX::combat_data[1].drive_current_hits = 1;
+    MOX::combat_data[1].ftl_type = 1;
+    MOX::combat_data[1].size_class = HULL_CRUISER;
+    MOX::combat_data[1].reflected_damage_pool = INT16_MAX;
+    DOCTEST_CHECK(CMBTFIRE::Is_Combat_Ship_Dead(1) == 4);
+}
+
 DOCTEST_TEST_CASE("absorber charge addition wraps at the signed word boundary") {
     TEST_STASIS::Reset_();
     s_combat_data& ship = MOX::combat_data[1];
@@ -573,6 +609,34 @@ DOCTEST_TEST_CASE("beam mount damage defaults match classic HEF combinations") {
         DOCTEST_CHECK(hit_bonus == value.expected_hit_bonus);
         DOCTEST_CHECK(damage == value.expected_damage);
     }
+}
+
+DOCTEST_TEST_CASE("beam modifiers cap long effective ranges at the last table entry") {
+    TEST_BEAM_MODIFIERS::Reset_();
+    MOX::ranged_to_hit_penalty[8] = -85;
+    MOX::ranged_damage_penalty[8] = -65;
+    const uint16_t mounts[] = {0, WEAPON_MOD_FLAG_HEAVY_MOUNT, WEAPON_MOD_FLAG_POINT_DEFENSE};
+    const int damages[] = {35, 85, 0};
+    const int bonuses[] = {-85, -85, -60};
+    for (int i = 0; i < 3; ++i) {
+        int32_t hit = 0;
+        int32_t damage = 0;
+        CMBTFIRE::Get_Beam_Weapon_Modifiers(0, 100, mounts[i], 0, &hit, &damage);
+        DOCTEST_CHECK(hit == bonuses[i]);
+        DOCTEST_CHECK(damage == damages[i]);
+    }
+    int32_t hit = 0;
+    int32_t damage = 0;
+    CMBTFIRE::Get_Beam_Weapon_Modifiers(0, 9, 0, 0, &hit, &damage);
+    DOCTEST_CHECK(hit == -85);
+    DOCTEST_CHECK(damage == 35);
+    TEST_BEAM_MODIFIERS::Set_Has_Rangemaster_(true);
+    MOX::ranged_to_hit_penalty[3] = -30;
+    CMBTFIRE::Get_Beam_Weapon_Modifiers(0, 9, 0, 0, &hit, &damage);
+    DOCTEST_CHECK(hit == -30);
+    DOCTEST_CHECK(damage == 35);
+    CMBTFIRE::Get_Beam_Weapon_Modifiers(0, 100, 0, 0, &hit, &damage);
+    DOCTEST_CHECK(hit == -85);
 }
 
 DOCTEST_TEST_CASE("beam modifiers use configured mount damage") {

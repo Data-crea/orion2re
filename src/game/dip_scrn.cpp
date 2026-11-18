@@ -2,6 +2,7 @@
 #ifdef ORION2RE_EXT
 #include "ext/ext_api.h"  // OrionLayer, open fix 109. TurnPopupGuard.
 #endif
+#include "legacy_ids.h"
 
 namespace DIP_SCRN {
 #ifdef ORION2RE_EXT
@@ -482,7 +483,7 @@ namespace DIP_SCRN {
         // Initialize output buffer
         memset(tech_list_buffer, 0, 10 * sizeof(*tech_list_buffer));
 
-        aitech::Get_Max_Technology_Value(player_a_idx);
+        aitech::Get_Max_Technology_Value(&game::current, legacy_world::Player_Id(player_a_idx));
 
         // Get list of technologies that player B has but player A does not
         npcdiplo::Get_Differential_Tech_List(

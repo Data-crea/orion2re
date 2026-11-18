@@ -1,5 +1,7 @@
 #include "pch.h"
 
+#include "legacy_world.h"
+
 #include "game/savegame.h"
 #include "game/config_refresh.h"
 
@@ -33,12 +35,12 @@ namespace FILEDEF {
             return false;
         }
 
-        fwrite(&MOX::settings, sizeof(MOX::settings), 1, file);
-        fclose(file);
+        const bool written = fwrite(&MOX::settings, sizeof(MOX::settings), 1, file) == 1;
+        const bool closed = fclose(file) == 0;
 
         RUSS::Assert_Settings();
 
-        return true;
+        return written && closed;
     }
 
     void __cdecl Save_Game(int16_t slot_index) {
@@ -137,7 +139,7 @@ namespace FILEDEF {
         }
         fclose(file);
 
-        SERIAL::Reader_ reader(save_buffer, file_size, "Invalid or truncated save game");
+        SERIAL::Reader_ reader(save_buffer, file_size, "Invalid or truncated save game", true);
         SAVEGAME::s_metadata metadata = {};
         std::string load_error;
         if (!SAVEGAME::Read_Game(
@@ -165,6 +167,8 @@ namespace FILEDEF {
         }
         free(save_buffer);
 
+        AIDATA::Reset(&AIDATA::state);
+        game::current = legacy_world::World();
         MISC::Increment_Mouse_Clock_Image();
 
         int16_t description_slot_index = (slot_index >= 9) ? 9 : slot_index;

@@ -1,5 +1,6 @@
 #include "pch.h"
 
+#include "fake_colony_services.h"
 #include "lua/lua_game.h"
 
 namespace {
@@ -7,9 +8,10 @@ namespace {
     // MOX::planet points past the sentinel, leaving two usable planet records.
     s_planet_data planet_storage[3];
     s_player players[MAX_PLAYERS];
-    s_star_data stars[1];
-    s_ship_data ships[1];
-    s_leader_data leaders[1];
+    s_star_data stars[2];
+    s_ship_data ships[2];
+    s_leader_data leaders[MAX_LEADERS];
+    char race_name[] = "Fixture race";
     int32_t destroy_colony_reason;
     int16_t add_spy_result;
     int16_t deleted_product;
@@ -25,7 +27,19 @@ namespace {
 }
 
 namespace TEST_COLONY_POP_GROWTH {
+    s_services services;
+
     void Reset_() {
+        services = {};
+        MOX::NUM_COLONIES = 1;
+        MOX::NUM_PLAYERS = 1;
+        MOX::NUM_STARS = 0;
+        MOX::NUM_SHIPS = 1;
+        MOX::stardate = 35000;
+        memset(REPORT::something_interesting_happened, 0, sizeof(REPORT::something_interesting_happened));
+        for (char*& name : MOX::race_names) {
+            name = race_name;
+        }
         memset(colonies, 0, sizeof(colonies));
         memset(planet_storage, 0, sizeof(planet_storage));
         memset(players, 0, sizeof(players));
@@ -68,8 +82,8 @@ namespace TEST_COLONY_POP_GROWTH {
         COLCALC::growth_formula_factor = 2000;
         COLCALC::food_farmer_bonus = {2, 2, 4, 2, 4, 6};
         COLCALC::fungi_climate = COLCALC::FUNGI_CLIMATE_CLASSIC;
-        AIDATA::uncolonized_planet_food_worth = {75, 38};
-        AIDATA::uncolonized_planet_special_worth = {1280, 2560, 640, 1600};
+        AIDATA::planet_valuation_rules.food = {75, 38};
+        AIDATA::planet_valuation_rules.special = {1280, 2560, 640, 1600};
         COLCALC::population_bonus.advanced_city_planning = 5;
         COLCALC::population_bonus.tolerant = 25;
         COLCALC::pop_bonus_biospheres = 2;
@@ -113,6 +127,48 @@ namespace TEST_COLONY_POP_GROWTH {
         COLCALC::misc_costs.spy = 100;
         COLCALC::misc_costs.terraforming_step = 250;
         memset(MOX::food_per_farmer_table, 0, sizeof(MOX::food_per_farmer_table));
+    }
+
+    void Reset_Services_() {
+        Reset_();
+        static char command_title[] = "Command summary";
+        static char industry_title[] = "Industry summary";
+        static char research_title[] = "Research summary";
+        COLCALC::command_summary_msg = command_title;
+        COLCALC::industry_summary_msg = industry_title;
+        COLCALC::research_summary_msg = research_title;
+        memset(&MOX::settings, 0, sizeof(MOX::settings));
+        MOX::NUM_PLAYERS = 2;
+        MOX::NUM_STARS = 1;
+        MOX::NUM_SHIPS = 2;
+        for (auto& leader : leaders) {
+            leader.player_index = -1;
+            leader.status = -1;
+            leader.location = -1;
+        }
+        for (auto& ship : ships) {
+            ship.officer_index = -1;
+        }
+        for (auto& player : players) {
+            player.home_planet_id = -1;
+            player.last_attacker = -1;
+        }
+        for (auto& star : stars) {
+            memset(star.planet_index, 0xff, sizeof(star.planet_index));
+            memset(star.officer_index, 0xff, sizeof(star.officer_index));
+            memset(star.surrender_to, 0xff, sizeof(star.surrender_to));
+        }
+        for (int i = 0; i < 2; ++i) {
+            colonies[i].planet = i;
+            colonies[i].n_pops = 1;
+            for (int slot = 0; slot < 7; ++slot) {
+                colonies[i].producing[slot] = COLONY_PRODUCTION_NONE;
+            }
+            MOX::planet[i].colony_index = i;
+            MOX::planet[i].star_index = i;
+            stars[i].planet_index[0] = i;
+            stars[i].has_colony = 1;
+        }
     }
 
     int32_t Destroy_Colony_Reason_() {
@@ -179,6 +235,9 @@ namespace MOX {
     int16_t NUM_COLONIES = 1;
     int16_t NUM_PLAYERS = 1;
     int16_t NUM_STARS = 0;
+    int16_t NUM_SHIPS = 1;
+    int32_t stardate = 35000;
+    char* race_names[20];
     s_colony* colony = colonies;
     s_planet_data* planet = &planet_storage[1];
     s_player* player = players;
@@ -190,6 +249,10 @@ namespace MOX {
     uint8_t food_per_farmer_table[PLANET_CLIMATE_COUNT] = {};
 }
 
+namespace REPORT {
+    uint8_t something_interesting_happened[MAX_PLAYERS];
+}
+
 namespace TECHDATA {
     s_tech_building_data buildings[BUILDING_COUNT] = {};
     s_tech_app_data technology_applications[TECH_APP_COUNT] = {};
@@ -197,6 +260,15 @@ namespace TECHDATA {
 }
 
 namespace EVENTS {
+    void __cdecl Event_Race_Eliminated(int8_t player) {
+        TEST_COLONY_POP_GROWTH::services.eliminated.push_back(player);
+    }
+
+    int16_t __cdecl Event_Check_Space_Anomaly_At_Star(int16_t star) {
+        TEST_COLONY_POP_GROWTH::services.anomalies.push_back(star);
+        return TEST_COLONY_POP_GROWTH::services.anomaly_result;
+    }
+
     int16_t __cdecl Event_Check_Space_Anomaly(int16_t) {
         return 0;
     }
@@ -215,6 +287,20 @@ namespace EVENTS {
 }
 
 namespace OFFICER {
+    void __cdecl Deassign_Officer(int16_t leader) {
+        TEST_COLONY_POP_GROWTH::services.deassigned.push_back(leader);
+        MOX::leaders[leader].location = -1;
+        MOX::leaders[leader].status = 0;
+        MOX::leaders[leader].eta = 0;
+    }
+
+    void __cdecl Move_Officer_To_Pool(int16_t leader) {
+        TEST_COLONY_POP_GROWTH::services.pooled.push_back(leader);
+        MOX::leaders[leader].location = -1;
+        MOX::leaders[leader].status = 0;
+        MOX::leaders[leader].eta = 0;
+    }
+
     int16_t __cdecl Owned_Officer_Level(int16_t) {
         return 0;
     }
@@ -227,11 +313,21 @@ namespace special {
 }
 
 namespace MSG_ {
-    void __cdecl Add_Msg(s_MSG, int16_t) {
+    void __cdecl Add_Msg(s_MSG message, int16_t player) {
+        TEST_COLONY_POP_GROWTH::services.messages.push_back(message);
+        TEST_COLONY_POP_GROWTH::services.message_players.push_back(player);
     }
 }
 
 namespace RUSS {
+    void __cdecl Assert_Settings() {
+        ++TEST_COLONY_POP_GROWTH::services.settings_checks;
+    }
+
+    void __cdecl Mox_Update() {
+        ++TEST_COLONY_POP_GROWTH::services.screen_updates;
+    }
+
     void __cdecl Shuffle_Sint(int16_t*, int16_t) {
     }
 
@@ -260,7 +356,7 @@ namespace ERICNET {
 }
 
 namespace AIBUILD {
-    void __cdecl Player_Colony_Autobuild(s_colony* colony) {
+    void __cdecl Player_Colony_Autobuild(AIDATA::s_state*, const game::s_view*, game::id_colony, s_colony* colony) {
         if (legacy_autobuild_product != COLONY_PRODUCTION_NONE) {
             colony->producing[0] = legacy_autobuild_product;
         }
@@ -268,6 +364,16 @@ namespace AIBUILD {
 }
 
 namespace BILL {
+    int16_t __cdecl Get_Their_Spy_Number(int16_t player, int16_t target) {
+        TEST_COLONY_POP_GROWTH::services.spy_reads.push_back({player, target});
+        return TEST_COLONY_POP_GROWTH::services.spies[player][target];
+    }
+
+    void __cdecl Set_Their_Spy_Number(int16_t player, int16_t target, int16_t count) {
+        TEST_COLONY_POP_GROWTH::services.spy_writes.push_back({player, target, count});
+        TEST_COLONY_POP_GROWTH::services.spies[player][target] = count;
+    }
+
     int16_t __cdecl Add_Their_Spy(int16_t, int16_t) {
         return add_spy_result;
     }
@@ -281,7 +387,15 @@ namespace BUILD_QUEUE {
 }
 
 namespace COLBLDG {
-    int16_t __cdecl Create_Ship(int16_t, int16_t, int16_t) {
+    void __cdecl Clear_Colony_Queue(int16_t colony) {
+        TEST_COLONY_POP_GROWTH::services.queues.push_back(colony);
+        for (int slot = 0; slot < 7; ++slot) {
+            MOX::colony[colony].producing[slot] = COLONY_PRODUCTION_NONE;
+        }
+    }
+
+    int16_t __cdecl Create_Ship(int16_t player, int16_t design, int16_t colony) {
+        TEST_COLONY_POP_GROWTH::services.creations.push_back({player, design, colony});
         return -1;
     }
 
@@ -316,12 +430,25 @@ namespace DESIGN {
 }
 
 namespace INITSHIP {
+    void __cdecl Update_Player_Ship_Designs(int16_t player) {
+        TEST_COLONY_POP_GROWTH::services.designs.push_back(player);
+    }
+
     void __cdecl Init_Ship_Designs(int16_t) {
         ++init_ship_designs_calls;
     }
 }
 
 namespace COLCALC {
+    void __cdecl Twiddle_Initial_Homeworld(s_colony* colony) {
+        TEST_COLONY_POP_GROWTH::services.homeworlds.push_back((int16_t)(colony - MOX::colony));
+    }
+
+    void __cdecl Compute_Player_Maintenance(s_player* player, STRBUILD::s_builder* builder) {
+        TEST_COLONY_POP_GROWTH::services.maintenance_summary_player = (int16_t)(player - MOX::player);
+        STRBUILD::Cat(builder, "Maintenance detail");
+    }
+
     void __cdecl Player_Gets_Tech_App(s_player* player, int16_t tech_app_id) {
         player->tech_applications[tech_app_id] = TECH_RESEARCH_STATUS_RESEARCHED;
     }
@@ -344,7 +471,11 @@ namespace COLCALC {
     void __cdecl Colony_Morale(s_colony*, STRBUILD::s_builder*) {
     }
 
-    void __cdecl Colony_Industry_Production(s_colony*, STRBUILD::s_builder*) {
+    void __cdecl Colony_Industry_Production(s_colony* colony, STRBUILD::s_builder* builder) {
+        if (builder != nullptr) {
+            TEST_COLONY_POP_GROWTH::services.industry_summary_colony = (int16_t)(colony - MOX::colony);
+            STRBUILD::Cat(builder, "Industry detail");
+        }
     }
 
     void __cdecl Colony_Food_Production(s_colony*, STRBUILD::s_builder*) {
@@ -353,7 +484,11 @@ namespace COLCALC {
     void __cdecl Colony_Replicators(s_colony*) {
     }
 
-    void __cdecl Colony_Research_Production(s_colony*, STRBUILD::s_builder*) {
+    void __cdecl Colony_Research_Production(s_colony* colony, STRBUILD::s_builder* builder) {
+        if (builder != nullptr) {
+            TEST_COLONY_POP_GROWTH::services.research_summary_colony = (int16_t)(colony - MOX::colony);
+            STRBUILD::Cat(builder, "Research detail");
+        }
     }
 
     void __cdecl Colony_BC_Production(s_colony*, STRBUILD::s_builder*) {
@@ -362,7 +497,8 @@ namespace COLCALC {
     void __cdecl Pass_Out_Imports(int16_t, s_colony*) {
     }
 
-    void __cdecl Update_Player_Stats(s_player*) {
+    void __cdecl Update_Player_Stats(s_player* player) {
+        TEST_COLONY_POP_GROWTH::services.stats.push_back((int16_t)(player - MOX::player));
     }
 }
 
@@ -395,5 +531,75 @@ namespace game_random {
 namespace GEO {
     int32_t __cdecl Parsecs_Between_Stars(int16_t, int16_t) {
         return 0;
+    }
+}
+
+namespace SHIPMOVE {
+    void __cdecl Update_Ship_ETAs(int16_t player) {
+        TEST_COLONY_POP_GROWTH::services.fleet_etas.push_back(player);
+    }
+
+    void __cdecl Update_All_Ship_Ranges() {
+        ++TEST_COLONY_POP_GROWTH::services.range_updates;
+    }
+
+    bool __cdecl Star_In_Normal_Range_Of_Player(s_star_data* star, int16_t player) {
+        TEST_COLONY_POP_GROWTH::services.normal_ranges.push_back({(int16_t)(star - MOX::star), player});
+        return TEST_COLONY_POP_GROWTH::services.in_normal_range;
+    }
+
+    bool __cdecl Star_In_Range_Of_Player(s_star_data* star, int16_t player, int16_t range) {
+        TEST_COLONY_POP_GROWTH::services.ranges.push_back({(int16_t)(star - MOX::star), player, range});
+        return TEST_COLONY_POP_GROWTH::services.in_range;
+    }
+}
+
+namespace spy {
+    void __cdecl Bring_Home_Spies_Vs(int16_t player, int16_t target) {
+        TEST_COLONY_POP_GROWTH::services.spies_home.push_back({player, target});
+    }
+}
+
+namespace SHIPS {
+    void __cdecl Kill_Ship(int16_t ship) {
+        TEST_COLONY_POP_GROWTH::services.killed.push_back(ship);
+        MOX::ship[ship].status = 5;
+    }
+}
+
+namespace MAINSCR {
+    void __cdecl Update_Ship_Icons_In_Between_Turns() {
+        ++TEST_COLONY_POP_GROWTH::services.icon_updates;
+    }
+}
+
+namespace CONTACT {
+    void __cdecl Compute_Contacts() {
+        ++TEST_COLONY_POP_GROWTH::services.contact_updates;
+    }
+}
+
+namespace diplomac {
+    void __cdecl Change_Relations(int16_t amount, int16_t player, int16_t target, int16_t reason, int16_t star, int16_t extra) {
+        TEST_COLONY_POP_GROWTH::services.relations.push_back({amount, player, target, reason, star, extra});
+    }
+}
+
+namespace invasion {
+    void __cdecl Enforce_Population_Limits_At_Colony(s_colony* colony) {
+        TEST_COLONY_POP_GROWTH::services.population_limits.push_back((int16_t)(colony - MOX::colony));
+    }
+}
+
+namespace maintain {
+    void __cdecl Player_Maintenance(s_player* player) {
+        TEST_COLONY_POP_GROWTH::services.maintenance.push_back((int16_t)(player - MOX::player));
+    }
+}
+
+namespace TEXTBOX {
+    void __cdecl Text_Box(const char* title, const char* text) {
+        TEST_COLONY_POP_GROWTH::services.titles.emplace_back(title);
+        TEST_COLONY_POP_GROWTH::services.texts.emplace_back(text);
     }
 }

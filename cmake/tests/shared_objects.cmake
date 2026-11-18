@@ -4,11 +4,11 @@ add_library(orion2re_test_compile_settings INTERFACE)
 target_compile_features(orion2re_test_compile_settings INTERFACE cxx_std_20)
 target_include_directories(orion2re_test_compile_settings INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${ORION2RE_VENDORED_LIBSMACKER_DIR}"
-    "${ORION2RE_VENDORED_YYJSON_DIR}/src"
+    ${ORION2RE_LIBSMACKER_INCLUDE_DIRS}
+    ${ORION2RE_YYJSON_INCLUDE_DIRS}
 )
 target_link_libraries(orion2re_test_compile_settings INTERFACE
-    SDL3::Headers uv_a orion2re_lz4 orion2re_lua miniz
+    SDL3::Headers ${ORION2RE_LIBUV_TARGET} ${ORION2RE_LZ4_TARGET} orion2re_lua ${ORION2RE_MINIZ_TARGET}
 )
 if(ORION2RE_ENABLE_ASAN)
     target_compile_options(orion2re_test_compile_settings INTERFACE
@@ -22,8 +22,8 @@ if(MSVC)
         $<$<CONFIG:Debug>:_CRT_NONSTDC_NO_DEPRECATE>
     )
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    # Tests with partial runtimes need the linker to discard unused functions
-    # and data. Use the same section layout for every shared production object.
+    # Keep a consistent section layout for optional dead-code elimination.
+    # Dependency closure must also pass the no-dead-stripping link audit.
     target_compile_options(orion2re_test_compile_settings INTERFACE
         -ffunction-sections -fdata-sections)
 endif()
