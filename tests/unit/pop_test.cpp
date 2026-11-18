@@ -63,6 +63,86 @@ namespace {
 
 DOCTEST_TEST_SUITE("pop helpers") {
 
+DOCTEST_TEST_CASE("unaligned scalar access preserves native bytes and adjacent storage") {
+    alignas(uint64_t) uint8_t bytes[32];
+    for (size_t offset = 1; offset < alignof(uint64_t); ++offset) {
+        memset(bytes, 0xA5, sizeof(bytes));
+        const uint32_t word = 0x89ABCDEFu;
+        unaligned::Store<uint32_t>(bytes + offset, word);
+        DOCTEST_CHECK(unaligned::Load<uint32_t>(bytes + offset) == word);
+        DOCTEST_CHECK(memcmp(bytes + offset, &word, sizeof(word)) == 0);
+        DOCTEST_CHECK(bytes[offset - 1] == 0xA5);
+        DOCTEST_CHECK(bytes[offset + sizeof(word)] == 0xA5);
+
+        const uint64_t wide = UINT64_C(0xFEDCBA9876543210);
+        unaligned::Store<uint64_t>(bytes + offset, wide);
+        DOCTEST_CHECK(unaligned::Load<uint64_t>(bytes + offset) == wide);
+        DOCTEST_CHECK(memcmp(bytes + offset, &wide, sizeof(wide)) == 0);
+        DOCTEST_CHECK(bytes[offset + sizeof(wide)] == 0xA5);
+
+        unaligned::Store<int16_t>(bytes + offset, INT16_MIN);
+        DOCTEST_CHECK(unaligned::Load<int16_t>(bytes + offset) == INT16_MIN);
+        unaligned::Store<int32_t>(bytes + offset, INT32_MIN);
+        DOCTEST_CHECK(unaligned::Load<int32_t>(bytes + offset) == INT32_MIN);
+
+        char text[] = "packed pointer";
+        unaligned::Store<char*>(bytes + offset, text);
+        DOCTEST_CHECK(unaligned::Load<char*>(bytes + offset) == text);
+    }
+}
+
+DOCTEST_TEST_CASE("packed pop setters preserve unrelated bits at every word alignment") {
+#pragma pack(push, 1)
+    struct packed_pop {
+        POP::value_type value;
+    };
+#pragma pack(pop)
+    alignas(uint32_t) uint8_t bytes[16];
+    constexpr POP::value_type initial = 0xA5A5FFFFu;
+    for (size_t offset = 0; offset < alignof(uint32_t); ++offset) {
+        memset(bytes, 0xCC, sizeof(bytes));
+        auto* pop = new (bytes + offset) packed_pop{initial};
+        POP::Set_Race(&pop->value, POP::RACE_ANDROID);
+        POP::Set_Original_Owner(&pop->value, 3);
+        POP::Set_Prof(&pop->value, POP::PROF_SCIENTIST);
+        POP::Set_Assigned(&pop->value, false);
+        POP::Set_Conquered(&pop->value, false);
+        const POP::value_type value = POP::Load(&pop->value);
+        DOCTEST_CHECK(POP::Get_Race(value) == POP::RACE_ANDROID);
+        DOCTEST_CHECK(POP::Get_Original_Owner(value) == 3);
+        DOCTEST_CHECK(POP::Is_Scientist(value));
+        DOCTEST_CHECK_FALSE(POP::Is_Assigned(value));
+        DOCTEST_CHECK_FALSE(POP::Is_Conquered(value));
+        DOCTEST_CHECK((value & 0xFFFFF800u) == (initial & 0xFFFFF800u));
+        DOCTEST_CHECK(bytes[offset + sizeof(*pop)] == 0xCC);
+        POP::Set_Assigned(&pop->value, true);
+        POP::Set_Conquered(&pop->value, true);
+        DOCTEST_CHECK(POP::Is_Assigned(POP::Load(&pop->value)));
+        DOCTEST_CHECK(POP::Is_Conquered(POP::Load(&pop->value)));
+    }
+}
+
+DOCTEST_TEST_CASE("packed settler setters preserve reserved bits and transit sentinel") {
+    alignas(uint64_t) uint8_t bytes[24];
+    for (size_t offset = 0; offset < alignof(uint64_t); ++offset) {
+        memset(bytes, 0xCC, sizeof(bytes));
+        auto* settler = new (bytes + offset) s_settler_info{UINT64_MAX};
+        SETTLER::Set_Source_Colony(&settler->val, SETTLER::SOURCE_COLONY_IN_TRANSIT);
+        SETTLER::Set_Dest_Planet(&settler->val, 1000);
+        SETTLER::Set_Race(&settler->val, 7);
+        SETTLER::Set_Eta(&settler->val, 5);
+        SETTLER::Set_Prof(&settler->val, POP::PROF_WORKER);
+        const SETTLER::value_type value = SETTLER::Load(&settler->val);
+        DOCTEST_CHECK(SETTLER::Get_Source_Colony(value) == SETTLER::SOURCE_COLONY_IN_TRANSIT);
+        DOCTEST_CHECK(SETTLER::Get_Dest_Planet(value) == 1000);
+        DOCTEST_CHECK(SETTLER::Get_Race(value) == 7);
+        DOCTEST_CHECK(SETTLER::Get_Eta(value) == 5);
+        DOCTEST_CHECK(SETTLER::Get_Prof(value) == POP::PROF_WORKER);
+        DOCTEST_CHECK((value & UINT64_C(0xFFFFFC0000000000)) == UINT64_C(0xFFFFFC0000000000));
+        DOCTEST_CHECK(bytes[offset + sizeof(*settler)] == 0xCC);
+    }
+}
+
 DOCTEST_TEST_CASE("pop subfield setters match the legacy masked updates") {
     for (uint32_t pop : {0u, 0xFFFFFFFFu, 0x12345678u, 0x00000400u, 0x00000280u}) {
         for (uint32_t race = 0; race < 16; ++race) {

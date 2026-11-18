@@ -21,11 +21,13 @@ namespace TEST_EVENTS {
         memset(ships, 0, sizeof(ships));
         memset(leaders, 0, sizeof(leaders));
         memset(EVENTS::event_data, 0, sizeof(EVENTS::event_data));
+        EVENTS::current_event = 0;
+        EVENTS::event_message[0] = '\0';
         event_message[0] = '\0';
 
         for (s_star_data& star : stars) {
-            for (int16_t& planet_idx : star.planet_index) {
-                planet_idx = -1;
+            for (int index = 0; index < 5; ++index) {
+                star.planet_index[index] = -1;
             }
         }
         for (s_planet_data& planet : planets) {
@@ -58,6 +60,9 @@ namespace TEST_EVENTS {
 }
 
 namespace MOX {
+    s_animation_header* screen_seg;
+    int8_t game_type;
+    s_mouse_list mouse_list_arrow;
     int32_t stardate;
     int16_t PLAYER_NUM;
     int16_t NUM_PLAYERS;
@@ -80,6 +85,123 @@ namespace farload {
         return buffer;
     }
 }
+
+// Setup_Next_Event shares its message path with the graphical GNN screen.
+namespace fields {
+    void Deactivate_Help_List() {}
+    void Enable_Draw_All_Fields() {}
+    void Deactivate_Auto_Function() {}
+    void Clear_Fields() {}
+    void Set_Input_Delay(int16_t) {}
+    void Assign_Auto_Function(MOX2::action_func_t, int16_t) {}
+    int16_t Add_Hidden_Field(int16_t, int16_t, int16_t, int16_t, const char*, int8_t) {
+        return 0;
+    }
+    int16_t Get_Input() {
+        return 0;
+    }
+} // namespace fields
+
+namespace graphics {
+    void Reset_Window() {}
+    void Fill(int16_t, int16_t, int16_t, int16_t, uint8_t) {}
+} // namespace graphics
+
+namespace video {
+    void Clip_Off() {}
+    void Set_Refresh_Stencil() {}
+    void Set_Page_Off() {}
+    void Copy_Off_To_Back() {}
+} // namespace video
+
+namespace MOX2 {
+    void Get_Auto_Function(action_func_t*) {}
+} // namespace MOX2
+
+namespace mouse {
+    void Set_Mouse_List(s_mouse_list*, int16_t) {}
+} // namespace mouse
+
+namespace JIM {
+    void Play_Streaming_Music(int16_t, int16_t, int16_t) {}
+} // namespace JIM
+
+namespace ERIC {
+    void Set_Fade_Percent(int16_t) {}
+    void Set_Fade_Speed_Percent(uint8_t) {}
+    void Fast_Fade_Out() {}
+} // namespace ERIC
+
+namespace fonts {
+    void Set_Outline_Color(uint16_t, uint16_t) {}
+    void Set_Font_Style_Outline(int16_t, s_colors*) {}
+} // namespace fonts
+
+namespace timer {
+    void Mark_Time() {}
+    void Release_Time(int32_t) {}
+} // namespace timer
+
+namespace RUSS {
+    void Mox_Sync_Update() {}
+} // namespace RUSS
+
+namespace FMTPARA {
+    int16_t Get_Formatted_Paragraph_Max_Height(int16_t, const char*) {
+        return 0;
+    }
+    const char* Print_Formatted_Paragraph(int16_t, int16_t, int16_t, const char* text, int16_t) {
+        return text;
+    }
+} // namespace FMTPARA
+
+namespace file_ani {
+    void Draw_File_Animation_Stencil() {}
+    int16_t Get_File_Animation_Frame() {
+        return 0;
+    }
+    void Set_File_Animation_Frame(int16_t) {}
+    void Set_File_Animation_Buffer(void*) {}
+    void Open_File_Animation(const char*, int16_t) {}
+    void Draw_File_Animation() {}
+} // namespace file_ani
+
+namespace animate {
+    void Draw(int16_t, int16_t, s_animation_header*) {}
+    void Draw_Palette(s_animation_header*) {}
+} // namespace animate
+
+namespace bitmap {
+    void Clear_Mouse_Image(int16_t) {}
+    void Create_Blank_Bitmap(int16_t, int16_t, void*) {}
+    void Draw_Picture_To_Bitmap(s_animation_header*, s_animation_header*) {}
+    void Draw_Bitmap_To_Mouse(int16_t, int16_t, s_animation_header*, int16_t) {}
+} // namespace bitmap
+
+namespace palette {
+    void Set_Palette_Changes(int16_t, int16_t) {}
+} // namespace palette
+
+namespace allocate {
+    void* Allocate_First_Block(void*, uint32_t) {
+        return nullptr;
+    }
+    void* Allocate_Next_Block(void*, uint32_t) {
+        return nullptr;
+    }
+    void Mark_Block(void*) {}
+    void Release_Block(void*) {}
+} // namespace allocate
+
+namespace farload {
+    void* Far_Reload_Next(const char*, int32_t, void*) {
+        return nullptr;
+    }
+} // namespace farload
+
+namespace MAINSCR {
+    void Mini_Main_Screen_Text_Box(char*, char*) {}
+} // namespace MAINSCR
 
 namespace HACCESS {
     char* __cdecl Get_Planet_Name(int16_t planet_idx) {

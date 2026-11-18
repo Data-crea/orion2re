@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 namespace DESIGN {
     /**
@@ -582,10 +583,12 @@ namespace DESIGN {
 
         for (int i = 0; i < 39; ++i) {
             MOX::special_desc_string[i] = (char*)farload::Far_Reload_Next_Data(tech_lbx, 1, MOX::global_data_seg, i, 1, 100);
+            string_overrides::Apply_String(tech_lbx, i + 1, MOX::special_desc_string[i], 100);
             RUSS::Mox_Update();
         }
         for (int i = 0; i < 40; ++i) {
             MOX::weapon_notes_string[i] = (char*)farload::Far_Reload_Next_Data(tech_lbx, 3, MOX::global_data_seg, i, 1, 100);
+            string_overrides::Apply_String(tech_lbx, 39 + i + 1, MOX::weapon_notes_string[i], 100);
             RUSS::Mox_Update();
         }
     }

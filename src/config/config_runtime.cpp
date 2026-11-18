@@ -11,6 +11,7 @@
 #include "config/config_decode.h"
 #include "config/config_profile.h"
 #include "game/arena.h"
+#include "unaligned.h"
 
 namespace config {
     namespace {
@@ -190,49 +191,76 @@ namespace config {
             return CONFIG_NO_NODE;
         }
 
+        // Config targets may live inside packed structures, so copy values
+        // bytewise rather than through typed pointers.
         bool Read_Integer(const void* address, e_value_type type, int64_t* value) {
             switch (type) {
-                case CONFIG_VALUE_BOOL: *value = *(const uint8_t*)address; return true;
-                case CONFIG_VALUE_INT8: *value = *(const int8_t*)address; return true;
-                case CONFIG_VALUE_UINT8: *value = *(const uint8_t*)address; return true;
-                case CONFIG_VALUE_INT16: *value = *(const int16_t*)address; return true;
-                case CONFIG_VALUE_UINT16: *value = *(const uint16_t*)address; return true;
-                case CONFIG_VALUE_INT32: *value = *(const int32_t*)address; return true;
-                case CONFIG_VALUE_UINT32: *value = *(const uint32_t*)address; return true;
+                case CONFIG_VALUE_BOOL:
+                case CONFIG_VALUE_UINT8: {
+                    *value = unaligned::Load<uint8_t>(address);
+                    return true;
+                }
+                case CONFIG_VALUE_INT8: {
+                    *value = unaligned::Load<int8_t>(address);
+                    return true;
+                }
+                case CONFIG_VALUE_INT16: {
+                    *value = unaligned::Load<int16_t>(address);
+                    return true;
+                }
+                case CONFIG_VALUE_UINT16: {
+                    *value = unaligned::Load<uint16_t>(address);
+                    return true;
+                }
+                case CONFIG_VALUE_INT32: {
+                    *value = unaligned::Load<int32_t>(address);
+                    return true;
+                }
+                case CONFIG_VALUE_UINT32: {
+                    *value = unaligned::Load<uint32_t>(address);
+                    return true;
+                }
                 default: return false;
             }
         }
 
         bool Write_Integer(void* address, size_t size, e_value_type type, int64_t value) {
             switch (type) {
-                case CONFIG_VALUE_BOOL:
+                case CONFIG_VALUE_BOOL: {
                     if (size != sizeof(uint8_t)) return false;
-                    *(uint8_t*)address = (uint8_t)(value != 0);
+                    unaligned::Store<uint8_t>(address, value != 0);
                     return true;
-                case CONFIG_VALUE_INT8:
+                }
+                case CONFIG_VALUE_INT8: {
                     if (size != sizeof(int8_t)) return false;
-                    *(int8_t*)address = (int8_t)value;
+                    unaligned::Store<int8_t>(address, (int8_t)value);
                     return true;
-                case CONFIG_VALUE_UINT8:
+                }
+                case CONFIG_VALUE_UINT8: {
                     if (size != sizeof(uint8_t)) return false;
-                    *(uint8_t*)address = (uint8_t)value;
+                    unaligned::Store<uint8_t>(address, (uint8_t)value);
                     return true;
-                case CONFIG_VALUE_INT16:
+                }
+                case CONFIG_VALUE_INT16: {
                     if (size != sizeof(int16_t)) return false;
-                    *(int16_t*)address = (int16_t)value;
+                    unaligned::Store<int16_t>(address, (int16_t)value);
                     return true;
-                case CONFIG_VALUE_UINT16:
+                }
+                case CONFIG_VALUE_UINT16: {
                     if (size != sizeof(uint16_t)) return false;
-                    *(uint16_t*)address = (uint16_t)value;
+                    unaligned::Store<uint16_t>(address, (uint16_t)value);
                     return true;
-                case CONFIG_VALUE_INT32:
+                }
+                case CONFIG_VALUE_INT32: {
                     if (size != sizeof(int32_t)) return false;
-                    *(int32_t*)address = (int32_t)value;
+                    unaligned::Store<int32_t>(address, (int32_t)value);
                     return true;
-                case CONFIG_VALUE_UINT32:
+                }
+                case CONFIG_VALUE_UINT32: {
                     if (size != sizeof(uint32_t)) return false;
-                    *(uint32_t*)address = (uint32_t)value;
+                    unaligned::Store<uint32_t>(address, (uint32_t)value);
                     return true;
+                }
                 default: return false;
             }
         }
@@ -2052,7 +2080,7 @@ namespace config {
                         if (target.size != sizeof(char*)) {
                             exitm::Exit_With_Message("Invalid arena string configuration target");
                         }
-                        *(char**)target.address = arena_string;
+                        unaligned::Store<char*>(target.address, arena_string);
                         continue;
                     }
                     if (target.size == 0) continue;
@@ -2140,7 +2168,7 @@ namespace config {
                     if (target.storage == s_variable_target::CONFIG_TARGET_ARENA_STRING_POINTER ||
                         target.storage ==
                             s_variable_target::CONFIG_TARGET_NULLABLE_ARENA_STRING_POINTER) {
-                        const char* current = *(char* const*)target.address;
+                        const char* current = unaligned::Load<char*>(target.address);
                         value->string_value = current != nullptr ? current : "";
                     } else {
                         value->string_value = (const char*)target.address;

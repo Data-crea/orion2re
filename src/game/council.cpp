@@ -2,6 +2,7 @@
 #ifdef ORION2RE_EXT
 #include "ext/ext_api.h"  // OrionLayer, open fix 96. The council on the wire.
 #endif
+#include "string_overrides.h"
 
 namespace council {
     const char lbx_00559a68[12] = "council.lbx";
@@ -786,13 +787,8 @@ namespace council {
         /* Calculate the entry index for the current language block. */
         int32_t message_entry_idx = (int16_t)((int16_t)MOX::settings.language * 14 + message_idx);
 
-        farload::Farload_Data_Static(
-            "councmsg.lbx",
-            message_entry_idx,
-            council_message,
-            0,
-            1,
-            200);
+        string_overrides::Load_Message("councmsg.lbx", message_entry_idx, 0, 200,
+            message_idx + 1, council_message, 200);
     }
 
     void Drive_Council_Player_Voted_Winner(int16_t player_idx, int16_t unused_callback_arg) {

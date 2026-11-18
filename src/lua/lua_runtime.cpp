@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <charconv>
 #include <climits>
+#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
@@ -48,7 +49,9 @@ namespace orion2re::lua {
         static_assert(LUA_MININTEGER == INT64_MIN);
         static_assert(LUA_VERSION_RELEASE_NUM == 50501);
 
-        struct s_allocation_header {
+        // Keep the payload after this header aligned for every Lua object,
+        // including userdata whose alignment can exceed that of size_t.
+        struct alignas(std::max_align_t) s_allocation_header {
             std::size_t size;
         };
 

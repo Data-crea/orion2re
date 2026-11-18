@@ -3,6 +3,7 @@
 namespace REPORT {
     extern uint8_t no_outpost_prompt;
     extern uint8_t initial_tech_prompt;
+    extern bool sort_serious_turn_summary_first;
     extern int16_t n_reports;
     extern s_report reports[MAX_REPORTS];
     extern uint8_t done_player_reports;
@@ -51,6 +52,10 @@ namespace REPORT {
      * @param show_summary Nonzero to open the summary screen immediately.
      */
     int8_t __cdecl Has_Msg(int16_t player_idx, int8_t show_summary);
+    /** Returns whether a message triggers a serious-only turn summary. */
+    bool Is_Serious_Msg(const s_MSG& msg);
+    /** Produces display indices, keeping queue order within each severity group. */
+    void Order_Turn_Summary_Messages(uint8_t* indices, int16_t first_idx, int16_t count, bool serious_first);
     /**
      * Checks whether the Antaran notification flow should run this turn.
      * @param unused_player_idx Unused caller-supplied player index.

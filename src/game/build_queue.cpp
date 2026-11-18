@@ -497,10 +497,10 @@ namespace BUILD_QUEUE {
         product_cost += colony->bought_outright;
         const int32_t refund =
             COLCALC::Production_Cost_To_Buy(product_cost, colony->production_spent);
-        int32_t& bc = MOX::player[colony->owner].bc;
-        uint32_t refunded_bc = bc;
+        s_player* player = &MOX::player[colony->owner];
+        uint32_t refunded_bc = player->bc;
         refunded_bc += refund;
-        bc = refunded_bc;
+        player->bc = refunded_bc;
         colony->bought_outright = 0;
         return true;
     }

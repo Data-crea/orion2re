@@ -72,6 +72,7 @@ namespace MAPGEN {
     extern s_home_system_config home_system_config;
     extern s_special_generation_config special_generation_config;
     extern s_monster_generation_config monster_generation_config;
+    extern int16_t planet_limit;
     extern uint8_t starting_reveal_radius;
     extern uint8_t star_visual_size_weight[3];
     extern s_nebula_count_config nebula_count[GALAXY_SIZE_COUNT];
@@ -181,6 +182,9 @@ namespace MAPGEN {
 
     /** Removes excess non-home, non-gas-giant planets until the map reaches the requested cap. */
     void __cdecl Enforce_Planet_Max(int16_t max_planets);
+
+    /** Applies the configured classic-galaxy threshold or the extended capacity. */
+    void Enforce_Configured_Planet_Max();
 
     void __cdecl Set_Black_Hole_Visited_Flags();
 

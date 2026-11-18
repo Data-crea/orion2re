@@ -211,18 +211,23 @@ DOCTEST_TEST_CASE("DESIGN button behavior is synchronized but not saved") {
 }
 
 DOCTEST_TEST_CASE("presentation settings stay out of gameplay snapshots") {
-    const char* path = "interface.allow_future_technology_browsing";
+    const char* paths[] = {
+        "interface.allow_future_technology_browsing",
+        "interface.show_exit_message",
+    };
     const config::s_config_snapshot_descriptor* descriptors[] = {
         &config::saved_config_snapshot,
         &config::synchronized_config_snapshot,
     };
 
-    const config::t_variable_id variable = Variable_(path);
-    DOCTEST_REQUIRE(variable != config::CONFIG_NO_VARIABLE);
-    DOCTEST_CHECK(config::Get_Variable_Group(variable) ==
-        config::CONFIG_GROUP_INTERFACE);
-    for (const config::s_config_snapshot_descriptor* descriptor : descriptors) {
-        DOCTEST_CHECK_FALSE(Snapshot_Contains_(descriptor, path));
+    for (const char* path : paths) {
+        const config::t_variable_id variable = Variable_(path);
+        DOCTEST_REQUIRE(variable != config::CONFIG_NO_VARIABLE);
+        DOCTEST_CHECK(config::Get_Variable_Group(variable) ==
+            config::CONFIG_GROUP_INTERFACE);
+        for (const config::s_config_snapshot_descriptor* descriptor : descriptors) {
+            DOCTEST_CHECK_FALSE(Snapshot_Contains_(descriptor, path));
+        }
     }
 }
 

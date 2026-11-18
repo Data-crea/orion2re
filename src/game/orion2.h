@@ -1,3 +1,6 @@
+#include <cstddef>
+#include "unaligned.h"
+
 #pragma pack(push, 1)
 
 typedef struct s_adv_civ_player s_adv_civ_player, *Ps_adv_civ_player;
@@ -243,20 +246,31 @@ struct s_animation_header {
     undefined1 flags;
 };
 
-inline uint32_t* Animation_Frame_Offsets_(s_animation_header* header) {
-    return reinterpret_cast<uint32_t*>(reinterpret_cast<uint8_t*>(header) + sizeof(s_animation_header));
+// The frame offset table follows the header as uint32_t entries, but
+// animations are loaded at arbitrary addresses, so the table has no
+// alignment guarantee. Access entries only through these helpers.
+inline uint8_t* Animation_Frame_Table_(s_animation_header* header) {
+    return reinterpret_cast<uint8_t*>(header) + sizeof(s_animation_header);
 }
 
-inline const uint32_t* Animation_Frame_Offsets_(const s_animation_header* header) {
-    return reinterpret_cast<const uint32_t*>(reinterpret_cast<const uint8_t*>(header) + sizeof(s_animation_header));
+inline const uint8_t* Animation_Frame_Table_(const s_animation_header* header) {
+    return reinterpret_cast<const uint8_t*>(header) + sizeof(s_animation_header);
+}
+
+inline uint32_t Animation_Frame_Offset_(const s_animation_header* header, int32_t frame) {
+    return unaligned::Load<uint32_t>(Animation_Frame_Table_(header) + frame * sizeof(uint32_t));
+}
+
+inline void Set_Animation_Frame_Offset_(s_animation_header* header, int32_t frame, uint32_t offset) {
+    unaligned::Store<uint32_t>(Animation_Frame_Table_(header) + frame * sizeof(uint32_t), offset);
 }
 
 inline uint8_t* Animation_Frame_Data_(s_animation_header* header, int32_t frame) {
-    return reinterpret_cast<uint8_t*>(header) + Animation_Frame_Offsets_(header)[frame];
+    return reinterpret_cast<uint8_t*>(header) + Animation_Frame_Offset_(header, frame);
 }
 
 inline const uint8_t* Animation_Frame_Data_(const s_animation_header* header, int32_t frame) {
-    return reinterpret_cast<const uint8_t*>(header) + Animation_Frame_Offsets_(header)[frame];
+    return reinterpret_cast<const uint8_t*>(header) + Animation_Frame_Offset_(header, frame);
 }
 
 typedef struct s_antaran s_antaran, *Ps_antaran;
@@ -1922,6 +1936,15 @@ struct s_player {
     int8_t filler[45];
 };
 
+// Reads a player's research status for a technology field. Application 125
+// has field TECH_FIELD_INVALID (-1), and the original game indexed
+// tech_fields with it unchecked, reading the preceding byte of s_player (the
+// high byte of maintenance[5]). Reproduce that read without indexing the
+// array out of bounds.
+inline uint8_t Player_Tech_Field_Status_(const s_player* player, int16_t tech_field_id) {
+    return reinterpret_cast<const uint8_t*>(player)[offsetof(s_player, tech_fields) + tech_field_id];
+}
+
 struct s_net_pack_drop_out_info {
     struct s_player player_data;
     int8_t star_surrender_to[MAX_STARS];
@@ -3139,11 +3162,11 @@ struct s_palette_header {
 };
 
 inline s_palette_header* Animation_Palette_Header_(s_animation_header* header) {
-    return reinterpret_cast<s_palette_header*>(Animation_Frame_Offsets_(header) + header->frame_count + 1);
+    return reinterpret_cast<s_palette_header*>(Animation_Frame_Table_(header) + (header->frame_count + 1) * sizeof(uint32_t));
 }
 
 inline const s_palette_header* Animation_Palette_Header_(const s_animation_header* header) {
-    return reinterpret_cast<const s_palette_header*>(Animation_Frame_Offsets_(header) + header->frame_count + 1);
+    return reinterpret_cast<const s_palette_header*>(Animation_Frame_Table_(header) + (header->frame_count + 1) * sizeof(uint32_t));
 }
 
 struct s_packed_frame_header {

@@ -1,6 +1,6 @@
 {
   id: "mirror_hw",
-  name: "Only Home Systems Mirrored",
+  name: "Home Systems Mirrored",
   description: "Copies one randomly selected player's unoccupied home-system orbits to every other home system.",
   version: "26.10",
 

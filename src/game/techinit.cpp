@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 #include "config/config_runtime.h"
 #include "game/config_refresh.h"
@@ -55,10 +56,13 @@ namespace TECHINIT {
         RUSS::Mox_Update();
 
         uint32_t string_offset = 0;
-        char* tech_name_block = (char*)farload::Far_Reload(
+        const size_t name_count = size_t(TECH_FIELD_COUNT) + TECH_APP_COUNT + BUILDING_COUNT + SPECIAL_COUNT +
+            ARMOR_COUNT + SHIELD_COUNT + 2 * WEAPON_COUNT + COMPUTER_COUNT + DRIVE_COUNT + UNIT_COUNT +
+            FUEL_COUNT + 2 * WEAPON_MOD_COUNT + 2 * HULL_CLASS_COUNT;
+        char* tech_name_block = string_overrides::Reload_Raw_Table(
             "techname.lbx",
             (uint32_t)MOX::settings.language,
-            MOX::techname_seg);
+            &MOX::techname_seg, name_count, 1, true);
 
         RUSS::Mox_Update();
 

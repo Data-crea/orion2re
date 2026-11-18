@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 namespace JIM {
 
@@ -343,7 +344,8 @@ namespace JIM {
 
         RUSS::Mox_Update();
 
-        farload::Farload_Data_Static(filename, (int16_t)(message_index * 6 + lang), buffer, 0, 1, (int16_t)sizeof(buffer));
+        string_overrides::Load_Message(filename, (int16_t)(message_index * 6 + lang), 0,
+            sizeof(buffer), size_t(message_index) + 1, buffer, sizeof(buffer));
 
         RUSS::Mox_Update();
 

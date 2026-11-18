@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 namespace LOADER {
     namespace {
@@ -102,7 +103,7 @@ namespace LOADER {
 
     void __cdecl Load_Pictures() {
         MOX::screen_seg = (s_animation_header*)MOX::global_screen_seg;
-        memset(Animation_Frame_Offsets_((s_animation_header*)MOX::screen_seg), 0, sizeof(uint32_t) * 5);
+        memset(Animation_Frame_Table_((s_animation_header*)MOX::screen_seg), 0, sizeof(uint32_t) * 5);
         Load_Main_Screen_Pictures();
         RUSS::Mox_Update();
         TECHINIT::Init_Tech();
@@ -110,18 +111,18 @@ namespace LOADER {
     }
 
     void __cdecl Load_Player_Special_Names() {
-        char* const loaded_names = (char*)farload::Far_Reload(
+        char* const loaded_names = string_overrides::Reload_Raw_Table(
             "RACESTUF.lbx",
             (int32_t)(uint8_t)MOX::settings.language + 8,
-            MOX::special_names_seg);
+            &MOX::special_names_seg, 32, 65, true);
 
-        int16_t name_offset = 0;
+        size_t name_offset = 0;
         int16_t name_index = 1;
 
         MOX::special_ability_names[0] = loaded_names;
 
         do {
-            name_offset = (int16_t)(name_offset + (int16_t)strlen(loaded_names + name_offset));
+            name_offset += strlen(loaded_names + name_offset);
 
             while (loaded_names[name_offset] == '\0') {
                 ++name_offset;

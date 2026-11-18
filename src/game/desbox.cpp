@@ -2044,17 +2044,18 @@ namespace DESBOX {
     }
 
     void __cdecl Set_New_Weapon_Modifications(uint16_t* modifications) {
-        *modifications = 0;
+        uint16_t mods = 0;
         if (field_item_chosen > -1) {
             Weapon_Index(field_item_chosen);
-            *modifications = 0;
 
             for (int16_t i = 1; i < WEAPON_MOD_COUNT; ++i) {
                 if (MOX::weapon_mod_field_status[i] == 1) {
-                    *modifications |= (1 << i);
+                    mods |= (1 << i);
                 }
             }
         }
+        // The destination can be a field in a packed ship-design record.
+        unaligned::Store<uint16_t>(modifications, mods);
     }
 
     void __cdecl Clear_Weapon_Replacement_Fields() {

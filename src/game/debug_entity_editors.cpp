@@ -4,8 +4,6 @@
 #if defined(ORION2RE_ENABLE_DEBUG_OVERLAY)
 #include <imgui.h>
 
-#include <algorithm>
-
 #include "lua/lua_game_ship_identity.h"
 
 namespace debug_game_editors {
@@ -552,7 +550,7 @@ namespace debug_game_editors {
                 }
                 for (int32_t index = 0; index < colony.n_pops; ++index) {
                     ImGui::PushID(index);
-                    POP::value_type& population = colony.pop[index];
+                    POP::value_type* population = &colony.pop[index];
                     char race_buffer[32];
                     char label[64];
                     snprintf(
@@ -561,37 +559,37 @@ namespace debug_game_editors {
                         "%d: %s, %s",
                         index,
                         Population_Race_Name_(
-                            (int8_t)POP::Get_Race(population),
+                            (int8_t)POP::Get_Race(POP::Load(population)),
                             race_buffer,
                             sizeof(race_buffer)),
-                        k_population_jobs[(int)POP::Get_Prof(population) < 3
-                                ? (int)POP::Get_Prof(population)
+                        k_population_jobs[(int)POP::Get_Prof(POP::Load(population)) < 3
+                                ? (int)POP::Get_Prof(POP::Load(population))
                                 : 0]);
                     bool remove = false;
                     if (ImGui::TreeNode(label)) {
-                        int8_t race = (int8_t)POP::Get_Race(population);
+                        int8_t race = (int8_t)POP::Get_Race(POP::Load(population));
                         if (Population_Race_("Race", &race)) {
-                            POP::Set_Race(&population, (uint32_t)race);
+                            POP::Set_Race(population, (uint32_t)race);
                         }
-                        int8_t job = (int8_t)POP::Get_Prof(population);
+                        int8_t job = (int8_t)POP::Get_Prof(POP::Load(population));
                         if (debug_game_widgets::Enum(
                                 "Job", &job, k_population_jobs, 3)) {
-                            POP::Set_Prof(&population, static_cast<POP::e_prof>(job));
+                            POP::Set_Prof(population, static_cast<POP::e_prof>(job));
                         }
-                        int8_t original_owner = (int8_t)POP::Get_Original_Owner(population);
+                        int8_t original_owner = (int8_t)POP::Get_Original_Owner(POP::Load(population));
                         if (debug_game_widgets::Player_Reference(
                                 "Original owner", &original_owner, false)) {
-                            POP::Set_Original_Owner(&population, (uint32_t)original_owner);
+                            POP::Set_Original_Owner(population, (uint32_t)original_owner);
                         }
-                        bool assigned = POP::Is_Assigned(population);
+                        bool assigned = POP::Is_Assigned(POP::Load(population));
                         if (ImGui::Checkbox("Assigned", &assigned)) {
-                            POP::Set_Assigned(&population, assigned);
+                            POP::Set_Assigned(population, assigned);
                         }
-                        bool conquered = POP::Is_Conquered(population);
+                        bool conquered = POP::Is_Conquered(POP::Load(population));
                         if (ImGui::Checkbox("Conquered", &conquered)) {
-                            POP::Set_Conquered(&population, conquered);
+                            POP::Set_Conquered(population, conquered);
                         }
-                        ImGui::Text("Packed value: 0x%08X (read-only)", population);
+                        ImGui::Text("Packed value: 0x%08X (read-only)", POP::Load(population));
                         remove = ImGui::Button("Remove population");
                         ImGui::TreePop();
                     }

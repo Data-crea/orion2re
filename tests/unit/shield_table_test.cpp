@@ -80,10 +80,10 @@ DOCTEST_TEST_CASE("Antaran Fortress loader uses configured weapon and special da
     DOCTEST_CHECK(fortress->weapons[2].weapon_id == WEAPON_MASS_DRIVER);
     DOCTEST_CHECK(fortress->weapons[2].specials ==
                   WEAPON_MOD_FLAG_POINT_DEFENSE);
-    DOCTEST_CHECK(fortress->weapons[1].weapon_id == WEAPON_PARTICLE_BEAM);
+    DOCTEST_CHECK((fortress->weapons[1].weapon_id == WEAPON_PARTICLE_BEAM));
     DOCTEST_CHECK(fortress->weapons[1].count == 99);
     DOCTEST_CHECK(fortress->weapons[2].count == 88);
-    DOCTEST_CHECK(fortress->weapons[3].weapon_id == WEAPON_FUSION_BEAM);
+    DOCTEST_CHECK((fortress->weapons[3].weapon_id == WEAPON_FUSION_BEAM));
     DOCTEST_CHECK(fortress->weapons[3].arc == WEAPON_FIRING_ARC_FORWARD);
     DOCTEST_CHECK(fortress->weapons[3].count == 99);
     DOCTEST_CHECK(fortress->weapons[4].weapon_id == WEAPON_GAUSS_CANNON);
@@ -91,7 +91,7 @@ DOCTEST_TEST_CASE("Antaran Fortress loader uses configured weapon and special da
     DOCTEST_CHECK(fortress->weapons[4].specials ==
                   WEAPON_MOD_FLAG_AUTO_FIRE);
     DOCTEST_CHECK(fortress->weapons[4].count == 88);
-    DOCTEST_CHECK(fortress->weapons[5].weapon_id == WEAPON_ION_PULSE_CANNON);
+    DOCTEST_CHECK((fortress->weapons[5].weapon_id == WEAPON_ION_PULSE_CANNON));
     DOCTEST_CHECK(fortress->weapons[5].count == 99);
     DOCTEST_CHECK(struct_::Test_Bit_Field(
         fortress->special_device_flags, SPECIAL_REGENERATION));
@@ -257,9 +257,9 @@ DOCTEST_TEST_CASE("normal satellite beam banks share costed allowed modification
 
     const s_combat_weapon_slot* normal =
         &TEST_SHIELD_TABLE::Combat_Ship_()->weapons[1];
-    DOCTEST_CHECK(normal[0].specials == expected_mods);
+    DOCTEST_CHECK((normal[0].specials == expected_mods));
     DOCTEST_CHECK(normal[0].count == 99);
-    DOCTEST_CHECK(normal[1].weapon_id == WEAPON_LASER_CANNON);
+    DOCTEST_CHECK((normal[1].weapon_id == WEAPON_LASER_CANNON));
     DOCTEST_CHECK(normal[1].specials == expected_mods);
     DOCTEST_CHECK(normal[1].count == expected_count - 99);
 }
@@ -328,8 +328,8 @@ DOCTEST_TEST_CASE("point-defense satellite banks share costed allowed modificati
         &TEST_SHIELD_TABLE::Combat_Ship_()->weapons[pd_slot];
     DOCTEST_CHECK(pd[0].specials == expected_mods);
     DOCTEST_CHECK(pd[0].count == 99);
-    DOCTEST_CHECK(pd[1].weapon_id == WEAPON_LASER_CANNON);
-    DOCTEST_CHECK(pd[1].specials == expected_mods);
+    DOCTEST_CHECK((pd[1].weapon_id == WEAPON_LASER_CANNON));
+    DOCTEST_CHECK((pd[1].specials == expected_mods));
     DOCTEST_CHECK(pd[1].count == expected_count - 99);
 }
 
@@ -408,7 +408,7 @@ DOCTEST_TEST_CASE("satellite missile banks distribute allowed mods and price ECC
         if (weapon.weapon_id == WEAPON_NUCLEAR_MISSILE) {
             DOCTEST_REQUIRE(missile_slot_count < 3);
             DOCTEST_CHECK(weapon.arc == WEAPON_FIRING_ARC_ALL_SECTORS);
-            DOCTEST_CHECK(weapon.specials == expected_mods);
+            DOCTEST_CHECK((weapon.specials == expected_mods));
             missile_counts[missile_slot_count] = weapon.count;
             ++missile_slot_count;
             missile_count += weapon.count;
@@ -694,19 +694,19 @@ DOCTEST_TEST_CASE("planet defenses use configured eligible modifications") {
                   (WEAPON_MOD_FLAG_HEAVY_MOUNT |
                    WEAPON_MOD_FLAG_ARMOR_PIERCING |
                    WEAPON_MOD_FLAG_AUTO_FIRE));
-    DOCTEST_CHECK(TEST_SHIELD_TABLE::Combat_Ship_()->weapons[1].weapon_id ==
-                  WEAPON_FUSION_BEAM);
-    DOCTEST_CHECK(TEST_SHIELD_TABLE::Combat_Ship_()->weapons[1].specials ==
-                  (WEAPON_MOD_FLAG_POINT_DEFENSE |
-                   WEAPON_MOD_FLAG_AUTO_FIRE |
-                   WEAPON_MOD_FLAG_ENVELOPING));
+    DOCTEST_CHECK((TEST_SHIELD_TABLE::Combat_Ship_()->weapons[1].weapon_id ==
+        WEAPON_FUSION_BEAM));
+    DOCTEST_CHECK((TEST_SHIELD_TABLE::Combat_Ship_()->weapons[1].specials ==
+        (WEAPON_MOD_FLAG_POINT_DEFENSE |
+            WEAPON_MOD_FLAG_AUTO_FIRE |
+            WEAPON_MOD_FLAG_ENVELOPING)));
 
     int missile_count = 0;
     for (int slot = 2; slot < 8; ++slot) {
         const s_combat_weapon_slot& weapon =
             TEST_SHIELD_TABLE::Combat_Ship_()->weapons[slot];
         if (weapon.weapon_id == WEAPON_NUCLEAR_MISSILE) {
-            DOCTEST_CHECK(weapon.specials == expected_missile_mods);
+            DOCTEST_CHECK((weapon.specials == expected_missile_mods));
             missile_count += weapon.count;
         }
     }
@@ -776,7 +776,7 @@ DOCTEST_TEST_CASE("defense point-defense selection uses unsigned modification le
         COMBINIT::Load_Tactical_Colony(0, 0);
         const s_combat_weapon_slot& ground_pd =
             TEST_SHIELD_TABLE::Combat_Ship_()->weapons[1];
-        DOCTEST_CHECK(ground_pd.weapon_id == test.expected_weapon);
+        DOCTEST_CHECK((ground_pd.weapon_id == test.expected_weapon));
         DOCTEST_CHECK(
             ((ground_pd.specials & WEAPON_MOD_FLAG_AUTO_FIRE) != 0) ==
             (test.miniaturization >= test.required_level));

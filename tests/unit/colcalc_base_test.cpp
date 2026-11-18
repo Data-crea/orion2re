@@ -202,7 +202,7 @@ DOCTEST_TEST_CASE("research production is banked when no field is selected") {
 
         COLCALC::Check_For_Research_Breakthrough(&player);
 
-        DOCTEST_CHECK(player.research_accumulated == test_case.expected);
+        DOCTEST_CHECK((player.research_accumulated == test_case.expected));
     }
 }
 
@@ -213,14 +213,14 @@ DOCTEST_TEST_CASE("research completion preserves configured points and marks sel
     COLCALC::Resolve_Research_Completion(&player, true, 200);
 
     DOCTEST_CHECK(player.research_breakthrough == 1);
-    DOCTEST_CHECK(player.research_accumulated == 75);
+    DOCTEST_CHECK((player.research_accumulated == 75));
 
     COLCALC::Resolve_Research_Completion(&player, true, 100);
-    DOCTEST_CHECK(player.research_accumulated == 0);
+    DOCTEST_CHECK((player.research_accumulated == 0));
 
     player.research_accumulated = 75;
     COLCALC::Resolve_Research_Completion(&player, false, 0);
-    DOCTEST_CHECK(player.research_accumulated == 0);
+    DOCTEST_CHECK((player.research_accumulated == 0));
 }
 
 DOCTEST_TEST_CASE("configured breakthroughs retain research above twice the field cost") {
@@ -236,7 +236,7 @@ DOCTEST_TEST_CASE("configured breakthroughs retain research above twice the fiel
     COLCALC::Check_For_Research_Breakthrough(&player);
 
     DOCTEST_CHECK(player.research_breakthrough == 1);
-    DOCTEST_CHECK(player.research_accumulated == 75);
+    DOCTEST_CHECK((player.research_accumulated == 75));
     DOCTEST_CHECK(TEST_COLCALC_BASE::Give_Player_Field_Calls_() == 1);
 }
 
@@ -253,7 +253,7 @@ DOCTEST_TEST_CASE("high-cost breakthroughs clamp retained research without overf
     COLCALC::Check_For_Research_Breakthrough(&player);
 
     DOCTEST_CHECK(player.research_breakthrough == 1);
-    DOCTEST_CHECK(player.research_accumulated == 0);
+    DOCTEST_CHECK((player.research_accumulated == 0));
     DOCTEST_CHECK(TEST_COLCALC_BASE::Give_Player_Field_Calls_() == 1);
 }
 
@@ -269,7 +269,7 @@ DOCTEST_TEST_CASE("classic breakthroughs spend all accumulated research") {
     COLCALC::Check_For_Research_Breakthrough(&player);
 
     DOCTEST_CHECK(player.research_breakthrough == 1);
-    DOCTEST_CHECK(player.research_accumulated == 0);
+    DOCTEST_CHECK((player.research_accumulated == 0));
 }
 
 DOCTEST_TEST_CASE("fixed research cost completes only at twice the field cost") {
@@ -285,14 +285,14 @@ DOCTEST_TEST_CASE("fixed research cost completes only at twice the field cost") 
     COLCALC::Check_For_Research_Breakthrough(&player);
 
     DOCTEST_CHECK(player.research_breakthrough == 0);
-    DOCTEST_CHECK(player.research_accumulated == 199);
+    DOCTEST_CHECK((player.research_accumulated == 199));
     DOCTEST_CHECK(TEST_COLCALC_BASE::Give_Player_Field_Calls_() == 0);
 
     player.research_produced = 1;
     COLCALC::Check_For_Research_Breakthrough(&player);
 
     DOCTEST_CHECK(player.research_breakthrough == 1);
-    DOCTEST_CHECK(player.research_accumulated == 0);
+    DOCTEST_CHECK((player.research_accumulated == 0));
     DOCTEST_CHECK(TEST_COLCALC_BASE::Give_Player_Field_Calls_() == 1);
     COLCALC::fixed_research_cost = 0;
 }
@@ -310,7 +310,7 @@ DOCTEST_TEST_CASE("pending research selection survives turns without a breakthro
     COLCALC::Check_For_Research_Breakthrough(&player);
 
     DOCTEST_CHECK(player.research_breakthrough == 1);
-    DOCTEST_CHECK(player.research_accumulated == 30);
+    DOCTEST_CHECK((player.research_accumulated == 30));
     DOCTEST_CHECK(TEST_COLCALC_BASE::Give_Player_Field_Calls_() == 0);
 }
 

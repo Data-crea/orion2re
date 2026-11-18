@@ -59,6 +59,9 @@ namespace platform {
 
     extern uint8_t g_vsync_enabled;
     extern e_present_scaler g_present_scaler;
+    extern int32_t g_window_width;
+    extern int32_t g_window_height;
+    extern uint8_t g_fullscreen;
 
     extern uint8_t* offscreen_surface;
 

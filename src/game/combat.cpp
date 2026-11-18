@@ -622,21 +622,25 @@ namespace COMBAT {
 
     int16_t __cdecl QGet_Target(int16_t ship_idx) {
         int8_t player = MOX::qcombat_data[ship_idx].player;
-        int16_t targets[502];
         int16_t target_count = 0;
 
         for (int16_t i = 1; i < MOX::combat_total_ship_count; ++i) {
             // Target must belong to another player and be active
             if (MOX::qcombat_data[i].player != player && MOX::qcombat_data[i].status == 0 /* Active */) {
-                targets[target_count] = i;
                 target_count++;
             }
         }
 
         if (target_count != 0) {
-            // Random_ returns 1..N based on assembly array access pattern [rand*2 + 0x12]
+            // Preserve target order and one RNG draw without a fixed-size target buffer.
             int random_val = game_random::Random(target_count);
-            return targets[random_val - 1];
+            for (int16_t i = 1; i < MOX::combat_total_ship_count; ++i) {
+                if (MOX::qcombat_data[i].player != player && MOX::qcombat_data[i].status == 0) {
+                    if (--random_val == 0) {
+                        return i;
+                    }
+                }
+            }
         }
 
         // If no ship targets were found, check if we can target the fixed defense (index 0)

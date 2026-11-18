@@ -8,13 +8,12 @@ Dependencies must also be installed. The game reports missing dependencies and c
 
 | Package | Purpose | Requirements and compatibility | Enable line |
 | --- | --- | --- | --- |
-| Community Patch 1.50 (`v150`) | Applies the standard 1.50 patch rules and data retained by version 2.00. | Base package for several other included mods. | `enable v150;` |
-| Community Patch 1.50 Improved (`v150i`) | Adds rebalanced race picks, improved AI ship designs, and revised tactical-combat rules to the standard 1.50 package. | Requires `v150`. | `enable v150i;` |
-| Community Patch 1.50 Improved Multiplayer (`v150i-mp`) | Adds multiplayer race-pick, map, diplomacy, and interface changes for 1.50 Improved. | Requires `v150i` and the script-bearing `mirror_hw` package. All players need compatible copies of the complete dependency set. | `enable v150i-mp;` |
-| ICE (`ice`) | Applies ICE 35 balance, difficulty, map, resource, and new-game behavior. | Requires `v150`. | `enable ice;` |
-| ICE-X (`ice-x`) | Adds harder AI and Antaran settings to ICE. | Requires and loads after `ice`. | `enable ice-x;` |
-| VDC-GM3 (`vdc`) | Applies the VDC-GM3 balance, map, interface, resource, and new-game technology changes. | Requires `v150`, `mirror_exhw`, and `noreport`. Conflicts with `ice`, `ice-x`, `mirror`, `mirror_hw`, and `v150i`. | `enable vdc;` |
-| VDC-GM3 Map (`vdc_gm3_map`) | Applies the canonical VDC-GM3 galaxy-generation table. | Requires `vdc`. | `enable vdc_gm3_map;` |
+| Basic (`v150`) | Minimal mod that corrects help texts and graphics. Also enables a couple interface parameters. | Base package for several other included mods. | `enable v150;` |
+| Improved (`v150i`) | Adds rebalanced race picks, improved AI ship designs, and revised tactical-combat rules to the Basic mod. | Requires `v150`. | `enable v150i;` |
+| Improved Multiplayer (`v150i-mp`) | Adds multiplayer race picks, map and noreport to the Improved mod. | Requires `v150i` and the script-bearing `mirror_hw` package. All players need compatible copies of the complete dependency set. | `enable v150i-mp;` |
+| ICE (`ice`) | Applies ICE 35 balance, difficulty, map, resource, and new game behavior. | Requires `v150`. | `enable ice;` |
+| ICE-X (`ice-x`) | Adds harder AI and Antaran settings to the ICE mod. | Requires and loads after `ice`. | `enable ice-x;` |
+| VDC-GM3 (`vdc`) | Applies VDC-GM3 balance changes, VDC-GM3 map, interface, resource, and lot's of technology changes. | Requires `v150`, and `mirror_exhw`. Conflicts with `ice`, `ice-x`, `mirror`, `mirror_hw`, and `v150i`. | `enable vdc;` |
 | Version 1.2 mod (`v120`) | Approximates version 1.2 rules, including its Creative cost, Psilon design, selected ship designs, and selected weapon values. | Requires `v150`. Conflicts with `ice`, `melee`, `v150i`, and `vdc`. | `enable v120;` |
 | Melee (`melee`) | Provides the 1.50 two-player Melee mode and its compact tournament map. | Intended for two-player tactical competition rather than a normal campaign. | `enable melee;` |
 
@@ -31,14 +30,13 @@ Dependencies must also be installed. The game reports missing dependencies and c
 
 | Package | Purpose | Requirements and compatibility | Enable line |
 | --- | --- | --- | --- |
-| No Diplomacy Reports (`noreport`) | Disables diplomacy reports and technology exchange, demand, and offer actions. | Required by `vdc`. | `enable noreport;` |
 | Hidden Tech Tree (`treeless`) | Prevents browsing future technologies in the Research screen. | Can change planning information available to players. | `enable treeless;` |
 
 ## Important rule changes
 
 The package table gives a short description. The following larger changes are useful to know before starting a game.
 
-### Community Patch 1.50 Improved
+### Improved mod
 
 The `v150i` package changes more than AI ship designs and race-pick costs. Toxic colonies can become Barren by building a Recyclotron. Excess research beyond twice the current field cost is retained, and accumulated research is not discarded when the current technology is acquired from spying, capture, or an artifact world.
 
@@ -54,7 +52,7 @@ The `ice` package changes race picks, starting conditions, map generation, AI di
 
 ### VDC-GM3
 
-The `vdc` package is also a complete game profile. It uses at least five planets in each home system, gives an outpost ship with the applicable starting fleet, removes the random part of research breakthroughs, forces ship initiative, and limits tactical combat to 25 turns. The optional `vdc_gm3_map` add-on supplies its canonical galaxy-generation table and requires `vdc`; enabling `vdc` alone does not enable the map add-on.
+The `vdc` package is also a complete game profile. It uses at least five planets in each home system, gives an outpost ship with the applicable starting fleet, removes the random part of research breakthroughs, forces ship initiative, and limits tactical combat to 25 turns. The `vdc_gm3_map` supplies its canonical galaxy-generation table.
 
 ### Version 1.2 mod
 

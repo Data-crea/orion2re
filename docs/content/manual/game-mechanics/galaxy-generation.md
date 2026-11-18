@@ -10,7 +10,13 @@ Galaxy generation also ensures a nearby star with at least one colonizable plane
 
 ## Satellite limit
 
-On galaxies with up to 72 stars, generation retains at most 250 planets and asteroid belts; gas giants do not count toward this limit. If initial generation exceeds the limit, removable objects are trimmed while preserving homeworlds, Orion, required food worlds, and valid system links. Extended galaxies use their larger planet capacity instead of the 250-object limit.
+Each system can contain up to five satellites, regardless of galaxy size. The `map satellite_count` table controls initial satellite generation, not the later galaxy-wide trimming pass.
+
+On galaxies with up to 72 total stars, `map planet_limit` sets the combined planet, asteroid-belt, and gas-giant trimming threshold (default: 250). Matching MOO2 1.50, all three satellite types count and are eligible for removal. Reaching the threshold triggers removal until the count falls below it or no removable objects remain. Entire home systems, Orion's system, and systems containing required added food worlds are protected, and planet/system references are updated after removal.
+
+Set `map planet_limit = 0;` to disable this trimming pass, allowing galaxies with up to 72 stars to retain more than 250 satellites when enough are generated. A higher threshold, such as `map planet_limit = 400;`, also permits all five orbital slots across a galaxy of up to 72 stars. This setting does not itself generate more satellites or change their types; use the satellite-count and satellite-type tables for that.
+
+Galaxies with more than 72 total stars use their larger planet capacity instead, regardless of this setting or the galaxy-size preset name.
 
 ## Nebulae and black holes
 

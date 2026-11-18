@@ -1961,7 +1961,8 @@ namespace INFO {
             state->num_items = (uint8_t)num_items;
 
             int16_t msg_idx = MSG_::First_Msg_For_Player(MOX::PLAYER_NUM);
-            int16_t end_msg_idx = msg_idx + num_items;
+            uint8_t message_order[MAX_MESSAGES];
+            REPORT::Order_Turn_Summary_Messages(message_order, msg_idx, num_items, REPORT::sort_serious_turn_summary_first);
 
             fonts::Set_Font_Style(font_style, &INFO::info_normal_color);
             fonts::Set_Font_LF(font_lf);
@@ -1969,7 +1970,8 @@ namespace INFO {
             s_list_item* item = state->items;
             char buffer[256];
 
-            while (msg_idx < end_msg_idx) {
+            for (int16_t pos = 0; pos < num_items; ++pos) {
+                msg_idx = message_order[pos];
                 item->group_name[0] = '\0';
                 item->group_id = (uint8_t)msg_idx;
                 item->group_color_index = 0;
@@ -1988,7 +1990,6 @@ namespace INFO {
                     ++i;
                 } while (i < item->app_count);
 
-                msg_idx++;
                 item++;
             }
 
@@ -2036,6 +2037,10 @@ namespace INFO {
 
             g_turn_header.items = list_items;
             Init_Turn_Summary_List(&g_turn_header, msg_count);
+            if (MOX::return_screen == SCREEN_MAIN &&
+                REPORT::sort_serious_turn_summary_first) {
+                g_turn_message_ix = list_items[0].group_id;
+            }
             g_selected_msg_p = LIST::Select_And_Page_By_Head_ID(&g_turn_header, g_turn_message_ix);
         } else {
             down_button = list_items[0].x;

@@ -1,8 +1,6 @@
 # Manual: Build queue management
 
-Build queues hold up to seven products. Eleven configurable presets can add, remove, reorder, or buy products in a colony's queue. The presets are part of `data/orion2re.cfg`; separate `BUILD.CFG` and `BUILD0.CFG` through `BUILD9.CFG` files are not used.
-
-With multibuild enabled, queued items use stored PP plus this turn's PP. Any PP left after building stays on the colony balance, even if Trade Goods is next in the queue. Trade Goods converts only the colony's full current-turn PP when it is already selected at the start of a turn; it never spends or adds to stored PP.
+Build queue presets are reusable sets of instructions for managing a colony's production queue. A preset can add, remove, reorder, or buy products, so you do not have to make each change manually. Eleven configurable presets are available. They operate on colony queues that hold up to seven products, such as buildings, ships, or spies.
 
 ![Build queue management screen](../../assets/images/manual/image31.png)
 
@@ -21,6 +19,8 @@ In the Build screen, a preset applies to the current colony. In the Colonies scr
 The built-in presets merge a general building priority list with `Q`, prepend ship designs 1 through 6 with the matching number keys, prepend a freighter with `7`, prepend a spy with `8`, add Housing with `9`, and clear removable products with `0`.
 
 ## Configuring presets
+
+Presets are part of `data/orion2re.cfg`; separate `BUILD.CFG` and `BUILD0.CFG` through `BUILD9.CFG` files are not used.
 
 A complete preset assignment contains space-separated instructions and must end with `end`:
 
@@ -43,11 +43,13 @@ Product names use lowercase words separated by underscores. They include:
 - `android_farmer`, `android_worker`, and `android_scientist`; and
 - `spy`, `freighter_fleet`, `trade_goods`, `housing`, and `repeat`.
 
+`repeat` may follow a repeatable non-building product. It cannot follow Housing, Trade Goods, another Repeat, or most buildings; Terraforming and Colony Base are the building exceptions.
+
 ### Insertion modes
 
 `append` adds subsequent products at the end of the queue and is the initial mode. `prepend` inserts them before the first unpurchased product. `merge` selects matching products already in the queue and places the listed products in that selected region and order. Repeat markers remain attached to the products they repeat.
 
-Modes remain active until another mode is encountered. A full queue prevents further insertion, but processing continues in case a later command removes an item.
+Modes remain active until another mode is encountered. Products that do not fit in a full queue are skipped, but processing continues in case a later command removes an item.
 
 ### Commands
 
@@ -62,15 +64,11 @@ Modes remain active until another mode is encountered. A full queue prevents fur
 | `stop` | Stop processing immediately. |
 | `end` | End the preset. This is required in the configured list. |
 
-`repeat` may follow a repeatable non-building product. It cannot follow Housing, Trade Goods, another Repeat, or most buildings; Terraforming and Colony Base are the building exceptions.
-
-## Invalid and unavailable items
+### Validation and availability
 
 Configuration loading rejects unknown instruction names, preset indexes outside 0 through 10, oversized lists, and complete lists without `end`.
 
 When a valid preset is applied, every product is checked for the current colony. A product is skipped if it is unavailable, already built or queued where duplicates are forbidden, has no valid target, refers to a missing ship design, cannot allocate a ship, or cannot legally be repeated. A failed instruction does not cancel earlier changes and does not stop later instructions. This allows one preset to be useful at colonies with different technologies and local conditions.
-
-Purchased products are protected from `prepend` and ordinary `clear`. Refits are protected from ordinary `clear`; use `clear_refits` to remove unpurchased refits. If the queue is full, products that do not fit are skipped.
 
 ## Autobuild
 
@@ -89,6 +87,8 @@ When queue-driven Autobuild is disabled in configuration, the original Autobuild
 
 ## Multibuild
 
+Production points (PP) measure a colony's industrial output. They pay the production cost of buildings, ships, and other queued products.
+
 Enable multibuild with:
 
 ```text
@@ -97,11 +97,13 @@ colony multibuild = true;
 
 Normally a colony completes at most one queued product per turn. With multibuild enabled, stored, bought, and current net production form one pool. After a product completes, any remainder is applied to the next product, allowing several products to finish in one turn. If the next product is too expensive, the remainder is stored there.
 
+Any PP left after building stay on the colony balance, even if Trade Goods is next in the queue. Trade Goods converts only the colony's full current-turn PP when it is already selected at the start of a turn; it never spends or adds to stored PP.
+
 Processing stops at useful Housing, Trade Goods, an empty queue, or a product that cannot yet be completed. Repeat production can complete repeatedly while enough production remains. Housing that cannot be used is removed according to the normal Housing rules; disabled Housing is removed and processing can continue.
 
 ## Recovery behavior
 
-Queue operations compact empty slots and remove a leading orphaned Repeat marker. If production-screen cleanup leaves a colony with no product, it falls back to Trade Goods. Preset products that are invalid for the colony are skipped rather than blocking later preset instructions. Normal game actions that invalidate specific queued products, such as removing a required building, also remove those products and reverse a purchase when necessary; presets do not otherwise reconstruct a damaged queue.
+Queue operations compact empty slots and remove a leading orphaned Repeat marker. If production-screen cleanup leaves a colony with no product, it falls back to Trade Goods. Normal game actions that invalidate specific queued products, such as removing a required building, also remove those products and reverse a purchase when necessary; presets do not otherwise reconstruct a damaged queue.
 
 If a custom preset behaves unexpectedly:
 

@@ -373,15 +373,15 @@ namespace animate {
 
         if (count > 0) {
             s_palette_entry* dst = &video::current_palette[start_index];
-            uint32_t* dst_val = (uint32_t*)dst;
-            const uint32_t* src = reinterpret_cast<const uint32_t*>(
-                reinterpret_cast<const uint8_t*>(palette_header) + sizeof(s_palette_header));
+            const uint8_t* src =
+                reinterpret_cast<const uint8_t*>(palette_header) + sizeof(s_palette_header);
 
             for (int16_t i = 0; i < count; ++i) {
-                uint32_t src_val = src[i];
+                const uint32_t src_val = unaligned::Load<uint32_t>(src + i * sizeof(uint32_t));
+                const uint32_t dst_val = unaligned::Load<uint32_t>(&dst[i]);
 
-                if (dst_val[i] != src_val) {
-                    dst_val[i] = src_val + 1;
+                if (dst_val != src_val) {
+                    unaligned::Store<uint32_t>(&dst[i], src_val + 1);
                     dst[i].changed = 1;
                 }
             }

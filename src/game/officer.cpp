@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 #include "lua/lua_game_ship_identity.h"
 
@@ -2354,7 +2355,8 @@ namespace OFFICER {
 
         MOX::officer_pictures_screen_seg = allocate::Allocate_Next_Block(MOX::screen_seg, 85000);
 
-        ldrpict = (s_officer_picture_slot*)allocate::Allocate_Next_Block(MOX::screen_seg, sizeof(*ldrpict) * 8);
+        ldrpict = static_cast<s_officer_picture_slot*>(allocate::Allocate_Next_Block_Aligned(
+            MOX::screen_seg, sizeof(*ldrpict) * 8, alignof(s_officer_picture_slot)));
         memset(ldrpict, 0, sizeof(*ldrpict) * 8);
 
         prev_leaders = static_cast<s_prev_leader_data*>(allocate::Allocate_Next_Block(MOX::screen_seg, 0xF71));
@@ -2437,7 +2439,7 @@ namespace OFFICER {
         MOX::player[player_index].officer_for_hire = (int8_t)leader_index;
 
         if (MOX::player[player_index].officer_for_hire > -1) {
-            if (reject_declined_offers == 0 ||
+            if (rejected_offer_keeps_timer == 0 ||
                 MOX::player[player_index].objectives != PLAYER_OBJECTIVE_HUMAN) {
                 MOX::player[player_index].stardate_last_offered_hero = static_cast<uint16_t>(MOX::stardate);
             }
@@ -2925,6 +2927,7 @@ namespace OFFICER {
         for (int16_t i = 0; i < 27; ++i) {
             officer_skill_name_string[i] = (char*)farload::Far_Reload_Next_Data(
                 lbx_name, 0, MOX::screen_seg, i, 1, 0x26);
+            string_overrides::Apply_String(lbx_name, i + 1, officer_skill_name_string[i], 0x26);
         }
 
         RUSS::Mox_Update();
@@ -2932,6 +2935,7 @@ namespace OFFICER {
         for (int16_t i = 0; i < 27; ++i) {
             officer_skill_description_string[i] = (char*)farload::Far_Reload_Next_Data(
                 lbx_name, 1, MOX::screen_seg, i, 1, 0xFF);
+            string_overrides::Apply_String(lbx_name, 27 + i + 1, officer_skill_description_string[i], 0xFF);
         }
     }
 
@@ -3384,6 +3388,9 @@ namespace OFFICER {
     }
 
     void __cdecl Give_Player_Loknar_Special(int16_t player_idx, int16_t* techs, int16_t* num_techs) {
+        // Battle-result outputs can point into packed storage.
+        int16_t granted_techs[7];
+        int16_t granted_tech_count = 0;
         int16_t loknar_techs[3];
         int16_t num_loknar_techs = 0;
         bool dont_assign = false;
@@ -3417,22 +3424,21 @@ namespace OFFICER {
             }
         }
 
-        *num_techs = 0;
-
         if (COLCALC::Player_May_Get_Tech_App(
                 &MOX::player[player_idx], orion_reward_technology.application)) {
             COLCALC::Player_Gets_Tech_App(
                 &MOX::player[player_idx], orion_reward_technology.application);
-            techs[*num_techs] = orion_reward_technology.application;
-            *num_techs += 1;
+            granted_techs[granted_tech_count++] = orion_reward_technology.application;
         }
 
-        Get_Random_Antaran_Tech(player_idx, 3, techs, num_techs);
+        Get_Random_Antaran_Tech(player_idx, 3, granted_techs, &granted_tech_count);
 
         for (int16_t i = 0; i < num_loknar_techs; ++i) {
-            techs[*num_techs] = loknar_techs[i];
-            ++(*num_techs);
+            granted_techs[granted_tech_count++] = loknar_techs[i];
         }
+
+        memcpy(techs, granted_techs, granted_tech_count * sizeof(granted_techs[0]));
+        unaligned::Store<int16_t>(num_techs, granted_tech_count);
 
         MAINSCR::Update_Ship_Icons_In_Between_Turns();
     }

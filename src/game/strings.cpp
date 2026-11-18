@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 namespace strings {
     const char s__00551100[1] = "";
@@ -32,6 +33,7 @@ namespace strings {
                                             "T0,5,124.";
 
     void Load_Strings() {
+        string_overrides::Reset_Cache();
         HAROLD::Load_H_Strings();
         RUSS::Load_Russ_Strings();
         ESTRINGS::Load_E_Strings();

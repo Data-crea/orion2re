@@ -189,7 +189,7 @@
     },
     {
       "name": "mingw-win32-debug-asan",
-      "displayName": "MinGW Win32 Debug (ASan)",
+      "displayName": "MinGW Win32 Debug (ASan + UBSan)",
       "inherits": "mingw-win32-debug",
       "cacheVariables": {
         "ORION2RE_ENABLE_ASAN": "ON"
@@ -278,7 +278,7 @@
     },
     {
       "name": "linux-debug-asan",
-      "displayName": "Linux Native Debug (ASan)",
+      "displayName": "Linux Native Debug (ASan + UBSan)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${hostSystemName}/${presetName}",
       "condition": {
@@ -331,7 +331,7 @@
     },
     {
       "name": "linux-x86-debug-asan",
-      "displayName": "Linux x86 Debug (ASan)",
+      "displayName": "Linux x86 Debug (ASan + UBSan)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${hostSystemName}/${presetName}",
       "condition": {
@@ -381,7 +381,7 @@
     },
     {
       "name": "osx-debug-asan",
-      "displayName": "macOS ARM64 Debug (ASan)",
+      "displayName": "macOS ARM64 Debug (ASan + UBSan)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${hostSystemName}/${presetName}",
       "condition": {
@@ -412,7 +412,7 @@
     },
     {
       "name": "mingw-win32-debug-asan-tests",
-      "displayName": "MinGW Win32 Debug (ASan) + Tests",
+      "displayName": "MinGW Win32 Debug (ASan + UBSan) + Tests",
       "inherits": "mingw-win32-debug-asan",
       "cacheVariables": {
         "ORION2RE_BUILD_TESTS": "ON"
@@ -420,7 +420,7 @@
     },
     {
       "name": "mingw-win64-debug-asan-tests",
-      "displayName": "MinGW Win64 Debug (ASan) + Tests",
+      "displayName": "MinGW Win64 Debug (ASan + UBSan) + Tests",
       "inherits": "mingw-win64-debug",
       "cacheVariables": {
         "ORION2RE_BUILD_TESTS": "ON",
@@ -429,7 +429,7 @@
     },
     {
       "name": "linux-debug-asan-tests",
-      "displayName": "Linux Native Debug (ASan) + Tests",
+      "displayName": "Linux Native Debug (ASan + UBSan) + Tests",
       "inherits": "linux-debug-asan",
       "cacheVariables": {
         "ORION2RE_BUILD_TESTS": "ON"
@@ -457,7 +457,7 @@
     },
     {
       "name": "linux-x86-debug-asan-tests",
-      "displayName": "Linux x86 Debug (ASan) + Tests",
+      "displayName": "Linux x86 Debug (ASan + UBSan) + Tests",
       "inherits": "linux-x86-debug-asan",
       "cacheVariables": {
         "ORION2RE_BUILD_TESTS": "ON"
@@ -465,7 +465,7 @@
     },
     {
       "name": "osx-debug-asan-tests",
-      "displayName": "macOS ARM64 Debug (ASan) + Tests",
+      "displayName": "macOS ARM64 Debug (ASan + UBSan) + Tests",
       "inherits": "osx-debug-asan",
       "cacheVariables": {
         "ORION2RE_BUILD_TESTS": "ON"

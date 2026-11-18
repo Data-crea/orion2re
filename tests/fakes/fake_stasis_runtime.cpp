@@ -44,7 +44,7 @@ namespace TEST_STASIS {
         capture_internal_damage = false;
         captured_internal_damage = 0;
         random_value = 100;
-        beam_target_range = 9;
+        beam_target_range = 8;
         CMBTFIRE::hit_threshold_fixed_value = 40;
         CMBTFIRE::ion_affects_antarans = 0;
         TECHDATA::esd_bonus = 100;
@@ -376,7 +376,7 @@ namespace CMBTAI {
 
 namespace CMBTFIR2 {
     s_combat_bonus combat_bonus = {
-        50, 20, 0, 10, 20, 50, 100, 0, 80, 80, 10, 30, 15,
+        50, 20, 0, 10, 20, 50, 100, 0, 80, 80, 10, 30, 0, 15,
     };
 
     int16_t __cdecl Damage_From_Ship_Exploding(int16_t ship_idx) {

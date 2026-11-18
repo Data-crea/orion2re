@@ -17,15 +17,15 @@ DOCTEST_TEST_CASE("wandering Eels reproduce at the configured interval") {
     AIMOVE::eel_spawn_frequency = 3;
 
     AIMOVE::Move_NPCs();
-    DOCTEST_CHECK(MOX::ship[0].d.date_of_design == 1);
+    DOCTEST_CHECK((MOX::ship[0].d.date_of_design == 1));
     DOCTEST_CHECK(TEST_AIMOVE::Spawn_Count_() == 0);
 
     AIMOVE::Move_NPCs();
-    DOCTEST_CHECK(MOX::ship[0].d.date_of_design == 2);
+    DOCTEST_CHECK((MOX::ship[0].d.date_of_design == 2));
     DOCTEST_CHECK(TEST_AIMOVE::Spawn_Count_() == 0);
 
     AIMOVE::Move_NPCs();
-    DOCTEST_CHECK(MOX::ship[0].d.date_of_design == 0);
+    DOCTEST_CHECK((MOX::ship[0].d.date_of_design == 0));
     DOCTEST_CHECK(TEST_AIMOVE::Spawn_Count_() == 1);
     DOCTEST_CHECK(TEST_AIMOVE::Spawned_Eel_Timer_() == 0);
 }

@@ -4,7 +4,8 @@
 
 namespace {
     s_colony colonies[2];
-    s_planet_data planet_storage[2];
+    // MOX::planet points past the sentinel, leaving two usable planet records.
+    s_planet_data planet_storage[3];
     s_player players[MAX_PLAYERS];
     s_star_data stars[1];
     s_ship_data ships[1];

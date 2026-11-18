@@ -1,5 +1,5 @@
 #include "pch.h"
-#include <cstring>
+#include "string_overrides.h"
 
 namespace HAROLD {
     s_mouse_list saved_mouse_list[10];
@@ -585,7 +585,7 @@ namespace HAROLD {
     }
 
     const char* __cdecl H_Message(int16_t id, int unused_save_slot, const s_save_game_description* unused_save_description) {
-        uint16_t buffer_offset = 0;
+        size_t buffer_offset = 0;
 
         (void)unused_save_slot;
         (void)unused_save_description;
@@ -1406,13 +1406,8 @@ namespace HAROLD {
     }
 
     void __cdecl Load_H_Strings() {
-        int16_t string_index = 0;
-        int16_t scan_offset = 0;
-        int16_t next_string_offset = 0;
-        int32_t max_length = 0;
         uint32_t load_size = 0;
         char strings_file[13];
-        char error_message[200];
 
         if (static_cast<uint8_t>(MOX::settings.language) >= 6) {
             MOX::settings.language = 0;
@@ -1421,73 +1416,38 @@ namespace HAROLD {
         switch (MOX::settings.language) {
             case 1:
                 memcpy(strings_file, "HGSTRNGS.LBX", sizeof(strings_file));
-                max_length = 0x1A0;
                 load_size = 0x3D01;
                 break;
 
             case 2:
                 memcpy(strings_file, "HFSTRNGS.LBX", sizeof(strings_file));
-                max_length = 0x118;
                 load_size = 0x408D;
                 break;
 
             case 3:
                 memcpy(strings_file, "HSSTRNGS.LBX", sizeof(strings_file));
-                max_length = 0x1A1;
                 load_size = 0x3CE8;
                 break;
 
             case 4:
                 memcpy(strings_file, "HISTRNGS.LBX", sizeof(strings_file));
-                max_length = 0x172;
                 load_size = 0x36F0;
                 break;
 
             default:
                 memcpy(strings_file, "HESTRNGS.LBX", sizeof(strings_file));
-                max_length = 0x181;
                 load_size = 0x34D1;
                 break;
         }
 
-        memset(MOX::h_strings, 0, sizeof(MOX::h_strings));
-        farload::Farload_Data_Static(strings_file, 0, MOX::h_strings, 0, 1, (int32_t)load_size);
-
-        for (;;) {
-            int32_t string_length = 0;
-
-            if (static_cast<int32_t>(scan_offset) < 0x4074 &&
-                MOX::h_strings[static_cast<int32_t>(scan_offset)] != '\0') {
-                while (static_cast<int32_t>(scan_offset) < 0x4074 &&
-                    MOX::h_strings[static_cast<int32_t>(scan_offset)] != '\0') {
-                    ++scan_offset;
-                    ++string_length;
-                }
-            }
-
-            if (static_cast<int32_t>(scan_offset) + 1 > 0x4074) {
-                return;
-            }
-
-            if (string_length > max_length) {
-                snprintf(
-                    error_message,
-                    sizeof(error_message),
-                    "(%s) String #%d Too Long, check terminator (strlen: %i)",
-                    strings_file,
-                    static_cast<int32_t>(string_index),
-                    string_length);
-                exitm::Exit_With_Message(error_message);
-            }
-
-            ++scan_offset;
-            MOX::h_string_ix[static_cast<int32_t>(string_index)] = next_string_offset;
-            ++string_index;
-            next_string_offset = scan_offset;
-
-            if (string_index == 397) {
-                return;
-            }
+        std::vector<char> loaded(load_size);
+        farload::Farload_Data_Static(strings_file, 0, loaded.data(), 0, 1, (int32_t)load_size);
+        string_overrides::Apply_Table(strings_file, &loaded, 397);
+        MOX::h_strings.swap(loaded);
+        size_t offset = 0;
+        for (int i = 0; i < 397; ++i) {
+            MOX::h_string_ix[i] = offset;
+            offset += strlen(MOX::h_strings.data() + offset) + 1;
         }
     }
 } // namespace HAROLD

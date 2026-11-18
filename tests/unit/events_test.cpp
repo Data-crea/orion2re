@@ -31,10 +31,11 @@ DOCTEST_TEST_CASE("monster planet updates retain explicit report state") {
     EVENTS::Event_Monster_Update(NONPLAYER_SHIP_TYPE_AMOEBA, 3, -1);
 
     const s_event_data& event = EVENTS::event_data[EVENT_SPACE_AMOEBA];
-    DOCTEST_CHECK(event.status == 4);
-    DOCTEST_CHECK(event.target_id == 3);
-    DOCTEST_CHECK(event.max_amount == 2);
-    DOCTEST_CHECK(event.player_idx == 4);
+    // Evaluate packed-field comparisons before doctest can bind operand references.
+    DOCTEST_CHECK((event.status == 4));
+    DOCTEST_CHECK((event.target_id == 3));
+    DOCTEST_CHECK((event.max_amount == 2));
+    DOCTEST_CHECK((event.player_idx == 4));
 }
 
 DOCTEST_TEST_CASE("monster death updates retain completion payload") {
@@ -43,9 +44,9 @@ DOCTEST_TEST_CASE("monster death updates retain completion payload") {
     EVENTS::Event_Monster_Update(NONPLAYER_SHIP_TYPE_HYDRA, -1, 2);
 
     const s_event_data& event = EVENTS::event_data[EVENT_SPACE_HYDRA];
-    DOCTEST_CHECK(event.status == 4);
-    DOCTEST_CHECK(event.player_idx == 2);
-    DOCTEST_CHECK(event.amount == 2);
+    DOCTEST_CHECK((event.status == 4));
+    DOCTEST_CHECK((event.player_idx == 2));
+    DOCTEST_CHECK((event.amount == 2));
 }
 
 DOCTEST_TEST_CASE("monster reports use preserved planet identity safely") {
@@ -65,6 +66,59 @@ DOCTEST_TEST_CASE("monster reports use preserved planet identity safely") {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         message, sizeof(message));
     DOCTEST_CHECK(strcmp(message, "Target ") == 0);
+}
+
+DOCTEST_TEST_CASE("planet event reports preserve vanilla and v150 location tokens") {
+    TEST_EVENTS::Reset_();
+    MOX::PLAYER_NUM = 0;
+    MOX::colony[0].planet = 188;
+    MOX::colony[3].planet = 193;
+    MOX::planet[193].colony_index = 3;
+    MOX::planet[193].star_index = 54;
+    MOX::planet[193].mineral_class = MINERAL_RESOURCE_ULTRA_RICH;
+    strlcpy(MOX::star[54].name, "Gnol", sizeof(MOX::star[54].name));
+    strlcpy(MOX::player[2].race_name, "Gnolam", sizeof(MOX::player[2].race_name));
+    char mineral_name[] = "Ultra Rich";
+    MOX::mineral_class_string[MINERAL_RESOURCE_ULTRA_RICH] = mineral_name;
+    int16_t event_id = EVENT_MINERAL_DEPOSIT;
+    const char* vanilla_text = "Workers in \x8F\x90 Empire discovered a previously unknown deposit of minerals on %s that improved the mineral classification of that planet to \x8C.";
+    const char* patched_text = vanilla_text;
+    const char* vanilla_expected = "Workers in Gnolam Empire discovered a previously unknown deposit of minerals on %s that improved the mineral classification of that planet to Ultra Rich.";
+    const char* patched_expected = vanilla_expected;
+    DOCTEST_SUBCASE("mineral deposit") {
+    }
+    DOCTEST_SUBCASE("mineral depletion") {
+        event_id = EVENT_MINERAL_DEPLETION;
+        vanilla_text = "Due to overworking by \x90 miners, the mineral classification of %s colony was lowered to \x8C.";
+        patched_text = vanilla_text;
+        vanilla_expected = "Due to overworking by Gnolam miners, the mineral classification of %s colony was lowered to Ultra Rich.";
+        patched_expected = vanilla_expected;
+    }
+    DOCTEST_SUBCASE("industrial accident") {
+        event_id = EVENT_INDUSTRIAL_ACCIDENT;
+        vanilla_text = "A major industrial accident on %s has irradiated the entire planet. The intense radiation levels threaten to kill millions of civilians in \x8F\x90 Empire.";
+        patched_text = "A major industrial accident on %s has irradiated the entire planet. The intense radiation levels have killed millions of civilians in \x8F\x90 colony.";
+        vanilla_expected = "A major industrial accident on %s has irradiated the entire planet. The intense radiation levels threaten to kill millions of civilians in Gnolam Empire.";
+        patched_expected = "A major industrial accident on %s has irradiated the entire planet. The intense radiation levels have killed millions of civilians in Gnolam colony.";
+    }
+    s_event_data& event = EVENTS::event_data[event_id];
+    event.player_idx = 2;
+    event.target_id = 193;
+    event.status = 5;
+
+    for (bool patched : {false, true}) {
+        DOCTEST_CAPTURE(patched);
+        char message[300];
+        snprintf(message, sizeof(message), patched ? patched_text : vanilla_text, patched ? "\x80" : "\x8B");
+        TEST_EVENTS::Set_Event_Message_(message);
+
+        EVENTS::Setup_Next_Event(event_id);
+
+        snprintf(message, sizeof(message), patched ? patched_expected : vanilla_expected, patched ? "Planet 193" : "Gnol");
+        DOCTEST_CHECK(strcmp(EVENTS::event_message, message) == 0);
+        DOCTEST_CHECK((event.target_id == 193));
+    }
+    MOX::mineral_class_string[MINERAL_RESOURCE_ULTRA_RICH] = nullptr;
 }
 
 DOCTEST_TEST_CASE("Donation uses the 1.50 base plus completed growth steps") {
@@ -125,11 +179,11 @@ DOCTEST_TEST_CASE("Computer Virus preserves unsigned configuration values") {
 
         EVENTS::Event_Twiddle();
 
-        DOCTEST_CHECK(event.target_id == test_case.expected_loss);
-        DOCTEST_CHECK(event.amount == 3);
-        DOCTEST_CHECK(MOX::player[0].research_accumulated ==
-            test_case.expected_research);
-        DOCTEST_CHECK(event.status == 5);
+        DOCTEST_CHECK((event.target_id == test_case.expected_loss));
+        DOCTEST_CHECK((event.amount == 3));
+        DOCTEST_CHECK((MOX::player[0].research_accumulated ==
+            test_case.expected_research));
+        DOCTEST_CHECK((event.status == 5));
     }
 }
 
@@ -192,14 +246,14 @@ DOCTEST_TEST_CASE("failed Supernova resets planet environment before destruction
 
     EVENTS::Event_Twiddle();
 
-    DOCTEST_CHECK(event.status == 5);
+    DOCTEST_CHECK((event.status == 5));
     for (int planet_idx = 0; planet_idx < 2; ++planet_idx) {
-        DOCTEST_CHECK(MOX::planet[planet_idx].climate == PLANET_CLIMATE_RADIATED);
-        DOCTEST_CHECK(MOX::planet[planet_idx].environmental_alterations == 0);
-        DOCTEST_CHECK(MOX::planet[planet_idx].food_per_farmer == 7);
+        DOCTEST_CHECK((MOX::planet[planet_idx].climate == PLANET_CLIMATE_RADIATED));
+        DOCTEST_CHECK((MOX::planet[planet_idx].environmental_alterations == 0));
+        DOCTEST_CHECK((MOX::planet[planet_idx].food_per_farmer == 7));
     }
-    DOCTEST_CHECK(MOX::planet[0].colony_index == -1);
-    DOCTEST_CHECK(MOX::colony[0].owner == -1);
+    DOCTEST_CHECK((MOX::planet[0].colony_index == -1));
+    DOCTEST_CHECK((MOX::colony[0].owner == -1));
 }
 
 DOCTEST_TEST_CASE("Antaran victim weights use widened Lucky division") {

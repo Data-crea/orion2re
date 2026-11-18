@@ -462,11 +462,11 @@ DOCTEST_TEST_CASE("shield generator damage refreshes stored shield capacity") {
 
     CMBTFIR2::Apply_Internal_Damage(1, &remaining_damage, 2, 0, 0);
 
-    DOCTEST_CHECK(ship.shield_arc_max == 100);
-    DOCTEST_CHECK(ship.shield_arc_current[0] == 100);
-    DOCTEST_CHECK(ship.shield_arc_current[1] == 100);
-    DOCTEST_CHECK(ship.shield_arc_current[2] == 100);
-    DOCTEST_CHECK(ship.shield_arc_current[3] == 80);
+    DOCTEST_CHECK((ship.shield_arc_max == 100));
+    DOCTEST_CHECK((ship.shield_arc_current[0] == 100));
+    DOCTEST_CHECK((ship.shield_arc_current[1] == 100));
+    DOCTEST_CHECK((ship.shield_arc_current[2] == 100));
+    DOCTEST_CHECK((ship.shield_arc_current[3] == 80));
 }
 
 DOCTEST_TEST_CASE("subsystem damage floors unsigned hit points and returns excess damage") {
@@ -522,11 +522,11 @@ DOCTEST_TEST_CASE("destroyed multi-phased shields reduce shield capacity") {
     DOCTEST_CHECK(struct_::Test_Bit_Field(
         ship.special_device_damage_flags,
         SPECIAL_MULTI_PHASED_SHIELDS) == 1);
-    DOCTEST_CHECK(ship.shield_arc_max == 100);
-    DOCTEST_CHECK(ship.shield_arc_current[0] == 100);
-    DOCTEST_CHECK(ship.shield_arc_current[1] == 100);
-    DOCTEST_CHECK(ship.shield_arc_current[2] == 100);
-    DOCTEST_CHECK(ship.shield_arc_current[3] == 80);
+    DOCTEST_CHECK((ship.shield_arc_max == 100));
+    DOCTEST_CHECK((ship.shield_arc_current[0] == 100));
+    DOCTEST_CHECK((ship.shield_arc_current[1] == 100));
+    DOCTEST_CHECK((ship.shield_arc_current[2] == 100));
+    DOCTEST_CHECK((ship.shield_arc_current[3] == 80));
 }
 
 DOCTEST_TEST_CASE("destroying the sole enabled Stealth Field decloaks its ship") {

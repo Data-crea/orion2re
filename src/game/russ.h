@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <vector>
 
 namespace RUSS {
     /** Legacy variadic formatting entry point.
@@ -96,7 +97,7 @@ namespace RUSS {
     /** Loads the shared RUSS string table and hands slices to subsystem loaders. */
     void __cdecl Load_Russ_Strings();
 
-    extern char russ_strings[0x1964];
+    extern std::vector<char> russ_strings;
 
     extern const char s_Seed_ld[];
     extern const char s_Map_d[];

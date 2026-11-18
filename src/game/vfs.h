@@ -13,6 +13,11 @@ namespace vfs {
     int8_t Init(const char* base_path);
     void Shutdown();
     int8_t Set_Raw_Fallback_Path(const char* path);
+    int8_t Set_User_Config_Path(const char* path);
+    int8_t Set_User_Mods_Path(const char* path);
+    // Original-file search directories, after the base and before the CD path.
+    int8_t Add_Raw_Search_Path(const char* path);
+    std::vector<std::string> Get_Data_Search_Paths();
 
     s_vfs_mount_transaction* Begin_Mount_Transaction();
     int8_t Stage_Package_Mount(s_vfs_mount_transaction* transaction,
@@ -34,6 +39,13 @@ namespace vfs {
 
     s_vfs_file* fopen(const char* path, const char* mode);
     s_vfs_file* fopen_lbx(const char* lbx_name, int32_t entry_idx);
+
+    // Start cursor at zero; close each returned file. Do not change mounts while
+    // iterating matching read-only files from highest to lowest priority.
+    s_vfs_file* fopen_next_read(const char* path, size_t* cursor);
+
+    // Compare files opened from the same current mount view. Equal layers tie.
+    bool File_Has_Higher_Priority(const s_vfs_file* file, const s_vfs_file* other);
 
     size_t fread(void* ptr, size_t size, size_t count, s_vfs_file* file);
     int32_t fsize(s_vfs_file* file);

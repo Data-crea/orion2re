@@ -186,9 +186,9 @@ DOCTEST_TEST_CASE("survival pods recover more than eight leaders after an expand
 
     for (int16_t i = 0; i < leader_count; ++i) {
         const int16_t surviving_idx = leader_count + i + 1;
-        DOCTEST_CHECK(MOX::leaders[i].location == surviving_idx);
-        DOCTEST_CHECK(MOX::ship[surviving_idx].officer_index == i);
-        DOCTEST_CHECK(MOX::combat_data[surviving_idx].officer_idx == i);
+        DOCTEST_CHECK((MOX::leaders[i].location == surviving_idx));
+        DOCTEST_CHECK((MOX::ship[surviving_idx].officer_index == i));
+        DOCTEST_CHECK((MOX::combat_data[surviving_idx].officer_idx == i));
     }
 }
 
@@ -242,8 +242,8 @@ DOCTEST_TEST_CASE("500 ships per side deploy without overlap in either orientati
                 const int footprint = ship.size_class >= SHIP_SIZE_HUGE ? 3
                     : ship.size_class == SHIP_SIZE_SMALL                ? 1
                                                                         : 2;
-                DOCTEST_REQUIRE(ship.x >= 0);
-                DOCTEST_REQUIRE(ship.y >= 0);
+                DOCTEST_REQUIRE((ship.x >= 0));
+                DOCTEST_REQUIRE((ship.y >= 0));
                 DOCTEST_REQUIRE(ship.x + footprint <= MOX::combat_grid_width);
                 DOCTEST_REQUIRE(ship.y + footprint <= MOX::combat_grid_height);
                 for (int x = ship.x; x < ship.x + footprint; ++x) {
@@ -286,15 +286,15 @@ DOCTEST_TEST_CASE("special references retain ship index 255 and larger indices")
     TEST_COMBINIT::Reset_();
     COMBINIT::Init_Special_Devices(500);
     s_combat_data& ship = MOX::combat_data[500];
-    DOCTEST_CHECK(ship.stasis_source_idx == COMBAT_SHIP_NONE);
-    DOCTEST_CHECK(ship.black_hole_source_idx == COMBAT_SHIP_NONE);
-    DOCTEST_CHECK(ship.special_cooldown == COMBAT_SHIP_NONE);
+    DOCTEST_CHECK((ship.stasis_source_idx == COMBAT_SHIP_NONE));
+    DOCTEST_CHECK((ship.black_hole_source_idx == COMBAT_SHIP_NONE));
+    DOCTEST_CHECK((ship.special_cooldown == COMBAT_SHIP_NONE));
     ship.stasis_source_idx = 255;
     ship.black_hole_source_idx = 999;
     ship.special_cooldown = 1000;
-    DOCTEST_CHECK(ship.stasis_source_idx == 255);
-    DOCTEST_CHECK(ship.black_hole_source_idx == 999);
-    DOCTEST_CHECK(ship.special_cooldown == 1000);
+    DOCTEST_CHECK((ship.stasis_source_idx == 255));
+    DOCTEST_CHECK((ship.black_hole_source_idx == 999));
+    DOCTEST_CHECK((ship.special_cooldown == 1000));
 }
 
 DOCTEST_TEST_CASE("time warp BHG phase excludes ordinary ships") {

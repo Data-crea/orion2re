@@ -121,9 +121,24 @@ namespace MOX {
 }
 
 namespace COLCALC {
+    int16_t __cdecl Colony_Empire_Base_Food2_Produced(
+        const s_colony*, int16_t, int16_t, s_colony_job_production*) {
+        return 0;
+    }
+
+    int16_t __cdecl Colony_Empire_Base_Industry_Produced(
+        const s_colony*, int16_t, int16_t, s_colony_job_production*) {
+        return 0;
+    }
+
+    int16_t __cdecl Colony_Empire_Base_Research_Produced(
+        const s_colony*, int16_t, int16_t, s_colony_job_production*) {
+        return 0;
+    }
+
     void __cdecl Player_Gets_Tech_App(s_player* player, int16_t tech_app_id) {
         granted_apps[grant_count++] = tech_app_id;
         player->tech_applications[tech_app_id] = TECH_RESEARCH_STATUS_RESEARCHED;
         player->got_new_app = 1;
     }
-}
+} // namespace COLCALC

@@ -780,7 +780,7 @@ namespace invasion {
                     } else {
                         target_ptr = ptr_owner_race;
                     }
-                    *target_ptr = colony->pop[(int)colony->n_pops];
+                    POP::Store(target_ptr, colony->pop[(int)colony->n_pops]);
                 }
             }
         }

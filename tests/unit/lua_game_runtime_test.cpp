@@ -1036,7 +1036,7 @@ TEST_CASE("scavenger trait awards research and retains event history") {
     std::string load_diagnostic;
     CAPTURE(load_diagnostic);
     REQUIRE(orion2re::lua::Dispatch_Active_Loaded_Event(&load_diagnostic));
-    CHECK(MOX::player[0].research_accumulated == 0);
+    CHECK((MOX::player[0].research_accumulated == 0));
 
     MOX::combat_data[0].ship_idx = 0;
     MOX::combat_data[0].owner = 0;
@@ -1052,9 +1052,9 @@ TEST_CASE("scavenger trait awards research and retains event history") {
         1,
     };
     orion2re::lua::game::Ship_Destroyed(&event);
-    CHECK(MOX::player[0].research_accumulated == 10);
+    CHECK((MOX::player[0].research_accumulated == 10));
     orion2re::lua::game::Ship_Destroyed(&event);
-    CHECK(MOX::player[0].research_accumulated == 21);
+    CHECK((MOX::player[0].research_accumulated == 21));
 
     Shutdown_Files_(&files);
 }
@@ -3126,7 +3126,7 @@ TEST_CASE("stable game collections honor callback capabilities") {
 
     REQUIRE(orion2re::lua::Dispatch_Mod_Event(
         runtime, "game.loaded", nullptr, nullptr, &result));
-    CHECK(MOX::player[0].research_accumulated == 0);
+    CHECK((MOX::player[0].research_accumulated == 0));
 
     REQUIRE(orion2re::lua::Dispatch_Mod_Event(
         runtime, "test.topology", nullptr, nullptr, &result));
@@ -3151,7 +3151,7 @@ TEST_CASE("stable game collections honor callback capabilities") {
         &value,
         &result));
     CHECK(value == 7);
-    CHECK(MOX::player[0].research_accumulated == 0);
+    CHECK((MOX::player[0].research_accumulated == 0));
 
     CHECK_FALSE(orion2re::lua::Dispatch_Mod_Event(
         runtime, "test.mutable", nullptr, nullptr, &result));
@@ -3337,11 +3337,11 @@ TEST_CASE("stored ship references survive recreation and expire on slot reuse") 
     CHECK(orion2re::lua::game::Ship_Generation(0) == 1);
 
     orion2re::lua::game::Ship_Destroyed(&event);
-    CHECK(MOX::player[0].research_accumulated == 3);
+    CHECK((MOX::player[0].research_accumulated == 3));
 
     REQUIRE(orion2re::lua::game::Advance_Ship_Generation(0));
     orion2re::lua::game::Ship_Destroyed(&event);
-    CHECK(MOX::player[0].research_accumulated == 10);
+    CHECK((MOX::player[0].research_accumulated == 10));
 
     Shutdown_Files_(&files);
 }

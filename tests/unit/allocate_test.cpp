@@ -71,6 +71,62 @@ DOCTEST_TEST_CASE("global screen space covers expanded non-AI screen structures"
     DOCTEST_CHECK(allocate::Global_Screen_Space() == 0x123D668u);
 }
 
+DOCTEST_TEST_CASE("aligned blocks preserve headers, bounds, and pool restoration") {
+    for (size_t alignment : {size_t(1), size_t(2), size_t(4), size_t(8), size_t(16), size_t(64)}) {
+        for (uint32_t preceding_size = 0; preceding_size < 16; ++preceding_size) {
+            for (uint32_t size = 0; size < 17; ++size) {
+                std::array<uint8_t, 256> storage;
+                storage.fill(0xA5);
+                auto* header = (allocate::s_alloc_header*)storage.data();
+                *header = {0, 200, 0};
+                void* pool = header + 1;
+                allocate::Allocate_Next_Block(pool, preceding_size);
+                const uint32_t saved = header->current;
+                const uintptr_t unaligned = (uintptr_t)pool + saved + sizeof(*header);
+                const size_t padding = (alignment - unaligned % alignment) % alignment;
+                const uint32_t required = saved + padding + sizeof(*header) + allocate::Nested_No_Header_Pool_Size(size);
+                header->size = required - 1;
+                DOCTEST_CHECK_THROWS_AS(allocate::Allocate_Next_Block_Aligned(pool, size, alignment), fatal_exit);
+                DOCTEST_CHECK(header->current == saved);
+                header->size = required;
+                allocate::Push_Block(pool);
+                void* result = allocate::Allocate_Next_Block_Aligned(pool, size, alignment);
+                DOCTEST_CHECK((uintptr_t)result % alignment == 0);
+                DOCTEST_CHECK(header->current == required);
+                DOCTEST_CHECK(allocate::Get_Max_Block_Space(result) == size);
+                DOCTEST_CHECK(allocate::Get_Remaining_Block_Space(result) == (int32_t)size);
+                for (size_t i = sizeof(*header) + saved; i < sizeof(*header) + saved + padding; ++i) {
+                    DOCTEST_CHECK(storage[i] == 0xA5);
+                }
+                for (size_t i = sizeof(*header) + required; i < storage.size(); ++i) {
+                    DOCTEST_CHECK(storage[i] == 0xA5);
+                }
+                allocate::Pop_Block(pool);
+                DOCTEST_CHECK(header->current == saved);
+                DOCTEST_CHECK(allocate::Allocate_Next_Block_Aligned(pool, size, alignment) == result);
+            }
+        }
+    }
+}
+
+DOCTEST_TEST_CASE("aligned blocks reject invalid alignment and oversized requests without mutation") {
+    std::array<uint8_t, 128> storage{};
+    auto* header = (allocate::s_alloc_header*)storage.data();
+    *header = {4, 64, 0};
+    void* pool = header + 1;
+    for (size_t alignment : {size_t(0), size_t(3), size_t(6), SIZE_MAX}) {
+        DOCTEST_CHECK_THROWS_AS(allocate::Allocate_Next_Block_Aligned(pool, 8, alignment), fatal_exit);
+        DOCTEST_CHECK(fatal_message == "Invalid Block Alignment");
+        DOCTEST_CHECK(header->current == 4);
+    }
+    for (uint32_t size : {UINT32_MAX, UINT32_MAX - 1, (uint32_t)INT32_MAX}) {
+        DOCTEST_CHECK_THROWS_AS(allocate::Allocate_Next_Block_Aligned(pool, size, 8), fatal_exit);
+        DOCTEST_CHECK(header->current == 4);
+    }
+    DOCTEST_CHECK_THROWS_AS(allocate::Allocate_Next_Block_Aligned(pool, 8, SIZE_MAX / 2 + 1), fatal_exit);
+    DOCTEST_CHECK(header->current == 4);
+}
+
 DOCTEST_TEST_CASE("mark stack accepts forty pushes and rejects push forty-one") {
     allocate::s_alloc_header header = {};
     void* block = &header + 1;
@@ -82,7 +138,7 @@ DOCTEST_TEST_CASE("mark stack accepts forty pushes and rejects push forty-one") 
         allocate::Push_Block(block);
 
         DOCTEST_CHECK(allocate::mark_stack_pos[0] == i + 1);
-        DOCTEST_CHECK(allocate::mark_stack[i].block == block);
+        DOCTEST_CHECK((allocate::mark_stack[i].block == block));
         DOCTEST_CHECK(
             allocate::mark_stack[i].current == static_cast<uint32_t>(i));
     }

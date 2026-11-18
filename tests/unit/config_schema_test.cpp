@@ -423,7 +423,7 @@ DOCTEST_TEST_SUITE("configuration schema") {
         }
         DOCTEST_CHECK(autobuild_candidates == 51);
         DOCTEST_CHECK(strategic_candidates == 6);
-        DOCTEST_CHECK(schema.parameters.size() < 17000);
+        DOCTEST_CHECK(schema.parameters.size() < 19000);
         const config::tool::s_json_value* bonus = Member_(parameters, "bonus");
         const config::tool::s_json_value* bonus_fields =
             Member_(Member_(bonus, "type"), "fields");

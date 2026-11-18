@@ -1076,6 +1076,9 @@ namespace platform {
     int8_t g_render_buffer;
     uint8_t g_vsync_enabled = 1;
     e_present_scaler g_present_scaler = PRESENT_SCALER_PIXELART;
+    int32_t g_window_width = 640;
+    int32_t g_window_height = 480;
+    uint8_t g_fullscreen = 0;
     uint8_t* offscreen_surface;
     float g_raw_mouse_x;
     float g_raw_mouse_y;
@@ -1594,17 +1597,12 @@ namespace platform {
             return 0;
         }
 
-#ifdef FULLSCREEN
-        int nWidth = k_windowed_logical_width;
-        int nHeight = k_windowed_logical_height;
-        SDL_WindowFlags window_flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIDDEN;
-#else
-        int nWidth = k_windowed_logical_width;
-        int nHeight = k_windowed_logical_height;
         SDL_WindowFlags window_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
-#endif
+        if (g_fullscreen != 0) {
+            window_flags |= SDL_WINDOW_FULLSCREEN;
+        }
 
-        g_sdl_window = SDL_CreateWindow("Orion2 Redone", nWidth, nHeight, window_flags);
+        g_sdl_window = SDL_CreateWindow("Orion2 Redone", g_window_width, g_window_height, window_flags);
         if (g_sdl_window == nullptr) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "platform: SDL_CreateWindow failed: %s", SDL_GetError());
             SDL_DestroyMutex(g_present_cursor_mutex);

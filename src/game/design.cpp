@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 namespace DESIGN {
     static const s_weapon_arc_cost_and_space* Weapon_Arc_Modifier(int16_t flags);
@@ -1184,6 +1185,7 @@ namespace DESIGN {
             1,
             sizeof(MOX::design->name));
 
+        string_overrides::Apply_String("shipname.lbx", entry_idx + 1, loaded_name, sizeof(MOX::design->name));
         allocate::Pop_Block(MOX::global_data_seg);
 
         strlcpy(out_name, loaded_name, (size_t)out_name_size);

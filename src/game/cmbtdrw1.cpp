@@ -58,7 +58,7 @@ namespace CMBTDRW1 {
     }
 
     void __cdecl Draw_Shield_Arcs() {
-        if (MOX::cur_ship == 0) {
+        if (MOX::cur_ship <= 0) {
             return;
         }
 
@@ -452,6 +452,8 @@ namespace CMBTDRW1 {
         char msg_buffer[80];
         char itoa_buffer[80];
 
+        if (MOX::cur_ship < 0 || MOX::cur_ship >= MOX::combat_total_ship_count) return;
+
         if (MOX::cur_ship != 0) {
             s_combat_data* ship = &MOX::combat_data[MOX::cur_ship];
 
@@ -638,6 +640,8 @@ namespace CMBTDRW1 {
         char msg_buffer[80];
         int16_t visible_special_count = 0;
         int16_t y_pos = 0x17c;
+
+        if (MOX::cur_ship < 0 || MOX::cur_ship >= MOX::combat_total_ship_count) return;
 
         color_active = {{0x50, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53}};
         color_inactive = {{0xDF, 0xDC, 0xDC, 0xDC, 0xDC, 0xDC, 0xDC, 0xDC}};
@@ -1523,16 +1527,20 @@ namespace CMBTDRW1 {
         video::Set_Page_Off();
         CMBTDRW1::Full_Draw_Combat_Screen();
 
-        if (MOX::ship_status_display == 0) {
-            CMBTDRW1::Draw_Weapon_Status_Display(-1, -1);
-        } else {
-            CMBTDRW1::Draw_Special_Status_Display();
+        if (MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count) {
+            if (MOX::ship_status_display == 0) {
+                CMBTDRW1::Draw_Weapon_Status_Display(-1, -1);
+            } else {
+                CMBTDRW1::Draw_Special_Status_Display();
+            }
         }
 
         graphics::Interlaced_Fill(0x191, 0x16a, 0x1e9, 0x176, 0x0, 199 /* 0xc7 */);
         graphics::Interlaced_Fill(0x191, 0x17b, 0x1e8, 0x1d3, 0x0, 199 /* 0xc7 */);
 
-        CMBTDRW1::Draw_Internals_Display(0x191, 0x17b);
+        if (MOX::cur_ship >= 0 && MOX::cur_ship < MOX::combat_total_ship_count) {
+            CMBTDRW1::Draw_Internals_Display(0x191, 0x17b);
+        }
         MOX::last_ship_status = 666 /* 0x29a */;
 
         CMBTDRW1::Draw_Main_Combat_Screen();
@@ -2491,7 +2499,7 @@ namespace CMBTDRW1 {
             CMBTMOV1::Rotate_Ship(ship_idx, facing, MOX::cur_combat_x * -20 + base_x, MOX::cur_combat_y * -20 + base_y);
         }
 
-        if (CMBTFIRE::Is_Combat_Ship_Dead(ship_idx) != 0) {
+        if (!COMBAT1::Validate_Retreating_Ship(ship_idx)) {
             return;
         }
 
@@ -2866,6 +2874,8 @@ namespace CMBTDRW1 {
 
         graphics::Interlaced_Fill(114, 378, 263, 466, 0, 199);
 
+        if (MOX::cur_ship < 0 || MOX::cur_ship >= MOX::combat_total_ship_count) return;
+
         short y_pos = 380; // 0x17c
 
         for (int weapon_slot_idx = 0; weapon_slot_idx < 8; ++weapon_slot_idx) {
@@ -3030,11 +3040,9 @@ namespace CMBTDRW1 {
         int frame = progress % 16;
         animate::Set_Animation_Frame(MOX::darken_plasma_map, frame);
 
-        const uint32_t* darken_frame_offsets = Animation_Frame_Offsets_(MOX::darken_plasma_map);
-        uint8_t* darken_data = (uint8_t*)MOX::darken_plasma_map + darken_frame_offsets[MOX::darken_plasma_map->current_frame];
+        uint8_t* darken_data = (uint8_t*)MOX::darken_plasma_map + Animation_Frame_Offset_(MOX::darken_plasma_map, MOX::darken_plasma_map->current_frame);
 
-        const uint32_t* bitmap_frame_offsets = Animation_Frame_Offsets_(bitmap);
-        uint8_t* bitmap_data = (uint8_t*)bitmap + bitmap_frame_offsets[bitmap->current_frame];
+        uint8_t* bitmap_data = (uint8_t*)bitmap + Animation_Frame_Offset_(bitmap, bitmap->current_frame);
 
         int16_t darkness = 0;
         switch (mode) {
@@ -3347,7 +3355,9 @@ namespace CMBTDRW1 {
             player_idx = MOX::global_combat_data.owner;
             if (player_idx < 9) {
                 if (MOX::global_combat_data.officer_idx == -1) {
-                    animate::Draw(view_x + 0xF6, view_y + 0x27, (s_animation_header*)MOX::detail_fleet_icon_seg);
+                    if (player_idx < MAX_PLAYERS) {
+                        animate::Draw(view_x + 0xF6, view_y + 0x27, (s_animation_header*)MOX::detail_fleet_icon_seg);
+                    }
                 } else {
                     for (int32_t i = 0; i < 0x20; ++i) {
                         grayscale_table[i] = static_cast<uint8_t>(i);

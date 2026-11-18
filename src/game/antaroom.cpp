@@ -2,6 +2,7 @@
 #ifdef ORION2RE_EXT
 #include "ext/ext_api.h"  // OrionLayer, open fix 105. TurnPopupGuard.
 #endif
+#include "string_overrides.h"
 
 namespace ANTAROOM {
     s_colors antaran_room_normal_colors = {{250, 254, 255, 251, 252, 253, 254, 255}};
@@ -128,7 +129,8 @@ namespace ANTAROOM {
         uint32_t random_val = game_random::Random(4);
         int16_t message_lbx_index = (int16_t)(random_val + (message_index + (uint8_t)MOX::settings.language * 2) * 4 - 1);
 
-        farload::Farload_Data_Static("antarmsg.LBX", message_lbx_index, buffer, 0, 1, sizeof(buffer));
+        string_overrides::Load_Message("antarmsg.LBX", message_lbx_index, 0, sizeof(buffer),
+            message_index * 4 + random_val, buffer, sizeof(buffer));
 
         strlcpy(antaran_room_message, buffer, ANTARAN_ROOM_MESSAGE_CAPACITY);
     }

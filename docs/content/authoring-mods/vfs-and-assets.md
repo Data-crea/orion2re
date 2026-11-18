@@ -2,6 +2,10 @@
 
 The virtual file system (VFS) resolves read-only game assets from loose development overrides, enabled package layers, shared data, and the original installation. A mod can replace a complete asset or an individual LBX entry without modifying the original files.
 
+For individual strings in supported text resources, prefer [JSON5 string overrides](string-overrides.md)
+instead of replacing binary LBX entries. These sidecars use the same package
+`data/` paths and VFS precedence, while retaining unchanged strings from the LBX.
+
 ## Public and private package paths
 
 Only files below a package's `data/` directory become public assets:

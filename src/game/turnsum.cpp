@@ -158,6 +158,10 @@ namespace TURNSUM {
             g_turn_sum_header.items = list_items;
             INFO::Init_Turn_Summary_List(&g_turn_sum_header, num_msgs);
 
+            if (MOX::return_screen == SCREEN_REPORTS &&
+                REPORT::sort_serious_turn_summary_first) {
+                g_turn_message_ix = list_items[0].group_id;
+            }
             g_selected_msg_p = LIST::Select_And_Page_By_Head_ID(&g_turn_sum_header, g_turn_message_ix);
 
             MAINSCR::Draw_Mini_Main_Screen();

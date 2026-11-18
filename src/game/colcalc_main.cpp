@@ -124,7 +124,7 @@ namespace COLCALC {
 
         // Convert all initial population to Scientists
         for (uint32_t* p = p_pop; p < p_pop_end; ++p) {
-            *p = (*p & 0xffffff7f) | 0x00000100; // Scientist flag set, Worker flag cleared
+            POP::Set_Prof(p, POP::PROF_SCIENTIST);
         }
 
         int16_t star_idx = MOX::planet[colony->planet].star_index;
@@ -134,7 +134,7 @@ namespace COLCALC {
 
         // Convert Scientists to Workers to meet industry maintenance requirements
         while (p_pop < p_pop_end && colony->production[ECON_INDUSTRY] < (int16_t)colony->maintenance[ECON_INDUSTRY]) {
-            *p_pop = (*p_pop & 0xfffffeff) | 0x00000080; // Worker flag set, Scientist flag cleared
+            POP::Set_Prof(p_pop, POP::PROF_WORKER);
             Recalculate_Colony(colony);
             last_adjusted_pop = p_pop;
             p_pop++;
@@ -143,7 +143,7 @@ namespace COLCALC {
         // Convert Pops to Farmers if colony has food multipliers and needs to meet maintenance
         if (colony->food2_per_farmer != 0) {
             while (p_pop < p_pop_end && (int16_t)colony->maintenance[ECON_FOOD] > colony->production[ECON_FOOD]) {
-                *p_pop = (*p_pop & 0xfffffe7f); // Clear Scientist and Worker flags -> Farmer
+                POP::Set_Prof(p_pop, POP::PROF_FARMER);
                 Recalculate_Colony(colony);
                 last_adjusted_pop = p_pop;
                 p_pop++;
@@ -152,7 +152,7 @@ namespace COLCALC {
 
         // Convert Scientists to Workers if Research production exceeds Industry
         while (p_pop < p_pop_end && colony->production[ECON_RESEARCH] > colony->production[ECON_INDUSTRY]) {
-            *p_pop = (*p_pop & 0xfffffeff) | 0x00000080; // Worker flag set, Scientist flag cleared
+            POP::Set_Prof(p_pop, POP::PROF_WORKER);
             Recalculate_Colony(colony);
             last_adjusted_pop = p_pop;
             p_pop++;
@@ -161,7 +161,7 @@ namespace COLCALC {
         // If Industry is balanced or higher than Research, switch the last adjusted Pop back to Scientist
         if (last_adjusted_pop != nullptr &&
             colony->production[ECON_INDUSTRY] >= colony->production[ECON_RESEARCH]) {
-            *last_adjusted_pop = (*last_adjusted_pop & 0xffffff7f) | 0x00000100;
+            POP::Set_Prof(last_adjusted_pop, POP::PROF_SCIENTIST);
             Recalculate_Colony(colony);
         }
 
@@ -665,8 +665,8 @@ namespace COLCALC {
 
         for (int i = 0; i < colony->n_pops; ++i) {
             uint32_t pop_val = colony->pop[i];
-            if ((pop_val & 0x200) && ((pop_val & 0x180) >> 7 == (uint32_t)econ_type)) {
-                uint16_t race = pop_val & 0xf;
+            if (POP::Is_Assigned(pop_val) && POP::Get_Prof(pop_val) == (uint32_t)econ_type) {
+                uint16_t race = POP::Get_Race(pop_val);
                 short gravity_factor = Gravity_Player_Production_Factor(colony, race);
 
                 memset(&cur_stat, 0, sizeof(s_colony_job_production));
@@ -721,7 +721,7 @@ namespace COLCALC {
                 cur_stat.officer_bonus = officer_bonus * (int)pop_base_prod;
                 final.officer_bonus += cur_stat.officer_bonus;
 
-                if (pop_val & 0x400 /* Conquered pop */) {
+                if (POP::Is_Conquered(pop_val)) {
                     cur_stat.conquered_penalty = (int)pop_base_prod * -5;
                     final.conquered_penalty += cur_stat.conquered_penalty;
                 }
@@ -1020,7 +1020,7 @@ namespace COLCALC {
         int base_tax_per_pop = owner_ptr->traits[TRAIT_TAX_BONUS] * 2 + 4;
 
         for (int i = 0; i < (uint8_t)colony->n_pops; ++i) {
-            int32_t race_idx = colony->pop[i] & 0x0F;
+            int32_t race_idx = POP::Get_Race(colony->pop[i]);
             if (race_idx < MAX_PLAYERS) {
                 if (MOX::player[race_idx].traits[TRAIT_ENVIRONMENT_IMMUNE] == 0) {
                     total_normal_pops++;
@@ -1480,7 +1480,7 @@ namespace COLCALC {
             if (pollution > 0) {
                 int immune_pops = 0;
                 for (int i = 0; i < n_pops; ++i) {
-                    uint32_t race = colony->pop[i] & 0xF;
+                    uint32_t race = POP::Get_Race(colony->pop[i]);
                     if ((race < MAX_PLAYERS && MOX::player[race].traits[TRAIT_ENVIRONMENT_IMMUNE]) || race == 8 /* ANDROID */) {
                         immune_pops++;
                     }

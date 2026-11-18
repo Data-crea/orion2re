@@ -20,7 +20,7 @@ DOCTEST_TEST_CASE("minimum-distance planet generation preserves existing satelli
     HOMEGEN::Guarantee_A_Planet_At_Min_Dist(0, 4, home_stars);
 
     DOCTEST_CHECK(MOX::planet_count == 2);
-    DOCTEST_CHECK(MOX::star[1].planet_index[2] == 0);
+    DOCTEST_CHECK((MOX::star[1].planet_index[2] == 0));
     DOCTEST_CHECK(MOX::planet[0].star_index == 1);
     DOCTEST_CHECK(MOX::planet[0].planet_type == PLANET_TYPE_PLANET);
     DOCTEST_CHECK(TEST_HOMEGEN::Satellite_Generation_Count_() == 2);
@@ -52,7 +52,7 @@ DOCTEST_TEST_CASE("minimum-distance conversion runs configured generation before
     DOCTEST_CHECK(TEST_HOMEGEN::Normal_Planet_Generation_Count_() == 1);
     DOCTEST_CHECK(TEST_HOMEGEN::Satellite_Generation_Count_() == 3);
     DOCTEST_CHECK(MOX::planet_count == 3);
-    DOCTEST_CHECK(MOX::star[1].planet_index[2] == 0);
+    DOCTEST_CHECK((MOX::star[1].planet_index[2] == 0));
     DOCTEST_CHECK(MOX::planet[0].planet_type == PLANET_TYPE_PLANET);
     DOCTEST_CHECK(HAROLD::N_Planets_In_System(1) == 2);
 }
@@ -65,7 +65,7 @@ DOCTEST_TEST_CASE("food-world generation rerolls unsuitable stars without allowi
     HOMEGEN::Make_One_Planet(0, 1, 0, 1);
 
     DOCTEST_CHECK(MOX::star[0].spectral_class == STAR_CLASS_K);
-    DOCTEST_CHECK(MOX::star[0].planet_index[0] == 1);
+    DOCTEST_CHECK((MOX::star[0].planet_index[0] == 1));
     DOCTEST_CHECK(TEST_HOMEGEN::Non_Black_Hole_Generation_Count_() == 1);
 }
 
@@ -96,7 +96,7 @@ DOCTEST_TEST_CASE("habitable home-system minimum skips ordinary generation") {
     DOCTEST_CHECK(TEST_HOMEGEN::Satellite_Generation_Count_() == 3);
     DOCTEST_CHECK(HAROLD::N_Planets_In_System(0) == 3);
     DOCTEST_CHECK(MOX::planet_count == 4);
-    DOCTEST_CHECK(MOX::star[1].planet_index[2] == 0);
+    DOCTEST_CHECK((MOX::star[1].planet_index[2] == 0));
     DOCTEST_CHECK(MOX::planet[0].planet_type == PLANET_TYPE_ASTEROID);
 }
 

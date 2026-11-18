@@ -282,7 +282,7 @@ namespace MAINSCR {
         int16_t m_ship_idx = 0;
         int16_t ship_idx = 0;
 
-        int16_t ship_ids[MAX_SHIPS];
+        int16_t ship_ids[SHIP_LIST_CAPACITY];
         char text_buffer[256];
         char msg_buffer[512];
 
@@ -498,7 +498,7 @@ namespace MAINSCR {
 
                     if (icon_selected_flag) {
                         if (selected_target_id > -1 && mouse_status == 0 && MOX::star[selected_target_id].spectral_class != STAR_CLASS_BLACK_HOLE) {
-                            HACCESS::Get_Fleet_Box_Selected_Ship_Ids(ship_ids, MAX_SHIPS, 0xff);
+                            HACCESS::Get_Fleet_Box_Selected_Ship_Ids(ship_ids, SHIP_LIST_CAPACITY, 0xff);
                             SHIPMOVE::Ships_Try_To_Move_To(ship_ids, selected_target_id, &MOX::g_ship_move_info);
 
                             if (MOX::g_ship_move_info.moving == 0) {
@@ -823,29 +823,8 @@ namespace MAINSCR {
                 int diff_h = (z1 - z2) * 400;
                 MOX::cur_map_y += (diff_h + ((diff_h < 0) ? 3 : 0)) / 4;
 
-                // Boundaries
-                int scale_diff = MOX::max_map_scale - MOX::cur_map_scale;
-                int max_x = (scale_diff * 0x1fa) / 10;
-                int max_y = (scale_diff * 400) / 10;
-
-                if (max_x < MOX::cur_map_x) MOX::cur_map_x = max_x;
-                if (max_y < MOX::cur_map_y) MOX::cur_map_y = max_y;
-                if (MOX::cur_map_x < 0) MOX::cur_map_x = 0;
-                if (MOX::cur_map_y < 0) MOX::cur_map_y = 0;
-                if (MOX::max_map_scale == MOX::cur_map_scale) {
-                    MOX::cur_map_x = 0;
-                    MOX::cur_map_y = 0;
-                }
-
-                int limit_x = HAROLD::Get_Up_Scaled_Value(MOX::MAP_MAX_X - 0x280);
-                if (limit_x < MOX::cur_map_x) {
-                    MOX::cur_map_x = HAROLD::Get_Up_Scaled_Value(MOX::MAP_MAX_X - 0x280);
-                }
-
-                int limit_y = MOX::MAP_MAX_Y - HAROLD::Get_Up_Scaled_Value(400);
-                if (limit_y < MOX::cur_map_y) {
-                    MOX::cur_map_y = limit_y;
-                }
+                MOX::cur_map_x = MAP_SCALE::Clamp_Map_Offset_(MOX::cur_map_x, MOX::MAP_MAX_X, HAROLD::Get_Up_Scaled_Value(506));
+                MOX::cur_map_y = MAP_SCALE::Clamp_Map_Offset_(MOX::cur_map_y, MOX::MAP_MAX_Y, HAROLD::Get_Up_Scaled_Value(400));
 
                 MOX::draw_main_screen_to_back = 1;
                 MAINSCR::Get_New_Paralax_XYs(MOX::cur_map_x - old_x, MOX::cur_map_y - old_y, 1);
@@ -978,11 +957,7 @@ namespace MAINSCR {
             Draw_Gate_Icons();
             SHIPS::Do_Ship_Destination_Lines();
             const bool draw_star_highlights_after_stars =
-                MAP_SCALE::Is_Extended_Max_Map_View_(
-                    MOX::NUM_STARS,
-                    ORIGINAL_MAX_STARS,
-                    MOX::cur_map_scale,
-                    MOX::max_map_scale);
+                Use_Maximum_Galaxy_Overview();
 
             if (MOX::eta_star_id > -1 && MOX::fleet_ship_scanned == -1) {
                 Draw_ETA_Destination_Line();

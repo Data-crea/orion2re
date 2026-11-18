@@ -2,7 +2,16 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <limits>
+#include <memory>
+
+extern "C" {
+#include <lua.h>
+}
 
 namespace {
 
@@ -16,6 +25,83 @@ bool Evaluate_(const char *source, const char *source_name,
         limits != nullptr ? limits : &default_limits, result);
 }
 
+}
+
+TEST_CASE("Lua allocator preserves alignment data and payload accounting") {
+    using namespace orion2re::lua;
+    const s_lua_limits limits;
+    s_lua_result result;
+    s_lua_runtime_state* state = nullptr;
+    REQUIRE(Create_Runtime_State(&limits, &state, &result));
+    std::unique_ptr<s_lua_runtime_state, decltype(&Destroy_Runtime_State)> runtime(
+        state, Destroy_Runtime_State);
+    lua_State* lua_state = Get_Runtime_State_Handle(state);
+    lua_gc(lua_state, LUA_GCSTOP);
+
+    const auto no_op = [](lua_State*, void*) { return 0; };
+    REQUIRE(Execute_Runtime_Operation(state, no_op, nullptr, &result));
+    const std::size_t baseline = result.remaining_allocator_bytes;
+    void* allocator_state = nullptr;
+    const lua_Alloc allocator = lua_getallocf(lua_state, &allocator_state);
+    std::size_t size = 0;
+    const auto free_block = [&](void* pointer) {
+        allocator(allocator_state, pointer, size, 0);
+    };
+    std::unique_ptr<void, decltype(free_block)> block(nullptr, free_block);
+
+    for (std::size_t requested : {1u, 17u, 257u, 4097u, 7u}) {
+        CAPTURE(requested);
+        void* resized = allocator(allocator_state, block.get(), size, requested);
+        REQUIRE(resized != nullptr);
+        block.release();
+        block.reset(resized);
+        CHECK(reinterpret_cast<std::uintptr_t>(resized) % alignof(std::max_align_t) == 0);
+        const auto* bytes = static_cast<const unsigned char*>(resized);
+        for (std::size_t index = 0; index < std::min(size, requested); ++index) {
+            CHECK(bytes[index] == 0xA5);
+        }
+        size = requested;
+        std::memset(resized, 0xA5, size);
+        REQUIRE(Execute_Runtime_Operation(state, no_op, nullptr, &result));
+        CHECK(result.remaining_allocator_bytes == baseline + size);
+    }
+
+    for (std::size_t rejected : {limits.allocator_bytes + 1,
+             std::numeric_limits<std::size_t>::max()}) {
+        CHECK(allocator(allocator_state, block.get(), size, rejected) == nullptr);
+        const auto* bytes = static_cast<const unsigned char*>(block.get());
+        for (std::size_t index = 0; index < size; ++index) {
+            CHECK(bytes[index] == 0xA5);
+        }
+        REQUIRE(Execute_Runtime_Operation(state, no_op, nullptr, &result));
+        CHECK(result.remaining_allocator_bytes == baseline + size);
+    }
+
+    block.reset();
+    CHECK(allocator(allocator_state, nullptr, 0, 0) == nullptr);
+    REQUIRE(Execute_Runtime_Operation(state, no_op, nullptr, &result));
+    CHECK(result.remaining_allocator_bytes == baseline);
+}
+
+TEST_CASE("Lua runtime allocates aligned userdata with and without user values") {
+    using namespace orion2re::lua;
+    const s_lua_limits limits;
+    s_lua_result result;
+    s_lua_runtime_state* state = nullptr;
+    REQUIRE(Create_Runtime_State(&limits, &state, &result));
+    std::unique_ptr<s_lua_runtime_state, decltype(&Destroy_Runtime_State)> runtime(
+        state, Destroy_Runtime_State);
+    const auto create_userdata = [](lua_State* lua_state, void*) {
+        for (int user_values : {0, 1, 3}) {
+            void* payload = lua_newuserdatauv(lua_state, sizeof(std::max_align_t), user_values);
+            CHECK(reinterpret_cast<std::uintptr_t>(payload) % alignof(std::max_align_t) == 0);
+            std::memset(payload, 0xA5, sizeof(std::max_align_t));
+            CHECK(lua_rawlen(lua_state, -1) == sizeof(std::max_align_t));
+            lua_pop(lua_state, 1);
+        }
+        return 0;
+    };
+    REQUIRE(Execute_Runtime_Operation(state, create_userdata, nullptr, &result));
 }
 
 TEST_CASE("Lua runtime evaluates signed 64-bit integer modules")

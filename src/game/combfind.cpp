@@ -861,7 +861,7 @@ namespace COMBFIND {
                             for (int remaining = n_techs; remaining != 0; --remaining) {
                                 total_valid_techs = 0;
                                 for (int tech_id = 1; tech_id < 204; ++tech_id) {
-                                    if (MOX::player[player_idx].tech_fields[TECHDATA::technology_applications[tech_id].tech_field_id] == 2 &&
+                                    if (Player_Tech_Field_Status_(&MOX::player[player_idx], TECHDATA::technology_applications[tech_id].tech_field_id) == 2 &&
                                         COLCALC::Player_May_Get_Tech_App(&MOX::player[player_idx], tech_id)) {
                                         total_valid_techs++;
                                         if (game_random::Random(total_valid_techs) == 1) {

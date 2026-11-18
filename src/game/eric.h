@@ -30,9 +30,9 @@ namespace ERIC {
 
     /* Returns the index of value in list, or -1 when it is absent.
        value: Value to search for.
-       list: Candidate values to scan.
+       list: int16_t candidate values to scan; may be misaligned.
        count: Number of entries in list. */
-    int16_t __cdecl Get_Sint_Index_From_List(int16_t value, const int16_t* list, uint16_t count);
+    int16_t __cdecl Get_Sint_Index_From_List(int16_t value, const void* list, uint16_t count);
 
     /* Returns the current screen fade percentage. */
     uint16_t __cdecl Get_Fade_Percent();

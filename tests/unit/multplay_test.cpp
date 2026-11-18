@@ -148,18 +148,18 @@ DOCTEST_TEST_CASE("LAN and online selections do not expose the legacy setup butt
 
     MOX::settings.multi_player_game_type = 1;
     MULTPLAY::Set_Multi_Player_Game_Type();
-    DOCTEST_CHECK(mp_screen.flag_network_disabled == 0);
-    DOCTEST_CHECK(mp_screen.flag_online_disabled == 1);
+    DOCTEST_CHECK((mp_screen.flag_network_disabled == 0));
+    DOCTEST_CHECK((mp_screen.flag_online_disabled == 1));
     MULTPLAY::Add_MP_Setup_Screen_Fields();
-    DOCTEST_CHECK(mp_screen.field_id_setup == -1000);
+    DOCTEST_CHECK((mp_screen.field_id_setup == -1000));
     DOCTEST_CHECK(button_field_count == 4);
 
     button_field_count = 0;
     MOX::settings.multi_player_game_type = 2;
     MULTPLAY::Set_Multi_Player_Game_Type();
-    DOCTEST_CHECK(mp_screen.flag_network_disabled == 1);
-    DOCTEST_CHECK(mp_screen.flag_online_disabled == 0);
+    DOCTEST_CHECK((mp_screen.flag_network_disabled == 1));
+    DOCTEST_CHECK((mp_screen.flag_online_disabled == 0));
     MULTPLAY::Add_MP_Setup_Screen_Fields();
-    DOCTEST_CHECK(mp_screen.field_id_setup == -1000);
+    DOCTEST_CHECK((mp_screen.field_id_setup == -1000));
     DOCTEST_CHECK(button_field_count == 4);
 }

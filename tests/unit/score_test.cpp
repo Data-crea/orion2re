@@ -1,0 +1,68 @@
+#include "pch.h"
+
+#include <array>
+
+#include "doctest/doctest.h"
+
+namespace {
+    s_player players[MAX_PLAYERS];
+    struct fatal_exit {};
+} // namespace
+
+namespace MOX {
+    s_animation_header* screen_seg;
+    s_player* player = players;
+    s_colony* colony;
+    int16_t NUM_PLAYERS;
+    int16_t NUM_COLONIES;
+    int32_t stardate;
+    s_settings settings;
+} // namespace MOX
+
+namespace raceopt {
+    int16_t __cdecl Player_Score_Modifier(int16_t player_idx) {
+        DOCTEST_CHECK(SCORE::hi->player_idx == player_idx);
+        return 100;
+    }
+} // namespace raceopt
+
+namespace exitm {
+    [[noreturn]] void __cdecl Exit_With_Message(const char*) {
+        throw fatal_exit{};
+    }
+} // namespace exitm
+
+DOCTEST_TEST_CASE("hotseat player scores align temporary state and restore the screen arena") {
+    memset(players, 0, sizeof(players));
+    MOX::settings = {};
+    MOX::NUM_PLAYERS = 2;
+    MOX::NUM_COLONIES = 0;
+    allocate::mark_stack_pos[0] = 0;
+    players[1].player_defeated[0] = 1;
+    players[1].tech_fields[0] = 3;
+    players[1].captured_population = 3;
+
+    for (uint32_t preceding_size = 0; preceding_size < 16; ++preceding_size) {
+        alignas(s_hiscore) std::array<uint8_t, 1024> storage;
+        storage.fill(0xA5);
+        auto* header = (allocate::s_alloc_header*)storage.data();
+        *header = {0, (uint32_t)(storage.size() - sizeof(*header)), 0};
+        MOX::screen_seg = (s_animation_header*)(header + 1);
+        allocate::Allocate_Next_Block(MOX::screen_seg, preceding_size);
+        const uint32_t saved = header->current;
+
+        for (int16_t player_idx : {1, 0, 1}) {
+            DOCTEST_CHECK(SCORE::Player_Score(player_idx) == (player_idx == 1 ? 59 : 0));
+            DOCTEST_CHECK((uintptr_t)SCORE::hi % alignof(s_hiscore) == 0);
+            DOCTEST_CHECK(allocate::Get_Max_Block_Space(SCORE::hi) == sizeof(s_hiscore));
+            DOCTEST_CHECK(header->current == saved);
+            DOCTEST_CHECK(allocate::mark_stack_pos[0] == 0);
+        }
+        for (uint32_t i = 0; i < preceding_size; ++i) {
+            DOCTEST_CHECK(((uint8_t*)MOX::screen_seg)[sizeof(*header) + i] == 0xA5);
+        }
+    }
+
+    SCORE::hi = nullptr;
+    MOX::screen_seg = nullptr;
+}

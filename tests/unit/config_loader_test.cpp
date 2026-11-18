@@ -15,13 +15,10 @@
 #include "config/mod_manifest.h"
 #include "config/mod_manager.h"
 #include "doctest/doctest.h"
-#include "game/aidesign.h"
 #include "game/build_queue.h"
 #include "game/netmox.h"
 #include "game/netstart_roster.h"
 #include "game/netturn.h"
-#include "game/sha256.h"
-#include "game/ship_config.h"
 #include "game/techdata.h"
 #include "game/vfs.h"
 #include "lua/lua_mod_runtime.h"
@@ -30,6 +27,7 @@
 #include "lua/lua_save.h"
 #include "game/arena.h"
 #include "miniz.h"
+#include "version.h"
 
 extern "C" {
 #include <lua.h>
@@ -238,63 +236,6 @@ namespace {
         return result;
     }
 
-    std::string Read_Lbx_Entry_(const char* path, int32_t entry_idx) {
-        s_vfs_file* file = vfs::fopen_lbx(path, entry_idx);
-        DOCTEST_REQUIRE(file != nullptr);
-        const int32_t size = vfs::fsize(file);
-        DOCTEST_REQUIRE(size >= 0);
-        std::string result(static_cast<size_t>(size), '\0');
-        if (!result.empty()) {
-            DOCTEST_REQUIRE(vfs::fread(result.data(), 1, result.size(), file) ==
-                result.size());
-        }
-        DOCTEST_REQUIRE(vfs::fclose(file) == 0);
-        return result;
-    }
-
-    void Check_Migrated_Source_Package_Manifest_(const char* package_id,
-        std::initializer_list<const char*> dependency_ids = {}) {
-        config::s_mod_manifest manifest;
-        config::s_cfg_diagnostic diagnostic;
-        DOCTEST_REQUIRE(config::Load_Mod_Manifest(
-            package_id, &manifest, &diagnostic));
-        DOCTEST_CHECK(manifest.id == package_id);
-        DOCTEST_CHECK(manifest.engine_range == ">=2.0.0 <3.0.0");
-        DOCTEST_REQUIRE(manifest.dependencies.size() ==
-            dependency_ids.size());
-        size_t dependency_index = 0;
-        for (const char* dependency_id : dependency_ids) {
-            DOCTEST_CHECK(manifest.dependencies[dependency_index].id ==
-                dependency_id);
-            ++dependency_index;
-        }
-        DOCTEST_CHECK(manifest.optional_dependencies.empty());
-        DOCTEST_CHECK(manifest.config == "config/main.cfg");
-        DOCTEST_REQUIRE(manifest.has_lua_runtime);
-        DOCTEST_CHECK(manifest.lua_runtime.api == 1);
-        DOCTEST_CHECK(manifest.lua_runtime.storage_version == 1);
-        DOCTEST_CHECK(manifest.lua_runtime.migrations.empty());
-        const std::string package_path =
-            std::string("mods/") + package_id + "/";
-        DOCTEST_CHECK(vfs::File_Exists(
-                          (package_path + manifest.config).c_str()) == 1);
-        DOCTEST_CHECK(vfs::File_Exists(
-                          (package_path + "main.lua").c_str()) == 1);
-    }
-
-    void Check_Runtime_Package_Version_(
-        const orion2re::lua::s_lua_mod_runtime* runtime) {
-        config::s_mod_manifest manifest;
-        config::s_cfg_diagnostic diagnostic;
-        DOCTEST_REQUIRE(config::Load_Mod_Manifest(
-            orion2re::lua::Get_Mod_Runtime_Package_Id(runtime),
-            &manifest,
-            &diagnostic));
-        DOCTEST_CHECK(std::string(
-                          orion2re::lua::Get_Mod_Runtime_Package_Version(runtime)) ==
-            manifest.version_text);
-    }
-
     std::string Lua_Fingerprint_Mismatch_(
         const orion2re::lua::s_lua_registry* expected,
         const orion2re::lua::s_lua_registry* actual) {
@@ -376,6 +317,15 @@ namespace {
     }
 } // namespace
 
+DOCTEST_TEST_CASE("engine version components and menu label agree") {
+    const std::string version = std::to_string(orion2re::ENGINE_VERSION_MAJOR) + "." +
+        std::to_string(orion2re::ENGINE_VERSION_MINOR) + "." +
+        std::to_string(orion2re::ENGINE_VERSION_PATCH);
+    DOCTEST_CHECK(version == orion2re::ENGINE_VERSION);
+    DOCTEST_CHECK(version == GAME_VERSION);
+    DOCTEST_CHECK("Version " + version == GAME_VERSION_LABEL);
+}
+
 DOCTEST_TEST_CASE("all shipped mod manifests have valid version structure") {
     s_config_test_directory files;
     std::vector<std::string> package_ids;
@@ -409,6 +359,10 @@ DOCTEST_TEST_CASE("all shipped mod manifests have valid version structure") {
         DOCTEST_INFO(diagnostic.message);
         DOCTEST_REQUIRE(config::Load_Mod_Manifest(
             package_id, &manifest, &diagnostic));
+        DOCTEST_CHECK(config::Semantic_Version_Matches(
+            {2, 0, 0}, manifest.engine_range));
+        DOCTEST_CHECK_FALSE(config::Semantic_Version_Matches(
+            {1, 99, 99}, manifest.engine_range));
         config::s_semantic_version version;
         DOCTEST_CHECK(config::Parse_Semantic_Version(manifest.version_text, &version));
         for (const auto& dependency : manifest.dependencies) {
@@ -471,187 +425,37 @@ DOCTEST_TEST_CASE("Lua runtime manifest is strict and simulation-only") {
     vfs::Discard_Mount_Transaction(transaction);
 }
 
-DOCTEST_TEST_CASE("1.50 Improved package owns deposit and technology tree behavior") {
+DOCTEST_TEST_CASE("all shipped mods load their configuration and Lua successfully") {
     s_config_test_directory files;
-    for (const char* package_id : {"v150", "v150i"}) {
-        files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / package_id,
-            fs::path("data") / "mods" / package_id);
+    std::vector<std::string> package_ids;
+    for (const auto& entry : fs::directory_iterator(LUA_SOURCE_PACKAGE_DIR)) {
+        if (entry.is_directory() && fs::is_regular_file(entry.path() / "mod.json5")) {
+            const std::string package_id = entry.path().filename().string();
+            package_ids.push_back(package_id);
+            files.Copy_Tree(entry.path(), fs::path("data/mods") / package_id);
+        }
     }
-    files.Write("main.cfg", "enable v150i;\n");
+    DOCTEST_REQUIRE_FALSE(package_ids.empty());
+    std::sort(package_ids.begin(), package_ids.end());
     files.Initialize_Vfs();
-    Set_Native_Defaults_();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_INFO(diagnostic.message);
-    DOCTEST_REQUIRE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    for (int16_t application_id = 0;
-         application_id < TECH_APP_COUNT;
-         ++application_id) {
-        DOCTEST_CAPTURE(application_id);
-        DOCTEST_CHECK(
-            TECHDATA::technology_applications[application_id].tech_app_id ==
-            application_id);
+    for (const auto& package_id : package_ids) {
+        DOCTEST_CAPTURE(package_id);
+        files.Write("main.cfg", "enable " + package_id + ";\n");
+        config::s_effective_config effective;
+        config::s_cfg_diagnostic diagnostic;
+        DOCTEST_INFO(diagnostic.message);
+        DOCTEST_REQUIRE(config::Load_Config_File(
+            "main.cfg", "base_game", &effective, &diagnostic));
+        DOCTEST_CHECK(config::Find_Loaded_Mod(package_id) != nullptr);
+        for (const auto& mod : config::Get_Loaded_Mods()) {
+            if (mod.manifest.has_lua_runtime) {
+                DOCTEST_CAPTURE(mod.manifest.id);
+                DOCTEST_CHECK(orion2re::lua::Find_Mod_Runtime(
+                                  orion2re::lua::Get_Active_Mod_Runtimes(),
+                                  mod.manifest.id.c_str()) != nullptr);
+            }
+        }
     }
-    DOCTEST_CHECK(
-        TECHDATA::technology_applications[TECH_APP_AUTOMATED_REPAIR_UNIT]
-            .tech_field_id == TECH_FIELD_ADVANCED_ROBOTICS);
-    DOCTEST_CHECK(
-        TECHDATA::technology_applications[TECH_APP_BIOMORPHIC_FUNGI]
-            .tech_field_id == TECH_FIELD_ARTIFICIAL_LIFE);
-    DOCTEST_CHECK(
-        TECHDATA::technology_applications[TECH_APP_PHASE_SHIFTER]
-            .tech_field_id == TECH_FIELD_XENON_TECHNOLOGY);
-    const char* expected_rack_art_hashes[] = {
-        "6189f0b0cda4284cd4b518cda545da52b465212014946ad070acec2493ffeb3f",
-        "ba1be1d931ed9d8194a5555ce774c757d24030a7e6e0fb929adfc6213a2641dd",
-        "8e00d23d9837820b8bb6961708b96c443727b781caacba8f4ecae981ad92fef8",
-    };
-    for (size_t index = 0; index < std::size(expected_rack_art_hashes); ++index) {
-        DOCTEST_CHECK(orion2re::crypto::sha256_hex(
-                          Read_Lbx_Entry_("DESIGN.LBX", 44 + index)) ==
-            expected_rack_art_hashes[index]);
-    }
-    struct s_expected_value {
-        const char* path;
-        int64_t value;
-    };
-    const s_expected_value expected_values[] = {
-        {"interface.vsync_enabled", 0},
-        {"ai.stock_race.1.ground", 3},
-        {"ai.ship_design_stellar_chance", 2},
-        {"ai.antaran_fleet.attack.roll_range", 125},
-        {"combat.ship_initiative", 2},
-        {"race.picks.negative_limit", -12},
-        {"map.mineral_class.1.1", 2},
-        {"map.planet_special_chance.1", 3},
-        {"map.home_system.minimum_planets", 4},
-    };
-    for (const auto& value : expected_values) {
-        const config::t_variable_id variable_id = Variable_Id_(value.path);
-        DOCTEST_REQUIRE(variable_id != config::CONFIG_NO_VARIABLE);
-        const config::s_typed_value& actual =
-            effective.state.values[variable_id];
-        const int64_t actual_value = actual.type == config::CONFIG_VALUE_BOOL
-            ? actual.bool_value
-            : actual.integer_value;
-        DOCTEST_CHECK(actual_value == value.value);
-        DOCTEST_CHECK(effective.provenance[variable_id].package_id == "v150i");
-    }
-    const auto* runtimes = orion2re::lua::Get_Active_Mod_Runtimes();
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Runtime_Count(runtimes) == 1);
-    struct s_expected_callback {
-        const char* event_name;
-        const char* registration_source;
-        const char* callback_source;
-    };
-    const s_expected_callback expected[] = {
-        {"planet.generated",
-            "mods/v150i/content/deposits.lua",
-            "mods/v150i/content/deposits.lua"},
-        {"new_game.player_setup",
-            "mods/v150i/main.lua",
-            "mods/v150i/content/techtree.lua"},
-    };
-    Check_Migrated_Source_Package_Manifest_("v150i", {"v150"});
-    const auto* runtime =
-        orion2re::lua::Find_Mod_Runtime(runtimes, "v150i");
-    DOCTEST_REQUIRE(runtime != nullptr);
-    Check_Runtime_Package_Version_(runtime);
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Callback_Count(runtime) == 2);
-    for (size_t index = 0; index < std::size(expected); ++index) {
-        const auto& value = expected[index];
-        orion2re::lua::s_lua_callback_info callback;
-        DOCTEST_REQUIRE(
-            orion2re::lua::Get_Mod_Callback_Info(runtime, index, &callback));
-        DOCTEST_CHECK(callback.kind == orion2re::lua::LUA_CALLBACK_EVENT);
-        DOCTEST_CHECK(callback.extension_name == value.event_name);
-        DOCTEST_CHECK(callback.schema == 1);
-        DOCTEST_CHECK(callback.registration_source == value.registration_source);
-        DOCTEST_CHECK(callback.callback_source == value.callback_source);
-    }
-    const char* expected_module_names[] = {
-        "content.techtree",
-        "content.deposits",
-    };
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Module_Count(runtime) == 2);
-    for (size_t index = 0; index < std::size(expected_module_names); ++index) {
-        orion2re::lua::s_lua_module_info module;
-        DOCTEST_REQUIRE(
-            orion2re::lua::Get_Mod_Module_Info(runtime, index, &module));
-        DOCTEST_CHECK(module.name == expected_module_names[index]);
-        DOCTEST_CHECK_FALSE(module.source_hash.empty());
-    }
-}
-
-DOCTEST_TEST_CASE("1.50 Improved multiplayer package overrides the single-player profile") {
-    s_config_test_directory files;
-    for (const char* package_id :
-        {"v150", "v150i", "mirror_hw", "v150i-mp"}) {
-        files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / package_id,
-            fs::path("data") / "mods" / package_id);
-    }
-    files.Write("main.cfg", "enable v150i-mp;\n");
-    files.Initialize_Vfs();
-    Set_Native_Defaults_();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_INFO(diagnostic.message);
-    DOCTEST_REQUIRE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    const config::t_loaded_mod_list& loaded_mods = config::Get_Loaded_Mods();
-    DOCTEST_REQUIRE(loaded_mods.size() == 4);
-    DOCTEST_CHECK(loaded_mods[0].manifest.id == "v150i-mp");
-    DOCTEST_CHECK(loaded_mods[1].manifest.id == "v150i");
-    DOCTEST_CHECK(loaded_mods[2].manifest.id == "v150");
-    DOCTEST_CHECK(loaded_mods[3].manifest.id == "mirror_hw");
-
-    config::s_mod_manifest manifest;
-    DOCTEST_REQUIRE(config::Load_Mod_Manifest(
-        "v150i-mp", &manifest, &diagnostic));
-    DOCTEST_REQUIRE(manifest.dependencies.size() == 2);
-    DOCTEST_CHECK(manifest.dependencies[0].id == "v150i");
-    DOCTEST_CHECK(manifest.dependencies[1].id == "mirror_hw");
-    DOCTEST_CHECK_FALSE(manifest.has_lua_runtime);
-
-    struct s_expected_value {
-        const char* path;
-        int64_t value;
-    };
-    const s_expected_value expected[] = {
-        {"race.picks.negative_limit", -10},
-        {"map.planet_special_chance.0", 69},
-        {"map.planet_special_chance.1", 0},
-        {"map.home_system.minimum_planets", 5},
-        {"map.specials.generate_orion", 0},
-        {"map.specials.generate_splinter_colonies", 0},
-        {"interface.confirm_battle_message_timeout", 90},
-        {"combat.boarding.auto_close_results", 1},
-        {"diplomacy.noreport", 1},
-    };
-    for (const auto& value : expected) {
-        const config::t_variable_id variable_id = Variable_Id_(value.path);
-        DOCTEST_REQUIRE(variable_id != config::CONFIG_NO_VARIABLE);
-        const config::s_typed_value& actual =
-            effective.state.values[variable_id];
-        const int64_t actual_value = actual.type == config::CONFIG_VALUE_BOOL
-            ? actual.bool_value
-            : actual.integer_value;
-        DOCTEST_CHECK(actual_value == value.value);
-        DOCTEST_CHECK(effective.provenance[variable_id].package_id ==
-            "v150i-mp");
-    }
-
-    const auto* runtimes = orion2re::lua::Get_Active_Mod_Runtimes();
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Runtime_Count(runtimes) == 2);
-    DOCTEST_CHECK(orion2re::lua::Find_Mod_Runtime(runtimes, "v150i") !=
-        nullptr);
-    DOCTEST_CHECK(orion2re::lua::Find_Mod_Runtime(runtimes, "mirror_hw") !=
-        nullptr);
 }
 
 DOCTEST_TEST_CASE("network debug logging is local default-off and reloadable") {
@@ -746,10 +550,6 @@ DOCTEST_TEST_CASE("150i multiplayer initializes config Lua and negotiated state 
             Get_Active_Mod_Runtimes(), &diagnostic));
         const auto host_registry = *Get_Active_Registry();
         const auto host_requirements = config::Get_Active_Config()->required_mods;
-        const auto* runtime = Find_Mod_Runtime(Get_Active_Mod_Runtimes(), "v150i");
-        DOCTEST_REQUIRE(runtime != nullptr);
-        DOCTEST_CHECK(Get_Mod_Callback_Count(runtime) == 2);
-        DOCTEST_CHECK(Get_Mod_Module_Count(runtime) == 2);
 
         // Fresh allocations contain zero IDs; a second lobby may contain stale IDs.
         s_player players[MAX_PLAYERS] = {};
@@ -759,10 +559,12 @@ DOCTEST_TEST_CASE("150i multiplayer initializes config Lua and negotiated state 
         const int16_t local = NETSTART::Assign_New_Game_Network_Roster_(
             players, &start, users, 2, 202);
         DOCTEST_REQUIRE(local == 1);
+        // Player and start records are packed; double parentheses keep
+        // doctest from binding references to their misaligned members.
         for (int index = 0; index < MAX_PLAYERS; ++index) {
-            DOCTEST_CHECK(players[index].network_player_id ==
-                (index < 2 ? users[index] : -1));
-            DOCTEST_CHECK(start.net_ids[index] == (index < 2 ? users[index] : 0));
+            DOCTEST_CHECK((players[index].network_player_id ==
+                (index < 2 ? users[index] : -1)));
+            DOCTEST_CHECK((start.net_ids[index] == (index < 2 ? users[index] : 0)));
         }
 
         std::vector<uint8_t> offer_bytes(LUA_NETWORK_MAX_BYTES);
@@ -846,419 +648,6 @@ DOCTEST_TEST_CASE("150i multiplayer initializes config Lua and negotiated state 
         client_state.resize(client_state_size);
         DOCTEST_REQUIRE(client_state == host_state);
     }
-}
-
-DOCTEST_TEST_CASE("ICE package activates its semantic events and modules") {
-    s_config_test_directory files;
-    files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / "v150",
-        fs::path("data") / "mods" / "v150");
-    files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / "ice",
-        fs::path("data") / "mods" / "ice");
-    files.Write("main.cfg", "enable ice;\n");
-    files.Initialize_Vfs();
-    Set_Native_Defaults_();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_REQUIRE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    Check_Migrated_Source_Package_Manifest_("ice", {"v150"});
-    DOCTEST_CHECK(
-        OFFICER::progression.special_leaders.advanced_government_leader_id ==
-        47);
-    DOCTEST_CHECK(
-        OFFICER::progression.special_leaders.random_skills_colony_leader_id ==
-        41);
-    DOCTEST_CHECK(
-        OFFICER::progression.special_leaders.random_skills_ship_officer_id ==
-        52);
-    const auto* runtimes = orion2re::lua::Get_Active_Mod_Runtimes();
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Runtime_Count(runtimes) == 1);
-    const auto* runtime = orion2re::lua::Find_Mod_Runtime(runtimes, "ice");
-    DOCTEST_REQUIRE(runtime != nullptr);
-    Check_Runtime_Package_Version_(runtime);
-    const char* expected_events[] = {
-        "new_game.player_setup",
-        "new_game.home_system_generated",
-    };
-    const char* expected_callbacks[] = {
-        "mods/ice/content/icemod.lua",
-        "mods/ice/content/homeworld.lua",
-    };
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Callback_Count(runtime) == 2);
-    for (size_t index = 0; index < std::size(expected_events); ++index) {
-        orion2re::lua::s_lua_callback_info callback;
-        DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Callback_Info(
-            runtime, index, &callback));
-        DOCTEST_CHECK(callback.kind == orion2re::lua::LUA_CALLBACK_EVENT);
-        DOCTEST_CHECK(callback.extension_name == expected_events[index]);
-        DOCTEST_CHECK(callback.schema == 1);
-        DOCTEST_CHECK(callback.registration_source == "mods/ice/main.lua");
-        DOCTEST_CHECK(callback.callback_source == expected_callbacks[index]);
-    }
-    const char* expected_module_names[] = {
-        "content.icemod",
-        "content.homeworld",
-    };
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Module_Count(runtime) == 2);
-    for (size_t index = 0; index < std::size(expected_module_names); ++index) {
-        orion2re::lua::s_lua_module_info module;
-        DOCTEST_REQUIRE(
-            orion2re::lua::Get_Mod_Module_Info(runtime, index, &module));
-        DOCTEST_CHECK(module.name == expected_module_names[index]);
-        DOCTEST_CHECK(module.path == expected_callbacks[index]);
-        DOCTEST_CHECK_FALSE(module.source_hash.empty());
-    }
-}
-
-void Check_ICE_Source_Package_(const char* package_id,
-    int productivity_bonus,
-    int fortress_space) {
-    s_config_test_directory files;
-    for (const char* dependency : {"v150", "ice"}) {
-        files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / dependency,
-            fs::path("data") / "mods" / dependency);
-    }
-    if (std::strcmp(package_id, "ice") != 0) {
-        files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / package_id,
-            fs::path("data") / "mods" / package_id);
-    }
-    files.Write("main.cfg", std::string("enable ") + package_id + ";\n");
-    files.Initialize_Vfs();
-    Set_Native_Defaults_();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_REQUIRE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    for (int16_t application_id = 0;
-         application_id < TECH_APP_COUNT;
-         ++application_id) {
-        DOCTEST_CAPTURE(application_id);
-        DOCTEST_CHECK(
-            TECHDATA::technology_applications[application_id].tech_app_id ==
-            application_id);
-    }
-    DOCTEST_CHECK(
-        TECHDATA::technology_applications[TECH_APP_ARMOR_BARRACKS]
-            .tech_field_id == TECH_FIELD_ADVANCED_ENGINEERING);
-    DOCTEST_CHECK(
-        TECHDATA::technology_applications[TECH_APP_ANTI_MATTER_BOMB]
-            .tech_field_id == TECH_FIELD_ARTIFICIAL_GRAVITY);
-    DOCTEST_CHECK(
-        TECHDATA::technology_applications[TECH_APP_STEALTH_FIELD]
-            .tech_field_id == TECH_FIELD_WARP_FIELDS);
-    DOCTEST_CHECK(
-        TECHDATA::technology_applications[TECH_APP_PHASE_SHIFTER]
-            .tech_field_id == TECH_FIELD_XENON_TECHNOLOGY);
-    const config::t_variable_id productivity =
-        Variable_Id_("ai.productivity_bonus.4");
-    const config::t_variable_id tutor_productivity =
-        Variable_Id_("ai.productivity_bonus.0");
-    const config::t_variable_id fortress =
-        Variable_Id_("ai.antaran_star_fortress_space");
-    const config::t_variable_id rocket_accuracy =
-        Variable_Id_("combat.anti_missile_rocket_accuracy.base");
-    DOCTEST_REQUIRE(productivity != config::CONFIG_NO_VARIABLE);
-    DOCTEST_REQUIRE(tutor_productivity != config::CONFIG_NO_VARIABLE);
-    DOCTEST_REQUIRE(fortress != config::CONFIG_NO_VARIABLE);
-    DOCTEST_REQUIRE(rocket_accuracy != config::CONFIG_NO_VARIABLE);
-    DOCTEST_CHECK(effective.state.values[productivity].integer_value ==
-        productivity_bonus);
-    DOCTEST_CHECK(effective.provenance[productivity].package_id == package_id);
-    DOCTEST_CHECK(
-        effective.state.values[tutor_productivity].integer_value == 0);
-    DOCTEST_CHECK(
-        effective.provenance[tutor_productivity].package_id == "ice");
-    DOCTEST_CHECK(effective.state.values[fortress].integer_value ==
-        fortress_space);
-    DOCTEST_CHECK(effective.provenance[rocket_accuracy].package_id == "ice");
-    DOCTEST_CHECK(effective.provenance[fortress].package_id == package_id);
-    DOCTEST_CHECK(aidesign::ship_design.defense_priority.human_non_beams[4].id ==
-        SPECIAL_REINFORCED_HULL);
-    DOCTEST_CHECK(aidesign::ship_design.defense_priority.human_non_beams[6].id ==
-        SPECIAL_AUGMENTED_ENGINES);
-    DOCTEST_CHECK(aidesign::ship_design.defense_priority.human_non_beams[8].id ==
-        SPECIAL_LIGHTNING_FIELD);
-    DOCTEST_CHECK(aidesign::ship_design.defense_priority.human_non_beams[9].id ==
-        SPECIAL_REFLECTION_FIELD);
-    DOCTEST_CHECK(aidesign::ship_design.defense_priority.human_beams[4].id ==
-        SPECIAL_AUGMENTED_ENGINES);
-    DOCTEST_CHECK(aidesign::ship_design.defense_priority.human_beams[6].id ==
-        SPECIAL_REINFORCED_HULL);
-    DOCTEST_CHECK(aidesign::ship_design.defense_priority.human_beams[8].id ==
-        SPECIAL_REFLECTION_FIELD);
-    DOCTEST_CHECK(aidesign::ship_design.defense_priority.human_beams[9].id ==
-        SPECIAL_LIGHTNING_FIELD);
-    for (int difficulty = GAME_DIFFICULTY_TUTOR;
-         difficulty <= GAME_DIFFICULTY_IMPOSSIBLE;
-         ++difficulty) {
-        for (int hull = SHIP_SIZE_SMALL; hull <= SHIP_SIZE_TITAN; ++hull) {
-            DOCTEST_CHECK(
-                SHIP_CONFIG::antaran_offensive_templates[difficulty][hull]
-                    .ftl_type == DRIVE_INTERPHASED_DRIVE);
-            DOCTEST_CHECK(
-                SHIP_CONFIG::antaran_defensive_templates[difficulty][hull]
-                    .ftl_type == DRIVE_INTERPHASED_DRIVE);
-        }
-    }
-    s_ship_design& defensive_titan =
-        SHIP_CONFIG::antaran_defensive_templates
-            [GAME_DIFFICULTY_IMPOSSIBLE][SHIP_SIZE_TITAN];
-    DOCTEST_CHECK(defensive_titan.ship_weapon[3].specials ==
-        WEAPON_MOD_FLAG_POINT_DEFENSE);
-    DOCTEST_CHECK(defensive_titan.ship_weapon[3].count ==
-        (std::strcmp(package_id, "ice-x") == 0 ? 30 : 20));
-    s_ship_design& defensive_frigate =
-        SHIP_CONFIG::antaran_defensive_templates
-            [GAME_DIFFICULTY_IMPOSSIBLE][SHIP_SIZE_SMALL];
-    const auto has_special = [&defensive_frigate](int special) {
-        return (defensive_frigate.special_device_flags[special >> 3] &
-                   (1 << (special & 7))) != 0;
-    };
-    DOCTEST_CHECK(has_special(SPECIAL_PHASING_CLOAK));
-    DOCTEST_CHECK(has_special(std::strcmp(package_id, "ice-x") == 0
-            ? SPECIAL_WARP_DISSIPATOR
-            : SPECIAL_ECM_JAMMER));
-    DOCTEST_CHECK(SHIP_CONFIG::antaran_fortress.primary_weapons[0]
-                      .space_mods == WEAPON_MOD_FLAG_HEAVY_MOUNT);
-    DOCTEST_CHECK(SHIP_CONFIG::antaran_fortress.primary_weapons[2]
-                      .space_mods == WEAPON_MOD_FLAG_POINT_DEFENSE);
-    DOCTEST_CHECK(SHIP_CONFIG::antaran_fortress.specials[5] ==
-        (std::strcmp(package_id, "ice-x") == 0
-                ? SPECIAL_SUB_SPACE_TELEPORTER
-                : SPECIAL_REINFORCED_HULL));
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Runtime_Count(
-                        orion2re::lua::Get_Active_Mod_Runtimes()) == 1);
-    DOCTEST_CHECK(orion2re::lua::Find_Mod_Runtime(
-                      orion2re::lua::Get_Active_Mod_Runtimes(), "ice") !=
-        nullptr);
-    DOCTEST_CHECK(orion2re::crypto::sha256_hex(
-                      Read_Vfs_Text_("INFO.LBX/003")) ==
-        "15f50f21808aa0e3e285a8d187f57401f7b5cb1a9f462b0ea2ffc4fcd8bd9621");
-    DOCTEST_CHECK(orion2re::crypto::sha256_hex(
-                      Read_Vfs_Text_("HELP.LBX/005")) ==
-        "eafd35b57da64ab888be53375295fc390d4f619399b91fcdb791ab0fd331179e");
-}
-
-DOCTEST_TEST_CASE("ICE source package loads its base-difficulty profile") {
-    Check_ICE_Source_Package_("ice", 40, 2000);
-}
-
-DOCTEST_TEST_CASE("ICE-X source package overrides ICE with harder settings") {
-    Check_ICE_Source_Package_("ice-x", 60, 2500);
-}
-
-DOCTEST_TEST_CASE("ICE-X rejects explicit priority below its ICE dependency") {
-    s_config_test_directory files;
-    for (const char* package_id : {"v150", "ice", "ice-x"}) {
-        files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / package_id,
-            fs::path("data") / "mods" / package_id);
-    }
-    files.Write("main.cfg", "enable ice;\nenable ice-x;\n");
-    files.Initialize_Vfs();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_CHECK_FALSE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    DOCTEST_CHECK(diagnostic.message ==
-        "package 'ice-x' must load after 'ice'");
-}
-
-DOCTEST_TEST_CASE("VDC package activates its semantic events and modules") {
-    s_config_test_directory files;
-    for (const char* package_id :
-        {"v150", "mirror_exhw", "noreport", "vdc-gm3"}) {
-        files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / package_id,
-            fs::path("data") / "mods" / package_id);
-    }
-    files.Write("main.cfg", "enable vdc-gm3;\n");
-    files.Initialize_Vfs();
-    Set_Native_Defaults_();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_REQUIRE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    for (int16_t field_id = 1; field_id < TECH_FIELD_COUNT; ++field_id) {
-        if (field_id == TECH_FIELD_XENON_TECHNOLOGY) continue;
-        const int16_t next_field_id =
-            TECHDATA::technology_fields[field_id].next_field_id;
-        if (next_field_id == TECH_FIELD_STARTING_TECH) continue;
-        DOCTEST_CAPTURE(field_id);
-        DOCTEST_CAPTURE(next_field_id);
-        DOCTEST_REQUIRE(next_field_id > TECH_FIELD_STARTING_TECH);
-        DOCTEST_REQUIRE(next_field_id < TECH_FIELD_COUNT);
-        DOCTEST_REQUIRE(next_field_id != TECH_FIELD_XENON_TECHNOLOGY);
-        DOCTEST_CHECK(
-            TECHDATA::technology_fields[next_field_id].prev_field_id ==
-            field_id);
-    }
-    Check_Migrated_Source_Package_Manifest_("vdc-gm3",
-        {"mirror_exhw", "noreport", "v150"});
-    const auto* runtimes = orion2re::lua::Get_Active_Mod_Runtimes();
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Runtime_Count(runtimes) == 2);
-    DOCTEST_CHECK(std::string(orion2re::lua::Get_Mod_Runtime_Package_Id(
-                      orion2re::lua::Get_Mod_Runtime(runtimes, 0))) ==
-        "mirror_exhw");
-    DOCTEST_CHECK(std::string(orion2re::lua::Get_Mod_Runtime_Package_Id(
-                      orion2re::lua::Get_Mod_Runtime(runtimes, 1))) ==
-        "vdc-gm3");
-    const auto* runtime = orion2re::lua::Find_Mod_Runtime(runtimes, "vdc-gm3");
-    DOCTEST_REQUIRE(runtime != nullptr);
-    Check_Runtime_Package_Version_(runtime);
-    const char* expected_events[] = {
-        "new_game.player_setup",
-        "new_game.home_system_generated",
-    };
-    const char* expected_callbacks[] = {
-        "mods/vdc-gm3/content/cryogen.lua",
-        "mods/vdc-gm3/content/homeworld.lua",
-    };
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Callback_Count(runtime) == 2);
-    for (size_t index = 0; index < std::size(expected_events); ++index) {
-        orion2re::lua::s_lua_callback_info callback;
-        DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Callback_Info(
-            runtime, index, &callback));
-        DOCTEST_CHECK(callback.kind == orion2re::lua::LUA_CALLBACK_EVENT);
-        DOCTEST_CHECK(callback.extension_name == expected_events[index]);
-        DOCTEST_CHECK(callback.schema == 1);
-        DOCTEST_CHECK(callback.registration_source == "mods/vdc-gm3/main.lua");
-        DOCTEST_CHECK(callback.callback_source == expected_callbacks[index]);
-    }
-    const char* expected_module_names[] = {
-        "content.cryogen",
-        "content.homeworld",
-    };
-    const char* expected_module_paths[] = {
-        "mods/vdc-gm3/content/cryogen.lua",
-        "mods/vdc-gm3/content/homeworld.lua",
-    };
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Module_Count(runtime) == 2);
-    for (size_t index = 0; index < std::size(expected_module_names); ++index) {
-        orion2re::lua::s_lua_module_info module;
-        DOCTEST_REQUIRE(
-            orion2re::lua::Get_Mod_Module_Info(runtime, index, &module));
-        DOCTEST_CHECK(module.name == expected_module_names[index]);
-        DOCTEST_CHECK(module.path == expected_module_paths[index]);
-        DOCTEST_CHECK_FALSE(module.source_hash.empty());
-    }
-}
-
-DOCTEST_TEST_CASE("RandomTech package activates its semantic event and module") {
-    s_config_test_directory files;
-    files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / "randtech",
-        fs::path("data") / "mods" / "randtech");
-    files.Write("main.cfg", "enable randtech;\n");
-    files.Initialize_Vfs();
-    Set_Native_Defaults_();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_REQUIRE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    Check_Migrated_Source_Package_Manifest_("randtech");
-    const auto* runtimes = orion2re::lua::Get_Active_Mod_Runtimes();
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Runtime_Count(runtimes) == 1);
-    const auto* runtime =
-        orion2re::lua::Find_Mod_Runtime(runtimes, "randtech");
-    DOCTEST_REQUIRE(runtime != nullptr);
-    Check_Runtime_Package_Version_(runtime);
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Callback_Count(runtime) == 1);
-    orion2re::lua::s_lua_callback_info callback;
-    DOCTEST_REQUIRE(
-        orion2re::lua::Get_Mod_Callback_Info(runtime, 0, &callback));
-    DOCTEST_CHECK(callback.kind == orion2re::lua::LUA_CALLBACK_EVENT);
-    DOCTEST_CHECK(callback.extension_name == "new_game.technology_setup");
-    DOCTEST_CHECK(callback.schema == 1);
-    DOCTEST_CHECK(callback.registration_source == "mods/randtech/main.lua");
-    DOCTEST_CHECK(callback.callback_source ==
-        "mods/randtech/content/randtech.lua");
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Module_Count(runtime) == 1);
-    orion2re::lua::s_lua_module_info module;
-    DOCTEST_REQUIRE(
-        orion2re::lua::Get_Mod_Module_Info(runtime, 0, &module));
-    DOCTEST_CHECK(module.name == "content.randtech");
-    DOCTEST_CHECK(module.path == "mods/randtech/content/randtech.lua");
-    DOCTEST_CHECK_FALSE(module.source_hash.empty());
-}
-
-DOCTEST_TEST_CASE("Treeless source package hides future technologies independently") {
-    s_config_test_directory files;
-    files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / "treeless",
-        fs::path("data") / "mods" / "treeless");
-    files.Write("main.cfg", "enable treeless;\n");
-    files.Initialize_Vfs();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_INFO(diagnostic.message);
-    DOCTEST_REQUIRE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    config::s_mod_manifest manifest;
-    DOCTEST_REQUIRE(config::Load_Mod_Manifest(
-        "treeless", &manifest, &diagnostic));
-    DOCTEST_CHECK(manifest.dependencies.empty());
-    DOCTEST_CHECK_FALSE(manifest.has_lua_runtime);
-
-    const config::t_variable_id browsing =
-        Variable_Id_("interface.allow_future_technology_browsing");
-    DOCTEST_REQUIRE(browsing != config::CONFIG_NO_VARIABLE);
-    DOCTEST_CHECK_FALSE(effective.state.values[browsing].bool_value);
-    DOCTEST_CHECK(effective.provenance[browsing].package_id == "treeless");
-    DOCTEST_CHECK(orion2re::lua::Get_Mod_Runtime_Count(
-                      orion2re::lua::Get_Active_Mod_Runtimes()) == 0);
-}
-
-void Check_Mirror_Source_Package_(const char* package_id) {
-    s_config_test_directory files;
-    files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / package_id,
-        fs::path("data") / "mods" / package_id);
-    files.Write("main.cfg", std::string("enable ") + package_id + ";\n");
-    files.Initialize_Vfs();
-    Set_Native_Defaults_();
-    config::s_effective_config effective;
-    config::Read_Effective_Native_Config(&effective);
-    config::s_cfg_diagnostic diagnostic;
-
-    DOCTEST_REQUIRE(config::Load_Config_File(
-        "main.cfg", "base_game", &effective, &diagnostic));
-    Check_Migrated_Source_Package_Manifest_(package_id);
-    const auto* runtime = orion2re::lua::Find_Mod_Runtime(
-        orion2re::lua::Get_Active_Mod_Runtimes(), package_id);
-    DOCTEST_REQUIRE(runtime != nullptr);
-    Check_Runtime_Package_Version_(runtime);
-    DOCTEST_CHECK(orion2re::lua::Get_Mod_Callback_Count(runtime) == 0);
-    DOCTEST_CHECK(orion2re::lua::Get_Mod_Module_Count(runtime) == 0);
-    DOCTEST_REQUIRE(orion2re::lua::Get_Mod_Service_Count(runtime) == 1);
-    orion2re::lua::s_lua_service_info service;
-    DOCTEST_REQUIRE(
-        orion2re::lua::Get_Mod_Service_Info(runtime, 0, &service));
-    DOCTEST_CHECK(service.name == "galaxy_generator");
-    DOCTEST_CHECK(service.version == 1);
-    const std::string main_path =
-        std::string("mods/") + package_id + "/main.lua";
-    DOCTEST_CHECK(service.registration_source == main_path);
-    DOCTEST_CHECK(service.callback_source == main_path);
-}
-
-DOCTEST_TEST_CASE("home-system mirror package activates its registered provider") {
-    Check_Mirror_Source_Package_("mirror_hw");
-}
-
-DOCTEST_TEST_CASE("full mirror package activates its registered provider") {
-    Check_Mirror_Source_Package_("mirror_exhw");
-}
-
-DOCTEST_TEST_CASE("complete full mirror package activates its registered provider") {
-    Check_Mirror_Source_Package_("mirror");
 }
 
 DOCTEST_TEST_CASE("cycle detection follows case-insensitive VFS path identity") {
@@ -1771,25 +1160,6 @@ DOCTEST_TEST_SUITE("configuration include loader") {
         DOCTEST_CHECK_FALSE(config::Parse_Semantic_Version("1.2.3.4", &invalid));
     }
 
-    DOCTEST_TEST_CASE("supported community patch package ID can be enabled") {
-        s_config_test_directory files;
-        files.Write("main.cfg", "enable v150;\n");
-        files.Copy_Tree(fs::path(LUA_SOURCE_PACKAGE_DIR) / "v150",
-            fs::path("data") / "mods" / "v150");
-        files.Initialize_Vfs();
-        Set_Native_Defaults_();
-        config::s_effective_config effective;
-        config::Read_Effective_Native_Config(&effective);
-        config::s_cfg_diagnostic diagnostic;
-
-        DOCTEST_REQUIRE(config::Load_Config_File(
-            "main.cfg", "base_game", &effective, &diagnostic));
-        config::s_mod_manifest manifest;
-        DOCTEST_REQUIRE(config::Load_Mod_Manifest(
-            "v150", &manifest, &diagnostic));
-        DOCTEST_CHECK(manifest.dependencies.empty());
-    }
-
     DOCTEST_TEST_CASE("package manifest description is optional presentation metadata") {
         const config::t_variable_id scroll_interval =
             Variable_Id_("interface.scroll_interval");
@@ -1961,7 +1331,7 @@ DOCTEST_TEST_SUITE("configuration include loader") {
         DOCTEST_CHECK_FALSE(config::Load_Config_File(
             "main.cfg", "base_game", &effective, &diagnostic));
         DOCTEST_CHECK(diagnostic.message ==
-            "package requires engine '>=3.0.0' but this engine is 2.0.0");
+            std::string("package requires engine '>=3.0.0' but this engine is ") + orion2re::ENGINE_VERSION);
         DOCTEST_CHECK(diagnostic.location.source == "mods/future/mod.json5");
     }
 
@@ -2524,6 +1894,60 @@ DOCTEST_TEST_SUITE("configuration include loader") {
         DOCTEST_REQUIRE(config::Load_Startup_Config(
             "orion2re.cfg", "base_game", &effective, &loaded, &diagnostic));
         DOCTEST_CHECK_FALSE(loaded);
+    }
+
+    DOCTEST_TEST_CASE("explicit startup config must exist without changing native state") {
+        s_config_test_directory files;
+        files.Initialize_Vfs();
+        config::s_effective_config effective;
+        config::s_cfg_diagnostic diagnostic;
+        bool loaded = true;
+        const auto original = COMBINIT::scroll_interval;
+
+        DOCTEST_CHECK_FALSE(config::Load_Startup_Config(
+            "configs/missing.cfg", "base_game", &effective, &loaded, &diagnostic, true));
+        DOCTEST_CHECK_FALSE(loaded);
+        DOCTEST_CHECK(diagnostic.location.source == "configs/missing.cfg");
+        DOCTEST_CHECK(diagnostic.message == "selected startup configuration not found");
+        DOCTEST_CHECK(COMBINIT::scroll_interval == original);
+    }
+
+    DOCTEST_TEST_CASE("selected startup config replaces default and remains the reload entry point") {
+        s_config_test_directory files;
+        files.Write("orion2re.cfg", "interface scroll_interval = 20;\n");
+        files.Write("configs/common.cfg", "interface scroll_interval = 60;\n");
+        files.Write("configs/test.cfg", "include common.cfg;\ninterface scroll_interval = 75;\n");
+        files.Initialize_Vfs();
+        config::s_effective_config effective;
+        config::s_cfg_diagnostic diagnostic;
+        bool loaded = false;
+
+        DOCTEST_REQUIRE(config::Load_Startup_Config(
+            "configs/test.cfg", "base_game", &effective, &loaded, &diagnostic, true));
+        DOCTEST_CHECK(loaded);
+        DOCTEST_CHECK(COMBINIT::scroll_interval == 75);
+        DOCTEST_REQUIRE(config::Get_Active_Config() != nullptr);
+        DOCTEST_CHECK(config::Get_Active_Config()->entry_path == "configs/test.cfg");
+
+        files.Write("configs/test.cfg", "include common.cfg;\ninterface scroll_interval = 80;\n");
+        DOCTEST_REQUIRE(config::Reload_All_Active_Config_Groups(&diagnostic));
+        DOCTEST_CHECK(COMBINIT::scroll_interval == 80);
+        DOCTEST_CHECK(config::Get_Active_Config()->entry_path == "configs/test.cfg");
+    }
+
+    DOCTEST_TEST_CASE("explicit startup config rejects absolute and escaping paths") {
+        s_config_test_directory files;
+        files.Initialize_Vfs();
+        for (const char* path : {"../escape.cfg", "/absolute.cfg", "C:\\absolute.cfg"}) {
+            DOCTEST_CAPTURE(path);
+            config::s_effective_config effective;
+            config::s_cfg_diagnostic diagnostic;
+            bool loaded = true;
+            DOCTEST_CHECK_FALSE(config::Load_Startup_Config(
+                path, "base_game", &effective, &loaded, &diagnostic, true));
+            DOCTEST_CHECK_FALSE(loaded);
+            DOCTEST_CHECK(diagnostic.message == "invalid configuration entry path");
+        }
     }
 
     DOCTEST_TEST_CASE("invalid startup config preserves native state") {

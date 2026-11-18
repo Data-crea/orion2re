@@ -48,12 +48,14 @@ extra:
 
 nav:
   - Home: index.md
+  - Changelog: changelog.md
   - Manual:
       - manual/index.md
       - About version 2.00:
           - Introduction: manual/overview/introduction.md
           - Version 2.00 highlights: manual/overview/highlights.md
           - Compatibility: manual/overview/compatibility.md
+          - File locations and native installation: manual/overview/file-locations.md
           - Critical bug fixes: manual/overview/critical-bug-fixes.md
           - Multiplayer: manual/multiplayer.md
       - User-facing changes:
@@ -98,6 +100,7 @@ nav:
           - Packages and manifests: authoring-mods/packages-and-manifests.md
           - Configuration overrides: authoring-mods/configuration-overrides.md
           - VFS and asset overrides: authoring-mods/vfs-and-assets.md
+          - JSON5 string overrides: authoring-mods/string-overrides.md
           - Text formatting: authoring-mods/text-formatting.md
           - Lua modding: authoring-mods/lua-modding.md
           - Events and API reference: authoring-mods/events-and-api.md

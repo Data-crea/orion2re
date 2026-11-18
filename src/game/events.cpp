@@ -2,6 +2,7 @@
 #ifdef ORION2RE_EXT
 #include "ext/ext_api.h"  // OrionLayer, open fix 49. TurnPopupGuard.
 #endif
+#include "string_overrides.h"
 
 namespace EVENTS {
     namespace {
@@ -2192,16 +2193,19 @@ namespace EVENTS {
                 break;
             case EVENT_INDUSTRIAL_ACCIDENT:
                 event_subtype = 0;
+                planet_idx = event_data[event_id].target_id;
                 p11 = MOX::planet[event_data[event_id].target_id].star_index;
                 break;
             case EVENT_MINERAL_DEPLETION:
                 p8 = player_idx;
                 event_subtype = 0;
+                planet_idx = event_data[event_id].target_id;
                 p11 = MOX::planet[event_data[event_id].target_id].star_index;
                 p4 = MOX::planet[event_data[event_id].target_id].mineral_class;
                 break;
             case EVENT_MINERAL_DEPOSIT:
                 event_subtype = 0;
+                planet_idx = event_data[event_id].target_id;
                 p11 = MOX::planet[event_data[event_id].target_id].star_index;
                 p4 = MOX::planet[event_data[event_id].target_id].mineral_class;
                 break;
@@ -2435,7 +2439,7 @@ namespace EVENTS {
 
         char buffer[300];
         int16_t index = event_subtype + (event_type * 4);
-        farload::Farload_Data_Static(lbx_name, index, buffer, 0, 1, sizeof(buffer));
+        string_overrides::Load_Message(lbx_name, index, 0, sizeof(buffer), index + 1, buffer, sizeof(buffer));
 
         int16_t out_len = 0;
         char temp_str[300];

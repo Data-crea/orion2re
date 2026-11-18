@@ -2,8 +2,6 @@
 
 #include "game/savegame.h"
 
-#include <cstddef>
-
 #include "config/config_loader.h"
 #include "config/config_snapshot.h"
 #include "game/save_sections.h"
@@ -69,12 +67,9 @@ namespace SAVEGAME {
             star->wormhole_star_id = -1;
             star->next_wfi_in_list = -1;
             memset(star->officer_index, 0xFF, sizeof(star->officer_index));
-            for (int16_t& planet_index : star->planet_index) {
-                planet_index = -1;
-            }
-            for (int16_t& relocation : star->relocate_ship_to) {
-                relocation = -1;
-            }
+            // Packed fields: fill bytewise rather than through int16_t&.
+            memset(star->planet_index, 0xFF, sizeof(star->planet_index));
+            memset(star->relocate_ship_to, 0xFF, sizeof(star->relocate_ship_to));
             memset(star->surrender_to, 0xFF, sizeof(star->surrender_to));
         }
 
@@ -86,28 +81,48 @@ namespace SAVEGAME {
             }
         }
 
-        void Write_Int16_Array(SERIAL::Writer_* writer, const int16_t* values, size_t count) {
-            for (size_t i = 0; i < count; ++i) writer->Write_Int16(values[i]);
+        // These arrays are members of packed structures and may not be
+        // naturally aligned, so copy each element bytewise.
+        void Write_Int16_Array(SERIAL::Writer_* writer, const void* values, size_t count) {
+            const uint8_t* bytes = static_cast<const uint8_t*>(values);
+            for (size_t i = 0; i < count; ++i) {
+                writer->Write_Int16(unaligned::Load<int16_t>(bytes + i * sizeof(int16_t)));
+            }
         }
 
-        void Read_Int16_Array(SERIAL::Reader_* reader, int16_t* values, size_t count) {
-            for (size_t i = 0; i < count; ++i) values[i] = reader->Read_Int16();
+        void Read_Int16_Array(SERIAL::Reader_* reader, void* values, size_t count) {
+            uint8_t* bytes = static_cast<uint8_t*>(values);
+            for (size_t i = 0; i < count; ++i) {
+                unaligned::Store<int16_t>(bytes + i * sizeof(int16_t), reader->Read_Int16());
+            }
         }
 
-        void Write_Uint16_Array(SERIAL::Writer_* writer, const uint16_t* values, size_t count) {
-            for (size_t i = 0; i < count; ++i) writer->Write_Uint16(values[i]);
+        void Write_Uint16_Array(SERIAL::Writer_* writer, const void* values, size_t count) {
+            const uint8_t* bytes = static_cast<const uint8_t*>(values);
+            for (size_t i = 0; i < count; ++i) {
+                writer->Write_Uint16(unaligned::Load<uint16_t>(bytes + i * sizeof(uint16_t)));
+            }
         }
 
-        void Read_Uint16_Array(SERIAL::Reader_* reader, uint16_t* values, size_t count) {
-            for (size_t i = 0; i < count; ++i) values[i] = reader->Read_Uint16();
+        void Read_Uint16_Array(SERIAL::Reader_* reader, void* values, size_t count) {
+            uint8_t* bytes = static_cast<uint8_t*>(values);
+            for (size_t i = 0; i < count; ++i) {
+                unaligned::Store<uint16_t>(bytes + i * sizeof(uint16_t), reader->Read_Uint16());
+            }
         }
 
-        void Write_Int32_Array(SERIAL::Writer_* writer, const int32_t* values, size_t count) {
-            for (size_t i = 0; i < count; ++i) writer->Write_Int32(values[i]);
+        void Write_Int32_Array(SERIAL::Writer_* writer, const void* values, size_t count) {
+            const uint8_t* bytes = static_cast<const uint8_t*>(values);
+            for (size_t i = 0; i < count; ++i) {
+                writer->Write_Int32(unaligned::Load<int32_t>(bytes + i * sizeof(int32_t)));
+            }
         }
 
-        void Read_Int32_Array(SERIAL::Reader_* reader, int32_t* values, size_t count) {
-            for (size_t i = 0; i < count; ++i) values[i] = reader->Read_Int32();
+        void Read_Int32_Array(SERIAL::Reader_* reader, void* values, size_t count) {
+            uint8_t* bytes = static_cast<uint8_t*>(values);
+            for (size_t i = 0; i < count; ++i) {
+                unaligned::Store<int32_t>(bytes + i * sizeof(int32_t), reader->Read_Int32());
+            }
         }
 
         void Write_Settings(SERIAL::Writer_* writer, const s_settings* settings) {

@@ -4,10 +4,24 @@ Orion2 Redone retains the original 640 by 480 game interface while presenting it
 
 ## Windowed and Full-screen Display
 
-The game starts in a resizable window by default. Press Alt+Enter to switch between windowed and full-screen display. There is no separate in-game resolution setting: resizing the window changes how the fixed game image is scaled.
+The game starts in a resizable 640 by 480 window by default. Set `interface window_width` and `interface window_height` in `data/orion2re.cfg` to change the initial window dimensions (each from 1 through 16384). Set `interface fullscreen = true;` to start in full-screen display at the desktop resolution. These settings take effect after restarting the game.
+
+Press Alt+Enter to switch between windowed and full-screen display without changing the config file. The internal game image remains 640 by 480: resizing the window changes how that image is scaled, not the game interface resolution.
 
 Vertical synchronization is enabled by default. Set `interface vsync_enabled = false;` if it causes a problem with the display; disabling it may cause visible tearing.
 
+
+## Startup and Exit
+
+Use `/skip-intro` on Windows or `-skip-intro` on Linux and macOS to skip the logos and intro movie. See [startup options](../legacy-modding/configuration.md#startup-options) for selecting a configuration file or loading a save at launch.
+
+The thank-you dialog on normal exit is disabled by default. To restore it, add this to your configuration:
+
+```text
+interface show_exit_message = true;
+```
+
+This local preference does not suppress error messages and is not stored in saved games or synchronized in multiplayer.
 
 ## Display Scaling
 
@@ -96,14 +110,18 @@ The view represents the travel range known for each contacted empire. It can hel
 
 ![Influence overlay on the galaxy map](../../assets/images/manual/empire-overlay.png)
 
-At the farthest zoom level of an extended Maximum galaxy, the map draws automatic outlines to make the view readable even when the optional overlay is off. These outlines are separate from the Alt+V views.
+At the farthest zoom level of an extended Maximum galaxy, the map draws automatic outlines to make the view readable even when the optional overlay is off. These outlines override the Alt+V views unless `interface maximum_galaxy_display = classic;` is selected.
+
+### Maximum Galaxy Display
+
+Set `interface maximum_galaxy_display = classic;` to use the classic main-map presentation at Maximum's farthest zoom level: normal star names and ownership colors, star artwork, black-hole animation, highlight ordering, and Alt+V's off/fill/borders cycle. Visited-system dots, overview markers, and forced automatic influence outlines are disabled in that view. Normal discovery rules still apply. The default is `overview`, which retains the large-map aids; classic labels may overlap on dense maps. The setting does not change other galaxy sizes, closer zoom levels, map dimensions, or zoom scaling. This is a local preference, excluded from saves and multiplayer synchronization.
 
 
 ### Main-map Overview Star Markers
 
 The optional `interface main_map_overview_markers = true;` setting replaces star-type pictures with compact markers when an extended Maximum galaxy is zoomed out to its all-stars view. Known owned systems use player colors, unvisited neutral systems use bluish-gray, visited or contested neutral systems use gray, and black holes keep their distinct overview marker. Other galaxy sizes and closer zoom levels retain normal star-type pictures. The setting is disabled by default.
 
-Overview markers identify map objects; they do not show influence.
+Overview markers identify map objects; they do not show influence. `maximum_galaxy_display = classic` takes precedence over this setting at Maximum's farthest zoom level.
 
 
 ### Title Screen
@@ -365,13 +383,15 @@ For example a planet has a Radiation shield, no defensive buildings, and its ow
 
 ### Missing Loknar’s Technologies
 
-The two extra technologies that Loknar brings (added in patch version 1.3), in addition to Death Ray and the three random Xenon techs, are now displayed.
+The two extra technologies that Loknar brings (a feature added in patch version 1.3), in addition to Death Ray and the three random Xenon techs, are now displayed.
 
 ![Loknar technology reward display](../../assets/images/manual/image22.png)
 
-These two techs are chosen randomly from the tech list: First tech from techs 1-101; Second tech from techs 102-203. This could result in a selection of one or both techs already in your possession. In such a case the technology is not listed and you will not receive another tech instead.
+These two techs are chosen randomly from the full tech list: First tech from techs 1-101; Second tech from techs 102-203.
 
-Note that this selection is made before the Xenon techs are given and in the rare case where the Death Ray is one of the two techs, you will not receive another Xenon tech instead of the default Death Ray technology.
+This could result in a selection of one or both techs already in your possession. In such a case the technology is not listed and you will not receive another tech instead.
+
+Note also that the selection is made before the Xenon techs are given and in the rare case where the Death Ray is one of the two selected techs, you will not receive another Xenon tech instead.
 
 
 ### Evolutionary Mutation Screen Bug \*

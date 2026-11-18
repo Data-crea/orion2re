@@ -59,6 +59,44 @@ namespace REPORT {
         return nullptr;
     }
 
+    bool Is_Serious_Msg(const s_MSG& msg) {
+        switch (msg.msg_type) {
+            case MSG_TYPE_COLONY:
+                return msg.u.colony.subtype == MSG_COLONY_SUBTYPE_STARVATION ||
+                    msg.u.colony.subtype == MSG_COLONY_SUBTYPE_REBELLION;
+            case MSG_TYPE_FINANCIAL:
+            case MSG_TYPE_LOST_SHIP:
+            case MSG_TYPE_LOST_COLONY:
+            case MSG_TYPE_LOST_ATTACKING_SPY:
+            case MSG_TYPE_LOST_DEFENDING_SPY:
+                return true;
+            case MSG_TYPE_HYPERSPACE_BEAST:
+                return msg.u.hyperspace_beast.ship_idx != -1 && msg.u.hyperspace_beast.fate != 0;
+            default:
+                return false;
+        }
+    }
+
+    void Order_Turn_Summary_Messages(uint8_t* indices, int16_t first_idx, int16_t count, bool serious_first) {
+        if (indices == nullptr || count <= 0) {
+            return;
+        }
+
+        int16_t output = 0;
+        if (serious_first) {
+            for (int16_t i = 0; i < count; ++i) {
+                if (Is_Serious_Msg(MSG_::msgs[first_idx + i])) {
+                    indices[output++] = (uint8_t)(first_idx + i);
+                }
+            }
+        }
+        for (int16_t i = 0; i < count; ++i) {
+            if (!serious_first || !Is_Serious_Msg(MSG_::msgs[first_idx + i])) {
+                indices[output++] = (uint8_t)(first_idx + i);
+            }
+        }
+    }
+
     int8_t __cdecl Has_Msg(int16_t player_idx, int8_t show_summary) {
         int8_t result = 0;
 
@@ -79,7 +117,7 @@ namespace REPORT {
                             switch (msg->u.colony.subtype) {
                                 case MSG_COLONY_SUBTYPE_STARVATION:
                                 case MSG_COLONY_SUBTYPE_REBELLION:
-                                    should_show = true;
+                                    should_show = Is_Serious_Msg(*msg);
                                     break;
                                 case MSG_COLONY_SUBTYPE_PLAGUE:
                                 case MSG_COLONY_SUBTYPE_POPULATION_BOOM:
@@ -97,7 +135,7 @@ namespace REPORT {
                         case MSG_TYPE_LOST_COLONY:
                         case MSG_TYPE_LOST_ATTACKING_SPY:
                         case MSG_TYPE_LOST_DEFENDING_SPY:
-                            should_show = true;
+                            should_show = Is_Serious_Msg(*msg);
                             break;
 
                         case MSG_TYPE_HYPERSPACE_FLUX:
@@ -106,12 +144,7 @@ namespace REPORT {
                             break;
 
                         case MSG_TYPE_HYPERSPACE_BEAST:
-                            if (msg->u.hyperspace_beast.ship_idx != -1 &&
-                                msg->u.hyperspace_beast.fate != 0) {
-                                should_show = true;
-                            } else {
-                                should_show = false;
-                            }
+                            should_show = Is_Serious_Msg(*msg);
                             break;
 
                         case MSG_TYPE_DIPLOMACY:
@@ -494,7 +527,7 @@ namespace REPORT {
                 if (accepted) {
                     MOX::player[player_idx].bc -= cost;
                     COLCALC::Do_Player_Colony_Calculations(player_idx);
-                    if (OFFICER::reject_declined_offers != 0) {
+                    if (OFFICER::rejected_offer_keeps_timer != 0) {
                         // The offer was generated on the preceding turn.
                         MOX::player[player_idx].stardate_last_offered_hero =
                             static_cast<uint16_t>(MOX::stardate - 1);

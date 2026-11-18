@@ -3,6 +3,7 @@
 #include "doctest/doctest.h"
 
 #include "game/build_queue.h"
+#include "game/colcalc.h"
 #include "lua/lua_game.h"
 
 namespace TEST_COLONY_POP_GROWTH {
@@ -411,7 +412,7 @@ DOCTEST_TEST_CASE("general population growth modifier is independent of Housing"
 
     COLCALC::Colony_Pop_Grows(colony);
 
-    DOCTEST_CHECK(colony->producing[0] != COLONY_PRODUCTION_HOUSING);
+    DOCTEST_CHECK((colony->producing[0] != COLONY_PRODUCTION_HOUSING));
     DOCTEST_CHECK(colony->pop_growth[0] == 140);
 }
 
@@ -1259,7 +1260,7 @@ DOCTEST_TEST_CASE("completed building grants no maintenance cash") {
 
     COLCALC::Apply_Production(colony);
 
-    DOCTEST_CHECK(MOX::player[0].bc == 20);
+    DOCTEST_CHECK((MOX::player[0].bc == 20));
 }
 
 DOCTEST_TEST_CASE("new ship crew is normalized before same-turn combat") {
@@ -1328,7 +1329,7 @@ DOCTEST_TEST_CASE("freighter completion widens configured unsigned cash bonus") 
 
         COLCALC::Apply_Production(colony);
 
-        DOCTEST_CHECK(MOX::player[0].bc == test_case.expected_bc);
+        DOCTEST_CHECK((MOX::player[0].bc == test_case.expected_bc));
         DOCTEST_CHECK(MOX::player[0].n_freighters == 5);
     }
 }
@@ -1340,7 +1341,7 @@ DOCTEST_TEST_CASE("successful spy completion grants no maintenance cash") {
 
     COLCALC::Apply_Production(colony);
 
-    DOCTEST_CHECK(MOX::player[0].bc == 20);
+    DOCTEST_CHECK((MOX::player[0].bc == 20));
 }
 
 DOCTEST_TEST_CASE("failed spy completion refunds half its production cost") {
@@ -1350,7 +1351,7 @@ DOCTEST_TEST_CASE("failed spy completion refunds half its production cost") {
 
     COLCALC::Apply_Production(colony);
 
-    DOCTEST_CHECK(MOX::player[0].bc == 70);
+    DOCTEST_CHECK((MOX::player[0].bc == 70));
     DOCTEST_CHECK(TEST_COLONY_POP_GROWTH::Deleted_Product_() == COLONY_PRODUCTION_SPY);
 }
 
@@ -1362,8 +1363,8 @@ DOCTEST_TEST_CASE("classic production completes at most one queued item") {
     DOCTEST_CHECK(TEST_COLONY_POP_GROWTH::Custom_Autobuild_Calls_() == 0);
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
     DOCTEST_CHECK(colony->buildings[BUILDING_RESEARCH_LAB] == 0);
-    DOCTEST_CHECK(colony->producing[0] == BUILDING_RESEARCH_LAB);
-    DOCTEST_CHECK(colony->production_spent == 60);
+    DOCTEST_CHECK((colony->producing[0] == BUILDING_RESEARCH_LAB));
+    DOCTEST_CHECK((colony->production_spent == 60));
 }
 
 DOCTEST_TEST_CASE("multibuild spends one production pool across queued items") {
@@ -1374,8 +1375,8 @@ DOCTEST_TEST_CASE("multibuild spends one production pool across queued items") {
 
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
     DOCTEST_CHECK(colony->buildings[BUILDING_RESEARCH_LAB] == 1);
-    DOCTEST_CHECK(colony->producing[0] == COLONY_PRODUCTION_NONE);
-    DOCTEST_CHECK(colony->production_spent == 10);
+    DOCTEST_CHECK((colony->producing[0] == COLONY_PRODUCTION_NONE));
+    DOCTEST_CHECK((colony->production_spent == 10));
 }
 
 DOCTEST_TEST_CASE("non-building multibuild stops after a building") {
@@ -1387,8 +1388,8 @@ DOCTEST_TEST_CASE("non-building multibuild stops after a building") {
 
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
     DOCTEST_CHECK(colony->buildings[BUILDING_RESEARCH_LAB] == 0);
-    DOCTEST_CHECK(colony->producing[0] == BUILDING_RESEARCH_LAB);
-    DOCTEST_CHECK(colony->production_spent == 60);
+    DOCTEST_CHECK((colony->producing[0] == BUILDING_RESEARCH_LAB));
+    DOCTEST_CHECK((colony->production_spent == 60));
 }
 
 DOCTEST_TEST_CASE("non-building multibuild flag has no effect without multibuild") {
@@ -1399,7 +1400,7 @@ DOCTEST_TEST_CASE("non-building multibuild flag has no effect without multibuild
 
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
     DOCTEST_CHECK(colony->buildings[BUILDING_RESEARCH_LAB] == 0);
-    DOCTEST_CHECK(colony->production_spent == 60);
+    DOCTEST_CHECK((colony->production_spent == 60));
 }
 
 DOCTEST_TEST_CASE("non-building multibuild stops when a building follows freighters") {
@@ -1413,8 +1414,8 @@ DOCTEST_TEST_CASE("non-building multibuild stops when a building follows freight
 
     DOCTEST_CHECK(MOX::player[0].n_freighters == 5);
     DOCTEST_CHECK(colony->buildings[BUILDING_RESEARCH_LAB] == 0);
-    DOCTEST_CHECK(colony->producing[0] == BUILDING_RESEARCH_LAB);
-    DOCTEST_CHECK(colony->production_spent == 70);
+    DOCTEST_CHECK((colony->producing[0] == BUILDING_RESEARCH_LAB));
+    DOCTEST_CHECK((colony->production_spent == 70));
 }
 
 DOCTEST_TEST_CASE("non-building multibuild completes successive non-building products") {
@@ -1430,8 +1431,8 @@ DOCTEST_TEST_CASE("non-building multibuild completes successive non-building pro
     COLCALC::Apply_Production(colony);
 
     DOCTEST_CHECK(MOX::player[0].n_freighters == 5);
-    DOCTEST_CHECK(colony->producing[0] != COLONY_PRODUCTION_SPY);
-    DOCTEST_CHECK(colony->production_spent == 10);
+    DOCTEST_CHECK((colony->producing[0] != COLONY_PRODUCTION_SPY));
+    DOCTEST_CHECK((colony->production_spent == 10));
 }
 
 DOCTEST_TEST_CASE("non-building multibuild stops after a building before freighters") {
@@ -1444,8 +1445,8 @@ DOCTEST_TEST_CASE("non-building multibuild stops after a building before freight
 
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
     DOCTEST_CHECK(MOX::player[0].n_freighters == 0);
-    DOCTEST_CHECK(colony->producing[0] == COLONY_PRODUCTION_FREIGHTERS);
-    DOCTEST_CHECK(colony->production_spent == 60);
+    DOCTEST_CHECK((colony->producing[0] == COLONY_PRODUCTION_FREIGHTERS));
+    DOCTEST_CHECK((colony->production_spent == 60));
 }
 
 DOCTEST_TEST_CASE("multibuild preserves production insufficient for the next item") {
@@ -1456,8 +1457,8 @@ DOCTEST_TEST_CASE("multibuild preserves production insufficient for the next ite
 
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
     DOCTEST_CHECK(colony->buildings[BUILDING_RESEARCH_LAB] == 0);
-    DOCTEST_CHECK(colony->producing[0] == BUILDING_RESEARCH_LAB);
-    DOCTEST_CHECK(colony->production_spent == 40);
+    DOCTEST_CHECK((colony->producing[0] == BUILDING_RESEARCH_LAB));
+    DOCTEST_CHECK((colony->production_spent == 40));
 }
 
 DOCTEST_TEST_CASE("multibuild banks the entire remainder when reaching Trade Goods") {
@@ -1470,10 +1471,10 @@ DOCTEST_TEST_CASE("multibuild banks the entire remainder when reaching Trade Goo
     COLCALC::Apply_Production(colony);
 
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
-    DOCTEST_CHECK(colony->producing[0] == COLONY_PRODUCTION_TRADE_GOODS);
-    DOCTEST_CHECK(colony->production_spent == 31);
-    DOCTEST_CHECK(colony->production[ECON_INDUSTRY] == 101);
-    DOCTEST_CHECK(MOX::player[0].bc == 0);
+    DOCTEST_CHECK((colony->producing[0] == COLONY_PRODUCTION_TRADE_GOODS));
+    DOCTEST_CHECK((colony->production_spent == 31));
+    DOCTEST_CHECK((colony->production[ECON_INDUSTRY] == 101));
+    DOCTEST_CHECK((MOX::player[0].bc == 0));
 }
 
 DOCTEST_TEST_CASE("multibuild retains stored and current production at Trade Goods") {
@@ -1486,10 +1487,10 @@ DOCTEST_TEST_CASE("multibuild retains stored and current production at Trade Goo
     COLCALC::Apply_Production(colony);
 
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
-    DOCTEST_CHECK(colony->producing[0] == COLONY_PRODUCTION_TRADE_GOODS);
-    DOCTEST_CHECK(colony->production_spent == 150);
-    DOCTEST_CHECK(colony->production[ECON_INDUSTRY] == 100);
-    DOCTEST_CHECK(MOX::player[0].bc == 0);
+    DOCTEST_CHECK((colony->producing[0] == COLONY_PRODUCTION_TRADE_GOODS));
+    DOCTEST_CHECK((colony->production_spent == 150));
+    DOCTEST_CHECK((colony->production[ECON_INDUSTRY] == 100));
+    DOCTEST_CHECK((MOX::player[0].bc == 0));
 }
 
 DOCTEST_TEST_CASE("multibuild banks unused PP from four builds without converting it") {
@@ -1510,19 +1511,19 @@ DOCTEST_TEST_CASE("multibuild banks unused PP from four builds without convertin
     COLCALC::Apply_Production(colony);
 
     DOCTEST_CHECK(MOX::player[0].n_freighters == 20);
-    DOCTEST_CHECK(colony->producing[0] == COLONY_PRODUCTION_TRADE_GOODS);
-    DOCTEST_CHECK(colony->production_spent == 5040);
-    DOCTEST_CHECK(colony->production[ECON_INDUSTRY] == 1000);
-    DOCTEST_CHECK(MOX::player[0].bc == 0);
+    DOCTEST_CHECK((colony->producing[0] == COLONY_PRODUCTION_TRADE_GOODS));
+    DOCTEST_CHECK((colony->production_spent == 5040));
+    DOCTEST_CHECK((colony->production[ECON_INDUSTRY] == 1000));
+    DOCTEST_CHECK((MOX::player[0].bc == 0));
 
     COLCALC::Apply_Production(colony);
-    DOCTEST_CHECK(colony->production_spent == 5040);
+    DOCTEST_CHECK((colony->production_spent == 5040));
     colony->producing[0] = COLONY_PRODUCTION_FREIGHTERS;
     colony->producing[1] = COLONY_PRODUCTION_NONE;
     colony->production[ECON_INDUSTRY] = 0;
     COLCALC::Apply_Production(colony);
     DOCTEST_CHECK(MOX::player[0].n_freighters == 25);
-    DOCTEST_CHECK(colony->production_spent == 4800);
+    DOCTEST_CHECK((colony->production_spent == 4800));
 }
 
 DOCTEST_TEST_CASE("multibuild does not bank industry while already producing Trade Goods") {
@@ -1540,13 +1541,13 @@ DOCTEST_TEST_CASE("multibuild does not bank industry while already producing Tra
 
     COLCALC::Apply_Production(colony);
 
-    DOCTEST_CHECK(colony->production_spent == 20);
-    DOCTEST_CHECK(colony->production[ECON_INDUSTRY] == 100);
-    DOCTEST_CHECK(MOX::player[0].bc == 0);
+    DOCTEST_CHECK((colony->production_spent == 20));
+    DOCTEST_CHECK((colony->production[ECON_INDUSTRY] == 100));
+    DOCTEST_CHECK((MOX::player[0].bc == 0));
     COLCALC::Apply_Production(colony);
-    DOCTEST_CHECK(colony->production_spent == 20);
-    DOCTEST_CHECK(colony->production[ECON_INDUSTRY] == 100);
-    DOCTEST_CHECK(MOX::player[0].bc == 0);
+    DOCTEST_CHECK((colony->production_spent == 20));
+    DOCTEST_CHECK((colony->production[ECON_INDUSTRY] == 100));
+    DOCTEST_CHECK((MOX::player[0].bc == 0));
 
     colony->producing[0] = BUILDING_MARINE_BARRACKS;
     TECHDATA::buildings[BUILDING_MARINE_BARRACKS].cost = 60;
@@ -1554,7 +1555,7 @@ DOCTEST_TEST_CASE("multibuild does not bank industry while already producing Tra
     colony->maintenance[ECON_INDUSTRY] = 10;
     COLCALC::Apply_Production(colony);
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 0);
-    DOCTEST_CHECK(colony->production_spent == 20);
+    DOCTEST_CHECK((colony->production_spent == 20));
 }
 
 DOCTEST_TEST_CASE("multibuild does not bank industry with no product or AI Trade Goods") {
@@ -1569,9 +1570,9 @@ DOCTEST_TEST_CASE("multibuild does not bank industry with no product or AI Trade
 
         COLCALC::Apply_Production(colony);
 
-        DOCTEST_CHECK(colony->production_spent == 20);
-        DOCTEST_CHECK(colony->production[ECON_INDUSTRY] == 100);
-        DOCTEST_CHECK(MOX::player[0].bc == 0);
+        DOCTEST_CHECK((colony->production_spent == 20));
+        DOCTEST_CHECK((colony->production[ECON_INDUSTRY] == 100));
+        DOCTEST_CHECK((MOX::player[0].bc == 0));
     }
 }
 
@@ -1588,14 +1589,14 @@ DOCTEST_TEST_CASE("legacy autobuild cannot spend production on a Trade Goods inc
 
         COLCALC::Apply_Production(colony);
 
-        DOCTEST_CHECK(colony->producing[0] == BUILDING_MARINE_BARRACKS);
+        DOCTEST_CHECK((colony->producing[0] == BUILDING_MARINE_BARRACKS));
         DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 0);
-        DOCTEST_CHECK(colony->production_spent == 20);
+        DOCTEST_CHECK((colony->production_spent == 20));
 
         colony->production[ECON_INDUSTRY] = 0;
         COLCALC::Apply_Production(colony);
         DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 0);
-        DOCTEST_CHECK(colony->production_spent == 20);
+        DOCTEST_CHECK((colony->production_spent == 20));
     }
 }
 
@@ -1611,11 +1612,21 @@ DOCTEST_TEST_CASE("legacy autobuild Trade Goods after a building starts next tur
     COLCALC::Apply_Production(colony);
 
     DOCTEST_CHECK(colony->buildings[BUILDING_MARINE_BARRACKS] == 1);
-    DOCTEST_CHECK(colony->producing[0] == COLONY_PRODUCTION_TRADE_GOODS);
-    DOCTEST_CHECK(colony->production_spent == 40);
-    DOCTEST_CHECK(MOX::player[0].bc == 0);
+    DOCTEST_CHECK((colony->producing[0] == COLONY_PRODUCTION_TRADE_GOODS));
+    DOCTEST_CHECK((colony->production_spent == 40));
+    DOCTEST_CHECK((MOX::player[0].bc == 0));
 
     COLCALC::Apply_Production(colony);
-    DOCTEST_CHECK(colony->production_spent == 40);
-    DOCTEST_CHECK(MOX::player[0].bc == 0);
+    DOCTEST_CHECK((colony->production_spent == 40));
+    DOCTEST_CHECK((MOX::player[0].bc == 0));
+}
+
+DOCTEST_TEST_CASE("Format_Quotient writes the fraction without overrunning the buffer") {
+    // Regression test for the colony-screen crash: the fraction snprintf was
+    // passed one byte more than the buffer had left, tripping the fortified
+    // snprintf check. Any value with a non-zero remainder exercises it.
+    DOCTEST_CHECK(std::string(COLCALC::Format_Quotient(100, 40)) == "+2.5");
+    DOCTEST_CHECK(std::string(COLCALC::Format_Quotient(-100, 40)) == "-2.5");
+    DOCTEST_CHECK(std::string(COLCALC::Format_Quotient(1, 3)) == "+0.33333");
+    DOCTEST_CHECK(std::string(COLCALC::Format_Quotient(999999999, 40)) == "+24999999.975");
 }

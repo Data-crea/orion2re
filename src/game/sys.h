@@ -36,12 +36,12 @@ namespace SYS {
 
     /**
      * Loads the rotating animation segment for the given planet.
-     * @param out_ptr Receives the buffered animation header.
      * @param planet_idx Planet index whose display art is requested.
      * @param unused_star_idx Unused legacy argument kept for call compatibility.
      * @param unused_arg Unused legacy argument kept for call compatibility.
+     * @return The buffered animation header.
      */
-    void __cdecl Get_Rotating_Planet_Segment(s_animation_header** out_ptr, int16_t planet_idx, int16_t unused_star_idx, int32_t unused_arg);
+    s_animation_header* __cdecl Get_Rotating_Planet_Segment(int16_t planet_idx, int16_t unused_star_idx, int32_t unused_arg);
 
     extern int8_t remap_gray_percentages[10];
 

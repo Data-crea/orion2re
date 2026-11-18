@@ -185,11 +185,11 @@ DOCTEST_TEST_CASE("continuing effect cleanup clears outgoing and incoming links"
 
     COMBAT1::Remove_Continuing_Effect_Specials(0);
 
-    DOCTEST_CHECK(source.special_cooldown == COMBAT_SHIP_NONE);
-    DOCTEST_CHECK(target.special_cooldown == COMBAT_SHIP_NONE);
-    DOCTEST_CHECK(target.stasis_source_idx == COMBAT_SHIP_NONE);
+    DOCTEST_CHECK((source.special_cooldown == COMBAT_SHIP_NONE));
+    DOCTEST_CHECK((target.special_cooldown == COMBAT_SHIP_NONE));
+    DOCTEST_CHECK((target.stasis_source_idx == COMBAT_SHIP_NONE));
     DOCTEST_CHECK(target.black_hole_flag == 0);
-    DOCTEST_CHECK(target.black_hole_source_idx == COMBAT_SHIP_NONE);
+    DOCTEST_CHECK((target.black_hole_source_idx == COMBAT_SHIP_NONE));
 }
 
 DOCTEST_TEST_CASE("continuous BHG keeps one shot committed to an active target") {

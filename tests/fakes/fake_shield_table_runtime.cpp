@@ -128,6 +128,8 @@ namespace TEST_SHIELD_TABLE {
 }
 
 namespace MOX {
+    int16_t first_field_in_group[10] = {
+        0, 18, 55, 57, 29, 7, 22, 28, 10, 74};
     s_combat_data* combat_data = ::combat_data;
     s_colony* colony = colonies;
     s_player* player = players;

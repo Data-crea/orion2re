@@ -40,7 +40,7 @@ DOCTEST_TEST_CASE("manual building and satellite scraps share a per-colony turn 
     DOCTEST_CHECK(COLONY::Can_Scrap_Building(colony, turn + 1));
     COLONY::Record_Building_Scrap(&colony, turn + 1);
     DOCTEST_CHECK(colony.buildings_scrapped_this_turn == 1);
-    DOCTEST_CHECK(colony.last_turn_building_destroyed == turn + 1);
+    DOCTEST_CHECK((colony.last_turn_building_destroyed == turn + 1));
     COLONY::max_buildings_scrapped_per_turn = 1;
 }
 
@@ -111,7 +111,7 @@ DOCTEST_TEST_CASE("home planet reassignment excludes outposts") {
 
     invasion::Assign_New_Home_Planet(0, 0);
 
-    DOCTEST_CHECK(MOX::player[0].home_planet_id == -1);
+    DOCTEST_CHECK((MOX::player[0].home_planet_id == -1));
 }
 
 DOCTEST_TEST_CASE("colony ground combat info preserves the resolved Commando officer") {

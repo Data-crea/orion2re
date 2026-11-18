@@ -503,9 +503,9 @@ DOCTEST_TEST_CASE("pick-position packet preserves expanded freight storage") {
     NETMOX::Decode_Pick_Your_Position(
             (s_net_pack_pick_your_position*)g_pick_position_payload.data(),
             (uint32_t)g_pick_position_payload.size());
-    DOCTEST_CHECK(
-            MOX::player[MAX_PLAYERS - 1].settlers[MAX_FREIGHTED_SETTLERS - 1].val ==
-            0x123456789ABCDEF0ull);
+    DOCTEST_CHECK((
+        MOX::player[MAX_PLAYERS - 1].settlers[MAX_FREIGHTED_SETTLERS - 1].val ==
+        0x123456789ABCDEF0ull));
 
     MOX::NUM_PLAYERS = 3;
     NETMOX::Decode_Pick_Your_Position(
@@ -666,9 +666,9 @@ DOCTEST_TEST_CASE("loaded Lua state extends the current native snapshot") {
     std::array<s_player, 3> transferred_players = {};
     native.Read_Bytes(transferred_players.data(), sizeof(transferred_players));
 
-    DOCTEST_CHECK(transferred_players[0].network_player_id == 306);
-    DOCTEST_CHECK(transferred_players[1].network_player_id == 308);
-    DOCTEST_CHECK(transferred_players[2].network_player_id == -1);
+    DOCTEST_CHECK((transferred_players[0].network_player_id == 306));
+    DOCTEST_CHECK((transferred_players[1].network_player_id == 308));
+    DOCTEST_CHECK((transferred_players[2].network_player_id == -1));
     DOCTEST_CHECK(transferred_players[2].objectives == PLAYER_OBJECTIVE_ECOLOGIST);
     DOCTEST_CHECK(transferred_players[1].bc == expected_player_bc);
     DOCTEST_CHECK(envelope.Remaining() == native_size + 1);
@@ -681,8 +681,8 @@ DOCTEST_TEST_CASE("loaded Lua state extends the current native snapshot") {
     DOCTEST_REQUIRE(NETMOX::Decode_Broadcast_Game_Data_Differential(
         payload.data(), payload_len, 1) == 1);
     DOCTEST_CHECK(MOX::stardate == 35200);
-    DOCTEST_CHECK(MOX::player[0].network_player_id == 306);
-    DOCTEST_CHECK(MOX::player[1].bc == expected_player_bc);
+    DOCTEST_CHECK((MOX::player[0].network_player_id == 306));
+    DOCTEST_CHECK((MOX::player[1].bc == expected_player_bc));
     DOCTEST_CHECK(TEST_LUA_NETWORK::Prepared_Payload_Count_() == 1);
 }
 

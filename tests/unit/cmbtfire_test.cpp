@@ -106,7 +106,7 @@ DOCTEST_TEST_CASE("destroyed Crystal releases captures and invalidates effects")
     CMBTFIRE::Destroy_Ship(1, 0, 0, 1);
 
     DOCTEST_CHECK(MOX::combat_data[2].owner == 0);
-    DOCTEST_CHECK(MOX::combat_data[2].ship_image_seg == nullptr);
+    DOCTEST_CHECK((MOX::combat_data[2].ship_image_seg == nullptr));
     DOCTEST_CHECK(TEST_CRYSTAL_FLEET::Cleanup_Count_() == 2);
     DOCTEST_CHECK(TEST_CRYSTAL_FLEET::Cleanup_Source_(0) == 1);
     DOCTEST_CHECK(TEST_CRYSTAL_FLEET::Cleanup_Source_(1) == 2);
@@ -189,7 +189,7 @@ DOCTEST_TEST_CASE("placing a ship in stasis cuts its continuing effects") {
 
     CMBTFIRE::Place_Ship_In_Stasis(1, 0);
 
-    DOCTEST_CHECK(MOX::combat_data[1].stasis_source_idx == 0);
+    DOCTEST_CHECK((MOX::combat_data[1].stasis_source_idx == 0));
     DOCTEST_CHECK(TEST_STASIS::Last_Retargeted_Missile_() == 0);
     DOCTEST_CHECK(TEST_STASIS::Last_Cleanup_Source_() == 1);
 }
@@ -261,10 +261,10 @@ DOCTEST_TEST_CASE("fighter beams apply the fleet ordnance bonus") {
             0, 0, 1, &total_damage, &total_struct_damage);
 
         DOCTEST_CHECK(total_damage == value.expected_destroyed);
-        DOCTEST_CHECK(
-            MOX::missile[1].quantity == value.expected_quantity);
-        DOCTEST_CHECK(
-            MOX::missile[1].hits_taken == value.expected_hits_taken);
+        DOCTEST_CHECK((
+            MOX::missile[1].quantity == value.expected_quantity));
+        DOCTEST_CHECK((
+            MOX::missile[1].hits_taken == value.expected_hits_taken));
     }
 }
 
@@ -304,8 +304,8 @@ DOCTEST_TEST_CASE("fighter point defense uses widened ordnance damage") {
             0, 0, 1, &total_damage, &total_struct_damage);
 
         DOCTEST_CHECK(total_damage == value.expected_destroyed);
-        DOCTEST_CHECK(
-            MOX::missile[1].hits_taken == value.expected_hits_taken);
+        DOCTEST_CHECK((
+            MOX::missile[1].hits_taken == value.expected_hits_taken));
     }
 
     CMBTFIRE::fighters_use_point_defense = 0;
@@ -344,8 +344,8 @@ DOCTEST_TEST_CASE("fighter beam maximum damage follows the clip setting") {
             0, 0, 1, &total_damage, &total_struct_damage);
 
         DOCTEST_CHECK(total_damage == 0);
-        DOCTEST_CHECK(MOX::missile[1].hits_taken ==
-            value.expected_hits_taken);
+        DOCTEST_CHECK((MOX::missile[1].hits_taken ==
+            value.expected_hits_taken));
     }
 
     CMBTFIRE::fighter_beam_no_plus_one = 0;
@@ -432,21 +432,21 @@ DOCTEST_TEST_CASE("planetary shields block biological weapons according to the s
     MOX::combat_data[0].shield_type = BUILDING_BARRIER_SHIELD;
     CMBTFIRE::Apply_Damage_To_Planet(
         &damage, 0, WEAPON_NATURAL_FLAG_BIOLOGICAL);
-    DOCTEST_CHECK(MOX::combat_bomb_result.bio_hits_remaining == 0);
+    DOCTEST_CHECK((MOX::combat_bomb_result.bio_hits_remaining == 0));
 
     MOX::combat_data[0].shield_type = BUILDING_FLUX_SHIELD;
     damage = 100;
     COMBINIT::planet.shields_block_bioweapons = 0;
     CMBTFIRE::Apply_Damage_To_Planet(
         &damage, 0, WEAPON_NATURAL_FLAG_BIOLOGICAL);
-    DOCTEST_CHECK(MOX::combat_bomb_result.bio_hits_remaining == 1);
+    DOCTEST_CHECK((MOX::combat_bomb_result.bio_hits_remaining == 1));
 
     MOX::combat_bomb_result = {};
     damage = 100;
     COMBINIT::planet.shields_block_bioweapons = 1;
     CMBTFIRE::Apply_Damage_To_Planet(
         &damage, 0, WEAPON_NATURAL_FLAG_BIOLOGICAL);
-    DOCTEST_CHECK(MOX::combat_bomb_result.bio_hits_remaining == 0);
+    DOCTEST_CHECK((MOX::combat_bomb_result.bio_hits_remaining == 0));
 
     COMBINIT::planet.shields_block_bioweapons = 0;
 }
@@ -817,8 +817,8 @@ DOCTEST_TEST_CASE("beam hit threshold cap applies in both formula modes") {
             0, 0, WEAPON_LASER_CANNON, 0, TARGET_TYPE_MISSILE, &hit_x, &hit_y, &reflected_damage);
 
         DOCTEST_CHECK(hit_x == value.expected_destroyed);
-        DOCTEST_CHECK(
-            MOX::missile[0].hits_taken == value.expected_hits_taken);
+        DOCTEST_CHECK((
+            MOX::missile[0].hits_taken == value.expected_hits_taken));
     }
 }
 

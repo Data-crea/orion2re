@@ -84,7 +84,7 @@ namespace bitmap {
         header->loop_frame = 0;
         header->keyframe_interval = 0;
         header->flags = ANIMATION_DRAW_MODE_BITMAP;
-        Animation_Frame_Offsets_(header)[0] = kBitmapFrameDataOffset;
+        Set_Animation_Frame_Offset_(header, 0, kBitmapFrameDataOffset);
     }
 
     void __cdecl Create_Blank_Bitmap(int16_t width, int16_t height, void* bitmap) {
@@ -152,7 +152,7 @@ namespace bitmap {
         animate::animation_header = src;
         int16_t width = src->width;
         int16_t height = src->height;
-        uint32_t offset = Animation_Frame_Offsets_(src)[src->current_frame];
+        uint32_t offset = Animation_Frame_Offset_(src, src->current_frame);
 
         Create_Bitmap_Header(width, height, dst);
 
@@ -299,7 +299,7 @@ namespace bitmap {
         int32_t dy = y2 - y1;
         int32_t line_len = special::isqrt(dy * dy + dx * dx);
 
-        int32_t frame_offset = Animation_Frame_Offsets_(img)[img->current_frame];
+        int32_t frame_offset = Animation_Frame_Offset_(img, img->current_frame);
         uint8_t* frame_pixels = (uint8_t*)img + frame_offset;
 
         if (x1 == x2 && y1 == y2) {
@@ -785,7 +785,7 @@ namespace bitmap {
         int16_t end_y = src->height + y - 1;
 
         if (x_i < dest_width_i && y < dest_height && end_x >= 0 && end_y >= 0) {
-            int32_t frame_offset = Animation_Frame_Offsets_(src)[src->current_frame];
+            int32_t frame_offset = Animation_Frame_Offset_(src, src->current_frame);
 
             int32_t dest_x;
             int16_t src_skip_x;

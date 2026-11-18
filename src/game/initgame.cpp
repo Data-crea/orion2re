@@ -1,11 +1,10 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 #include "lua/lua_game.h"
 #include "lua/lua_game_ship_identity.h"
 
 namespace INITGAME {
-
-    constexpr int16_t LEGACY_PLANET_LIMIT = 250;
 
     static uint32_t Starting_Money() {
         const int civilization_level =
@@ -97,7 +96,7 @@ namespace INITGAME {
         MOX::settings.galaxy_age = GALAXY_AGE_AVERAGE;
         MOX::settings.strategic_combat_flag = 0;
         MOX::settings.starting_civilization_level = STARTING_CIVILIZATION_LEVEL_AVERAGE;
-        MOX::settings.number_of_players = 5;
+        MOX::settings.number_of_players = NEW_GAME_DEFAULT_PLAYER_COUNT;
 
         // Combat Flags
         MOX::settings.combat_speedx2_flag = 0;
@@ -140,6 +139,14 @@ namespace INITGAME {
     }
 
     bool __cdecl Init_New_Game(int16_t game_difficulty, int16_t galaxy_size, int16_t galaxy_age, int16_t num_players, int16_t strategic_combat_flag, int16_t starting_civilization_level) {
+        if (num_players != NEW_GAME_RANDOM_PLAYER_COUNT &&
+            (num_players < 2 || num_players > MAX_PLAYERS)) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                "initgame: invalid player count %d (expected 2..%d or Random)",
+                (int)num_players,
+                (int)MAX_PLAYERS);
+            return false;
+        }
         orion2re::lua::game::Reset_Semantic_State();
         const bool random_player_count =
             num_players == NEW_GAME_RANDOM_PLAYER_COUNT;
@@ -193,10 +200,7 @@ namespace INITGAME {
                 video::Set_Page_Off();
                 graphics::Fill(0, 0, 0x27F, 0x1DF, 0);
                 platform::Toggle_Pages_Stub();
-                int16_t planet_limit = MOX::NUM_STARS <= ORIGINAL_MAX_STARS
-                    ? LEGACY_PLANET_LIMIT
-                    : MAX_PLANETS;
-                MAPGEN::Enforce_Planet_Max(planet_limit);
+                MAPGEN::Enforce_Configured_Planet_Max();
                 MAPGEN::Set_Black_Hole_Visited_Flags();
                 HAROLD::Confirm_Planet_And_Star_Index_Link(HAROLD::s_after_home_world_gen);
 
@@ -407,13 +411,15 @@ namespace INITGAME {
 
             allocate::Push_Block(MOX::screen_seg);
 
+            const uint32_t name_index = race_idx * 8 + game_random::Random(8) - 1;
             char* player_name = (char*)farload::Far_Reload_Next_Data(
                 "RACENAME.LBX",
                 0,
                 MOX::screen_seg,
-                race_idx * 8 + game_random::Random(8) - 1,
+                name_index,
                 1,
                 20);
+            string_overrides::Apply_String("RACENAME.LBX", name_index + 1, player_name, 20);
             RUSS::Mox_Update();
 
             allocate::Pop_Block(MOX::screen_seg);
@@ -501,12 +507,20 @@ namespace INITGAME {
         memcpy(MOX::leaders, leader_records, MAX_LEADERS * sizeof(s_leader_data));
 
         for (int16_t i = 0; i < MAX_LEADERS; ++i) {
+            // Skill masks are misaligned in the packed leader record, so
+            // generate them in locals and store them afterward.
+            uint32_t special_skills;
+            uint32_t general_skills;
             if (i == OFFICER::progression.special_leaders.random_skills_colony_leader_id) {
                 // Special handling for leader at index 41
-                OFFICER::Get_Random_Skills(&MOX::leaders[i].special_skills, &MOX::leaders[i].general_skills, 2, 5, 1);
+                OFFICER::Get_Random_Skills(&special_skills, &general_skills, 2, 5, 1);
+                MOX::leaders[i].special_skills = special_skills;
+                MOX::leaders[i].general_skills = general_skills;
             } else if (i == OFFICER::progression.special_leaders.random_skills_ship_officer_id) {
                 // Special handling for leader at index 52
-                OFFICER::Get_Random_Skills(&MOX::leaders[i].special_skills, &MOX::leaders[i].general_skills, 1, 5, 1);
+                OFFICER::Get_Random_Skills(&special_skills, &general_skills, 1, 5, 1);
+                MOX::leaders[i].special_skills = special_skills;
+                MOX::leaders[i].general_skills = general_skills;
             } else if (i == 65) {
                 // Special randomized tech application for leader at index 65
                 MOX::leaders[i].tech_application[0] = (uint8_t)game_random::Random(101);

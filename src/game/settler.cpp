@@ -318,7 +318,7 @@ namespace SETTLER {
             const int16_t source_star_index = MOX::planet[source_planet_index].star_index;
             const int16_t dest_star_index = MOX::planet[dest_planet_index].star_index;
             POP::value_type* pop_slot = &source_colony->pop[(int32_t)pop_index];
-            const POP::value_type pop_value = *pop_slot;
+            const POP::value_type pop_value = POP::Load(pop_slot);
             value_type encoded_settler = 0;
 
             Set_Race(&encoded_settler, POP::Get_Race(pop_value));
@@ -346,7 +346,7 @@ namespace SETTLER {
             const POP::value_type last_pop_value = source_colony->pop[last_pop_index];
 
             source_colony->n_pops = last_pop_index;
-            *pop_slot = last_pop_value;
+            POP::Store(pop_slot, last_pop_value);
         }
     }
 } // namespace SETTLER

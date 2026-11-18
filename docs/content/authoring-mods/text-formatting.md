@@ -1,6 +1,6 @@
 # Text Formatting
 
-Some game text resources contain inline control codes for layout, dynamic values, conditional text, and visual styles. When replacing one of these resources through the [VFS](vfs-and-assets.md), preserve any controls that the screen or game system expects.
+Some game text resources contain inline control codes for layout, dynamic values, conditional text, and visual styles. When editing supported strings through [JSON5 string overrides](string-overrides.md) or replacing resources through the [VFS](vfs-and-assets.md), preserve any controls that the screen or game system expects.
 
 This page describes the control language processed by the text formatting engine. It does not make an arbitrary asset accept formatted text; the code that displays the asset must already use this engine.
 
@@ -13,6 +13,8 @@ The examples use C-style notation to make non-printable bytes visible:
 - `<arg>` denotes an argument supplied by the surrounding game code. Variable indexes are hexadecimal digits from `0` through `F`.
 
 These sequences describe bytes, not necessarily literal backslash characters in an asset. Use an editor or conversion tool that can write the required byte values, and test the resulting resource in the screen where it is used.
+
+JSON5 string overrides preserve numeric byte values without code-page conversion. Use `\xXX` or `\u00XX` for a byte, `\n` for a newline, and `\u0007` for the bell byte shown here as `\a`; `\a` is not a JSON5 bell escape. The JSON5 file itself must be UTF-8, and string values cannot contain characters above `U+00FF`. Do not add an ending `\0`; the game adds the string terminator, and embedded NUL is rejected. See [String override encoding and limits](string-overrides.md#syntax-encoding-and-limits) before copying byte sequences into JSON5.
 
 ## Standard control characters
 

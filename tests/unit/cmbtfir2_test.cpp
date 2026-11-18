@@ -45,7 +45,7 @@ DOCTEST_TEST_CASE("breaking an unused duplicate Stasis Field preserves its targe
     int16_t damage = 1;
     CMBTFIR2::Apply_Internal_Damage(0, &damage, 3, 1, 0);
 
-    DOCTEST_CHECK(MOX::combat_data[1].stasis_source_idx == 0);
+    DOCTEST_CHECK((MOX::combat_data[1].stasis_source_idx == 0));
     DOCTEST_CHECK(source.weapons[1].shots_left == 0);
 }
 
@@ -67,7 +67,7 @@ DOCTEST_TEST_CASE("breaking a committed duplicate Stasis Field releases one targ
     int16_t damage = 1;
     CMBTFIR2::Apply_Internal_Damage(0, &damage, 3, 0, 0);
 
-    DOCTEST_CHECK(MOX::combat_data[1].stasis_source_idx == COMBAT_SHIP_NONE);
+    DOCTEST_CHECK((MOX::combat_data[1].stasis_source_idx == COMBAT_SHIP_NONE));
 }
 
 DOCTEST_TEST_CASE("breaking duplicate Black Hole Generators follows slot reservation") {
@@ -90,12 +90,12 @@ DOCTEST_TEST_CASE("breaking duplicate Black Hole Generators follows slot reserva
 
     int16_t damage = 1;
     CMBTFIR2::Apply_Internal_Damage(0, &damage, 3, 1, 0);
-    DOCTEST_CHECK(MOX::combat_data[1].black_hole_source_idx == 0);
+    DOCTEST_CHECK((MOX::combat_data[1].black_hole_source_idx == 0));
     DOCTEST_CHECK(MOX::combat_data[1].black_hole_flag == 1);
 
     damage = 1;
     CMBTFIR2::Apply_Internal_Damage(0, &damage, 3, 0, 0);
-    DOCTEST_CHECK(MOX::combat_data[1].black_hole_source_idx == COMBAT_SHIP_NONE);
+    DOCTEST_CHECK((MOX::combat_data[1].black_hole_source_idx == COMBAT_SHIP_NONE));
     DOCTEST_CHECK(MOX::combat_data[1].black_hole_flag == 0);
 }
 

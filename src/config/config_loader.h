@@ -25,7 +25,7 @@ namespace config {
     };
 
     bool Load_Config_File(const char* entry_path, const char* package_id, s_effective_config* effective, s_cfg_diagnostic* diagnostic);
-    bool Load_Startup_Config(const char* entry_path, const char* package_id, s_effective_config* effective, bool* loaded, s_cfg_diagnostic* diagnostic);
+    bool Load_Startup_Config(const char* entry_path, const char* package_id, s_effective_config* effective, bool* loaded, s_cfg_diagnostic* diagnostic, bool require_file = false);
     bool Commit_Active_Config_Writes(const s_config_write_set* writes,
         s_cfg_diagnostic* diagnostic);
     bool Record_Active_Native_Config_Write(t_variable_id variable_id);

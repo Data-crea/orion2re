@@ -3,8 +3,6 @@
 #include "ext/ext_api.h"  // OrionLayer, open fix 51. MultiplayerGuard.
 #endif
 
-#include <algorithm>
-
 #include "config/config_loader.h"
 #include "config/config_snapshot.h"
 #include "game/netstart_roster.h"

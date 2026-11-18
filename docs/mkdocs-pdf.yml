@@ -1,0 +1,20 @@
+INHERIT: mkdocs.yml
+
+hooks:
+  - hooks/pdf.py
+
+plugins:
+  - offline
+  - search:
+      lang: en
+  - gen-files:
+      scripts:
+        - hooks/generated-reference.py
+  - to-pdf:
+      output_path: orion2re-documentation.pdf
+      cover_title: Orion2 Redone Project
+      cover_subtitle: Complete documentation
+      toc_level: 2
+      ordered_chapter_level: 0
+      render_js: false
+      custom_template_path: pdf

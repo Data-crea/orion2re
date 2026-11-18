@@ -1,0 +1,257 @@
+name: CI and packages
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+# No concurrency cancellation: each main push keeps its own packages.
+jobs:
+  linux-tests:
+    runs-on: ubuntu-24.04
+    env:
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+      ASAN_OPTIONS: halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+          submodules: recursive
+          persist-credentials: false
+      - name: Validate release version
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: cmake -DRELEASE_TAG="$RELEASE_TAG" -P cmake/version.cmake
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential cmake ninja-build pkg-config python3 \
+            libasound2-dev libpulse-dev libaudio-dev libjack-dev libsndio-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev \
+            libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+            libwayland-dev libdecor-0-dev libdrm-dev libgbm-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libudev-dev libdbus-1-dev libibus-1.0-dev libpipewire-0.3-dev
+      - name: Packaging regression tests
+        run: python3 -m unittest discover -s tests/packaging -v
+      - run: cmake --preset linux-debug-asan-tests
+      - run: cmake --build --preset linux-debug-asan-tests --parallel "$(nproc)"
+      - name: Native game build smoke test
+        run: cmake --build --preset linux-debug-asan-tests --target orion2re --parallel 4
+      - run: ctest --preset linux-debug-asan-tests
+
+  documentation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'release' && github.event.release.tag_name || 'main' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+          submodules: recursive
+          persist-credentials: false
+      - name: Validate release version
+        if: github.event_name == 'release'
+        run: cmake -DRELEASE_TAG="$RELEASE_VERSION" -P cmake/version.cmake
+      - name: Install documentation and native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential cmake ninja-build pkg-config python3 python3-venv \
+            libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
+            libasound2-dev libpulse-dev libaudio-dev libjack-dev libsndio-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev \
+            libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+            libwayland-dev libdecor-0-dev libdrm-dev libgbm-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libudev-dev libdbus-1-dev libibus-1.0-dev libpipewire-0.3-dev
+      - name: Audit pinned documentation dependencies
+        run: python3 tools/audit_documentation.py docs/requirements.lock docs/requirements-pdf.lock
+      - run: cmake --preset docs
+      - name: Build HTML and PDF documentation
+        run: cmake --build --preset docs --target docs-check docs-pdf --parallel 2
+      - name: Documentation regression tests
+        run: out/build/Linux/docs/docs/pdf-venv/bin/python -m unittest discover -s tests/documentation -v
+      - name: Package portal and stage standalone PDF
+        run: |
+          if [[ ! "$RELEASE_VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || "$RELEASE_VERSION" == *..* ]]; then
+            echo 'Unsafe release version' >&2
+            exit 1
+          fi
+          mkdir -p dist
+          python3 tools/package_documentation.py out/build/Linux/docs/docs/site "dist/orion2re-documentation-${RELEASE_VERSION}.zip"
+          cp out/build/Linux/docs/docs/orion2re-documentation.pdf "dist/orion2re-documentation-${RELEASE_VERSION}.pdf"
+      - name: Upload portal ZIP without rewrapping
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: dist/orion2re-documentation-${{ env.RELEASE_VERSION }}.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload standalone PDF without zipping
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: dist/orion2re-documentation-${{ env.RELEASE_VERSION }}.pdf
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+  package:
+    needs: linux-tests
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'release'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: win32
+            runner: windows-2022
+            generator-platform: Win32
+            windows-arch: x86
+            build-dir: build
+          - platform: win64
+            runner: windows-2022
+            generator-platform: x64
+            windows-arch: x64
+            build-dir: build
+          - platform: osx-arm64
+            runner: macos-15
+            build-dir: out/build/Darwin/osx-release
+    runs-on: ${{ matrix.runner }}
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'release' && github.event.release.tag_name || 'main' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+          submodules: recursive
+          persist-credentials: false
+      - name: Validate release version
+        if: github.event_name == 'release'
+        shell: bash
+        run: cmake -DRELEASE_TAG="$RELEASE_VERSION" -P cmake/version.cmake
+      - name: Configure native MSVC
+        if: runner.os == 'Windows'
+        run: >-
+          cmake -S . -B build -G "Visual Studio 17 2022"
+          -A ${{ matrix.generator-platform }}
+          -DORION2RE_WINDOWS_ARCH=${{ matrix.windows-arch }}
+          -DORION2RE_BUILD_TESTS=OFF -DORION2RE_BUILD_CONFIG_TOOL=ON
+      - name: Build native MSVC Release
+        if: runner.os == 'Windows'
+        run: cmake --build build --config Release --target orion2re --parallel 3
+      - name: Configure and build Apple Clang ARM64
+        if: runner.os == 'macOS'
+        env:
+          CC: /usr/bin/clang
+          CXX: /usr/bin/clang++
+        run: |
+          test "$(uname -m)" = arm64
+          command -v ninja >/dev/null || brew install ninja
+          cmake --preset osx-release
+          cmake --build --preset osx-release --target orion2re-app --parallel 2
+      - name: Packaging regression tests
+        shell: bash
+        run: python3 -m unittest discover -s tests/packaging -v
+      - name: Stage, package, and verify
+        shell: bash
+        run: |
+          python3 tools/package_release.py '${{ matrix.platform }}' '${{ matrix.build-dir }}' dist --version "$RELEASE_VERSION"
+      # Upload the verified ZIP itself, not a second ZIP containing it.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: dist/*.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release:
+    needs: [package, documentation]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      # Publication never checks out or executes repository code.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: orion2re-*
+          path: dist
+          merge-multiple: true
+          skip-decompress: true
+      - name: Validate complete asset set
+        shell: bash
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || "$RELEASE_TAG" == *..* ]]; then
+            echo 'Unsafe release version' >&2
+            exit 1
+          fi
+          shopt -s nullglob dotglob
+          files=(dist/*)
+          if (( ${#files[@]} != 5 )); then
+            echo 'Expected three platform ZIPs, one portal ZIP, and one PDF; refusing publication' >&2
+            exit 1
+          fi
+          for platform in win-win32 win-win64 osx-arm64; do
+            file="dist/orion2re-${platform}-${RELEASE_TAG}.zip"
+            if [[ ! -f "$file" || ! -s "$file" || -L "$file" ]]; then
+              printf 'Missing, empty, or unsafe package: %s\n' "$file" >&2
+              exit 1
+            fi
+          done
+          portal="dist/orion2re-documentation-${RELEASE_TAG}.zip"
+          if [[ ! -f "$portal" || ! -s "$portal" || -L "$portal" ]]; then
+            echo 'Missing, empty, or unsafe documentation portal ZIP' >&2
+            exit 1
+          fi
+          python3 -c 'import sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); sys.exit(0 if z.testzip() is None and "index.html" in z.namelist() else "Invalid portal ZIP")' "$portal"
+          pdf="dist/orion2re-documentation-${RELEASE_TAG}.pdf"
+          if [[ ! -f "$pdf" || ! -s "$pdf" || -L "$pdf" ]]; then
+            echo 'Missing, empty, or unsafe documentation PDF' >&2
+            exit 1
+          fi
+          test "$(head -c 5 "$pdf")" = '%PDF-'
+      - name: Refuse existing release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          assets=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
+          while IFS= read -r asset; do
+            for expected in \
+              "orion2re-win-win32-${RELEASE_TAG}.zip" \
+              "orion2re-win-win64-${RELEASE_TAG}.zip" \
+              "orion2re-osx-arm64-${RELEASE_TAG}.zip" \
+              "orion2re-documentation-${RELEASE_TAG}.zip" \
+              "orion2re-documentation-${RELEASE_TAG}.pdf"; do
+              if [[ "$asset" == "$expected" ]]; then
+                printf 'Release asset already exists; nothing replaced: %s\n' "$asset" >&2
+                exit 1
+              fi
+            done
+          done <<< "$assets"
+      - name: Publish all validated packages without replacement
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            "dist/orion2re-win-win32-${RELEASE_TAG}.zip" \
+            "dist/orion2re-win-win64-${RELEASE_TAG}.zip" \
+            "dist/orion2re-osx-arm64-${RELEASE_TAG}.zip" \
+            "dist/orion2re-documentation-${RELEASE_TAG}.zip" \
+            "dist/orion2re-documentation-${RELEASE_TAG}.pdf"

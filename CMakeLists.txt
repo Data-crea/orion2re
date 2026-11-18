@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(orion2re LANGUAGES C CXX)
+include(cmake/version.cmake)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
+project(orion2re VERSION "${ORION2RE_VERSION}" LANGUAGES C CXX)
+include(GNUInstallDirs)
+
+configure_file(src/version.h.in generated/version/version.h @ONLY)
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/generated/version")
+configure_file(cmake/orion2re.Info.plist generated/orion2re.Info.plist @ONLY)
 
 include(CTest)
 
@@ -108,7 +115,7 @@ if(EXISTS "${ORION2RE_LOCAL_CONFIG}")
     include("${ORION2RE_LOCAL_CONFIG}")
 endif()
 
-option(ORION2RE_ENABLE_ASAN "Enable AddressSanitizer for supported debug builds" OFF)
+option(ORION2RE_ENABLE_ASAN "Enable AddressSanitizer (and UBSan with GCC/Clang) for supported debug builds" OFF)
 option(ORION2RE_RELEASE_DEBUG_INFO "Emit debug info for non-Debug MSVC builds" OFF)
 option(ORION2RE_BUILD_GAME "Build the SDL game executable" ON)
 option(ORION2RE_BUILD_TESTS "Build tests" OFF)
@@ -127,6 +134,36 @@ option(ORION2RE_BUILD_DOCUMENTATION
        OFF)
 option(ORION2RE_ENFORCE_ORIGINAL_STRUCT_SIZES "Require structures to retain their original game sizes" OFF)
 option(ORION2RE_EXCLUDE_RUNTIME_FROM_ALL "Exclude runtime executables from the default all target" ${ORION2RE_BUILD_TESTS})
+
+if(ORION2RE_ENABLE_ASAN)
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        message(FATAL_ERROR "ORION2RE_ENABLE_ASAN requires a Debug build.")
+    endif()
+
+    if(MSVC)
+        set(ORION2RE_SANITIZER_COMPILE_OPTIONS /fsanitize=address)
+        set(ORION2RE_SANITIZER_LINK_OPTIONS /INFERASANLIBS /fsanitize=address)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        set(ORION2RE_SANITIZER_COMPILE_OPTIONS
+            -fsanitize=address,undefined -fno-omit-frame-pointer
+            -fno-sanitize-recover=undefined)
+        set(ORION2RE_SANITIZER_LINK_OPTIONS -fsanitize=address,undefined)
+    else()
+        message(FATAL_ERROR "ORION2RE_ENABLE_ASAN is unsupported for the current compiler.")
+    endif()
+endif()
+
+function(orion2re_enable_sanitizers TARGET_NAME)
+    if(ORION2RE_ENABLE_ASAN)
+        target_compile_options(${TARGET_NAME} PRIVATE ${ORION2RE_SANITIZER_COMPILE_OPTIONS})
+        get_target_property(TARGET_TYPE ${TARGET_NAME} TYPE)
+        if(TARGET_TYPE STREQUAL "STATIC_LIBRARY")
+            target_link_options(${TARGET_NAME} INTERFACE ${ORION2RE_SANITIZER_LINK_OPTIONS})
+        else()
+            target_link_options(${TARGET_NAME} PRIVATE ${ORION2RE_SANITIZER_LINK_OPTIONS})
+        endif()
+    endif()
+endfunction()
 
 if(ORION2RE_BUILD_GAME OR ORION2RE_BUILD_CONFIG_TOOL)
     if(NOT EXISTS "${ORION2RE_VENDORED_IMGUI_DIR}/imgui.h")
@@ -495,6 +532,7 @@ if(ORION2RE_GAME_DIR)
 endif()
 add_custom_target(package-base-data
     ${ORION2RE_PACKAGE_BASE_DATA_COMMANDS}
+    BYPRODUCTS "${ORION2RE_PACKAGED_BASE_ARCHIVE}"
     WORKING_DIRECTORY "${ORION2RE_BASE_DATA_DIR}"
     DEPENDS ${ORION2RE_BASE_DATA_FILES}
     VERBATIM
@@ -639,16 +677,16 @@ if(ORION2RE_BUILD_GAME)
     if(MSVC)
         target_compile_definitions(config-load-benchmark PRIVATE WIN32 _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_DEPRECATE)
     endif()
-    if(ORION2RE_ENABLE_ASAN)
-        if(MSVC)
-            target_compile_options(config-load-benchmark PRIVATE /fsanitize=address)
-            target_link_options(config-load-benchmark PRIVATE /INFERASANLIBS /fsanitize=address)
-        else()
-            target_compile_options(config-load-benchmark PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-            target_link_options(config-load-benchmark PRIVATE -fsanitize=address)
-        endif()
-    endif()
     add_dependencies(orion2re package-runtime-data)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_compile_definitions(orion2re PRIVATE
+            ORION2RE_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}/orion2re")
+    endif()
+    install(TARGETS orion2re RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT Runtime)
+    install(FILES "${ORION2RE_PACKAGED_BASE_ARCHIVE}" "${ORION2RE_DEFAULT_CONFIG}"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/orion2re/data" COMPONENT Runtime)
+    install(FILES ${ORION2RE_SUPPORTED_MOD_ARCHIVES}
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/orion2re/data/mods" COMPONENT Runtime)
     if(ORION2RE_BUILD_CONFIG_TOOL)
         add_dependencies(orion2re config-regenerate)
     endif()
@@ -681,7 +719,7 @@ if(ORION2RE_BUILD_GAME)
             add_custom_command(TARGET orion2re-app POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${ORION2RE_APP_CONTENTS}/MacOS"
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/orion2re.Info.plist"
+                    "${CMAKE_CURRENT_BINARY_DIR}/generated/orion2re.Info.plist"
                     "${ORION2RE_APP_CONTENTS}/Info.plist"
                 COMMAND ${CMAKE_COMMAND} -E create_symlink
                     "../../../$<TARGET_FILE_NAME:orion2re>"
@@ -780,14 +818,14 @@ if(ORION2RE_BUILD_DOCUMENTATION)
 
     add_custom_command(
         OUTPUT "${ORION2RE_DOCUMENTATION_BOOTSTRAP_STAMP}"
-        COMMAND "${Python3_EXECUTABLE}" -m venv
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/docs_environment.py"
             "${ORION2RE_DOCUMENTATION_VENV}"
-        COMMAND "${ORION2RE_DOCUMENTATION_PYTHON}" -m pip install
-            --disable-pip-version-check
-            --requirement "${ORION2RE_DOCUMENTATION_LOCK}"
+            "${ORION2RE_DOCUMENTATION_LOCK}"
         COMMAND ${CMAKE_COMMAND} -E touch
             "${ORION2RE_DOCUMENTATION_BOOTSTRAP_STAMP}"
         DEPENDS "${ORION2RE_DOCUMENTATION_LOCK}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/docs_environment.py"
         COMMENT "Creating the pinned documentation environment"
         VERBATIM
     )
@@ -811,6 +849,41 @@ if(ORION2RE_BUILD_DOCUMENTATION)
     )
     add_custom_target(docs-check DEPENDS docs-build)
 
+    set(ORION2RE_PDF_VENV "${ORION2RE_DOCUMENTATION_BUILD_DIR}/pdf-venv")
+    if(WIN32)
+        set(ORION2RE_PDF_PYTHON "${ORION2RE_PDF_VENV}/Scripts/python.exe")
+    else()
+        set(ORION2RE_PDF_PYTHON "${ORION2RE_PDF_VENV}/bin/python")
+    endif()
+    set(ORION2RE_PDF_LOCK "${ORION2RE_DOCUMENTATION_SOURCE_DIR}/requirements-pdf.lock")
+    set(ORION2RE_PDF_BOOTSTRAP_STAMP "${ORION2RE_PDF_VENV}/.bootstrap.stamp")
+    add_custom_command(
+        OUTPUT "${ORION2RE_PDF_BOOTSTRAP_STAMP}"
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/docs_environment.py"
+            --pdf "${ORION2RE_PDF_VENV}" "${ORION2RE_PDF_LOCK}"
+        COMMAND ${CMAKE_COMMAND} -E touch "${ORION2RE_PDF_BOOTSTRAP_STAMP}"
+        DEPENDS "${ORION2RE_PDF_LOCK}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/docs_environment.py"
+        COMMENT "Creating the pinned PDF environment (Python 3.11+ required)"
+        VERBATIM
+    )
+    add_custom_target(docs-pdf-bootstrap DEPENDS "${ORION2RE_PDF_BOOTSTRAP_STAMP}")
+    add_custom_target(docs-pdf
+        COMMAND ${CMAKE_COMMAND} -E env
+            "ORION2RE_GENERATED_CONFIG_DOCS=${ORION2RE_CONFIG_DOCUMENTATION_DIR}"
+            "DISABLE_MKDOCS_2_WARNING=true"
+            "${ORION2RE_PDF_PYTHON}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/build_documentation_pdf.py"
+            --config "${ORION2RE_DOCUMENTATION_SOURCE_DIR}/mkdocs-pdf.yml"
+            --site-dir "${ORION2RE_DOCUMENTATION_BUILD_DIR}/pdf-site"
+            --output "${ORION2RE_DOCUMENTATION_BUILD_DIR}/orion2re-documentation.pdf"
+        WORKING_DIRECTORY "${ORION2RE_DOCUMENTATION_SOURCE_DIR}"
+        DEPENDS docs-pdf-bootstrap config-docs
+        COMMENT "Building and validating the complete documentation PDF"
+        VERBATIM
+    )
+
     add_custom_target(docs-serve
         COMMAND ${CMAKE_COMMAND} -E env
             "ORION2RE_GENERATED_CONFIG_DOCS=${ORION2RE_CONFIG_DOCUMENTATION_DIR}"
@@ -831,6 +904,8 @@ if(ORION2RE_BUILD_DOCUMENTATION)
         COMMAND ${CMAKE_COMMAND} -E rm -rf
             "${ORION2RE_DOCUMENTATION_BUILD_DIR}/generated"
             "${ORION2RE_DOCUMENTATION_SITE_DIR}"
+            "${ORION2RE_DOCUMENTATION_BUILD_DIR}/pdf-site"
+            "${ORION2RE_DOCUMENTATION_BUILD_DIR}/orion2re-documentation.pdf"
             "${ORION2RE_CONFIG_DOCUMENTATION_STAMP}"
         COMMENT "Removing generated documentation while retaining the virtual environment"
         VERBATIM
@@ -841,6 +916,7 @@ add_executable(orion2re-router
     tools/router_main.cpp
     ${ORION2RE_ROUTER_SOURCES}
 )
+install(TARGETS orion2re-router RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT Runtime)
 
 if(ORION2RE_EXCLUDE_RUNTIME_FROM_ALL)
     set_target_properties(orion2re-router PROPERTIES EXCLUDE_FROM_ALL YES)
@@ -981,10 +1057,6 @@ if(MSVC)
 endif()
 
 if(ORION2RE_ENABLE_ASAN)
-    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-        message(FATAL_ERROR "ORION2RE_ENABLE_ASAN requires a Debug build.")
-    endif()
-
     if(TARGET orion2re)
         target_compile_definitions(orion2re PRIVATE ORION2RE_ASAN_BUILD=1)
     endif()
@@ -992,52 +1064,13 @@ if(ORION2RE_ENABLE_ASAN)
         target_compile_definitions(orion2re_game_objects PRIVATE ORION2RE_ASAN_BUILD=1)
     endif()
 
-    if(MSVC)
-        if(TARGET orion2re_lua)
-            target_compile_options(orion2re_lua PRIVATE /fsanitize=address)
-            target_link_options(orion2re_lua INTERFACE /INFERASANLIBS /fsanitize=address)
+    foreach(ORION2RE_SANITIZER_TARGET IN ITEMS
+            orion2re_lua orion2re orion2re-router orion2re_game_objects
+            config-tool config-load-benchmark)
+        if(TARGET ${ORION2RE_SANITIZER_TARGET})
+            orion2re_enable_sanitizers(${ORION2RE_SANITIZER_TARGET})
         endif()
-        if(TARGET orion2re)
-            target_compile_options(orion2re PRIVATE /fsanitize=address)
-        endif()
-        target_compile_options(orion2re-router PRIVATE /fsanitize=address)
-        if(TARGET orion2re_game_objects)
-            target_compile_options(orion2re_game_objects PRIVATE /fsanitize=address)
-        endif()
-        if(TARGET config-tool)
-            target_compile_options(config-tool PRIVATE /fsanitize=address)
-            target_link_options(config-tool PRIVATE /INFERASANLIBS /fsanitize=address)
-        endif()
-        if(TARGET orion2re)
-            target_link_options(orion2re PRIVATE /INFERASANLIBS /fsanitize=address)
-        endif()
-        target_link_options(orion2re-router PRIVATE /INFERASANLIBS /fsanitize=address)
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-        if(TARGET orion2re_lua)
-            target_compile_options(orion2re_lua PRIVATE
-                -fsanitize=address -fno-omit-frame-pointer)
-            target_link_options(orion2re_lua INTERFACE -fsanitize=address)
-        endif()
-        if(TARGET orion2re)
-            target_compile_options(orion2re PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-        endif()
-        target_compile_options(orion2re-router PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-        if(TARGET orion2re_game_objects)
-            target_compile_options(orion2re_game_objects PRIVATE
-                -fsanitize=address -fno-omit-frame-pointer)
-        endif()
-        if(TARGET config-tool)
-            target_compile_options(config-tool PRIVATE
-                -fsanitize=address -fno-omit-frame-pointer)
-            target_link_options(config-tool PRIVATE -fsanitize=address)
-        endif()
-        if(TARGET orion2re)
-            target_link_options(orion2re PRIVATE -fsanitize=address)
-        endif()
-        target_link_options(orion2re-router PRIVATE -fsanitize=address)
-    else()
-        message(FATAL_ERROR "ORION2RE_ENABLE_ASAN is unsupported for the current compiler.")
-    endif()
+    endforeach()
 endif()
 
 if(ORION2RE_BUILD_TESTS)

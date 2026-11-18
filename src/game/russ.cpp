@@ -1,8 +1,9 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 namespace RUSS {
     int8_t all_ai_game;
-    char russ_strings[0x1964];
+    std::vector<char> russ_strings;
     const char s_Seed_ld[] = "Seed: %ld";
     const char s_Map_d[] = "Map:  %d";
 
@@ -33,11 +34,12 @@ namespace RUSS {
     }
 
     int16_t __cdecl Get_Weighted_Choice_Short(const uint16_t* weights, int16_t count) {
+        const uint8_t* bytes = (const uint8_t*)weights;
         uint32_t total_weight = 0;
 
         if (count > 0) {
             for (int16_t i = 0; i < count; ++i) {
-                total_weight += (uint16_t)weights[i];
+                total_weight += unaligned::Load<uint16_t>(bytes + i * sizeof(uint16_t));
             }
         }
 
@@ -48,21 +50,22 @@ namespace RUSS {
         uint32_t random_val = (uint32_t)game_random::Random((int32_t)total_weight);
         int16_t index = 0;
 
-        if ((uint16_t)weights[index] < random_val) {
+        if (unaligned::Load<uint16_t>(bytes + index * sizeof(uint16_t)) < random_val) {
             do {
-                uint32_t current_weight = (uint16_t)weights[index];
+                uint32_t current_weight = unaligned::Load<uint16_t>(bytes + index * sizeof(uint16_t));
                 index++;
                 random_val -= current_weight;
-            } while ((uint16_t)weights[index] < random_val);
+            } while (unaligned::Load<uint16_t>(bytes + index * sizeof(uint16_t)) < random_val);
         }
 
         return index;
     }
 
     int16_t __cdecl Get_Weighted_Choice_Int(uint32_t* weights, int16_t count) {
+        const uint8_t* bytes = (const uint8_t*)weights;
         uint32_t total_weight = 0;
         for (int16_t i = 0; i < count; ++i) {
-            total_weight += weights[i];
+            total_weight += unaligned::Load<uint32_t>(bytes + i * sizeof(uint32_t));
         }
 
         if (total_weight == 0) {
@@ -72,11 +75,11 @@ namespace RUSS {
         uint32_t roll = (uint32_t)game_random::Random((int32_t)total_weight);
         int16_t selected_index = 0;
 
-        if (weights[0] < roll) {
+        if (unaligned::Load<uint32_t>(bytes) < roll) {
             do {
-                roll -= weights[selected_index];
+                roll -= unaligned::Load<uint32_t>(bytes + selected_index * sizeof(uint32_t));
                 ++selected_index;
-            } while (weights[selected_index] < roll);
+            } while (unaligned::Load<uint32_t>(bytes + selected_index * sizeof(uint32_t)) < roll);
         }
 
         return selected_index;
@@ -93,10 +96,13 @@ namespace RUSS {
 
         snprintf(filename_buffer, sizeof(filename_buffer), "rstring%d.lbx", (uint32_t)language);
 
-        farload::Farload_Data_Static(filename_buffer, 0, &RUSS::russ_strings, 0, 1, (int32_t)sizeof(RUSS::russ_strings));
+        std::vector<char> loaded(0x1964);
+        farload::Farload_Data_Static(filename_buffer, 0, loaded.data(), 0, 1, (int32_t)loaded.size());
+        string_overrides::Apply_Table(filename_buffer, &loaded, 177);
+        russ_strings.swap(loaded);
 
         char* string_ptr;
-        string_ptr = COLCALC::Load_Colcalc_Strings(RUSS::russ_strings);
+        string_ptr = COLCALC::Load_Colcalc_Strings(RUSS::russ_strings.data());
         string_ptr = COMBFIND::Load_Combfind_Strings(string_ptr);
         string_ptr = MSG_::Load_Msg_Strings(string_ptr);
         string_ptr = NETMOX::Load_Netmox_Strings(string_ptr);
@@ -141,13 +147,17 @@ namespace RUSS {
             return;
         }
 
+        // These arrays can reside in packed records, so access them as bytes.
+        uint8_t* bytes = (uint8_t*)array;
         for (int16_t i = 0; i < count; ++i) {
             int32_t random_offset = game_random::Random((int32_t)count - i);
             int16_t target_idx = (int16_t)(i + random_offset - 1);
 
-            int32_t swapped_value = array[i];
-            array[i] = array[target_idx];
-            array[target_idx] = swapped_value;
+            uint8_t* element = bytes + i * sizeof(int32_t);
+            uint8_t* target = bytes + target_idx * sizeof(int32_t);
+            int32_t swapped_value = unaligned::Load<int32_t>(element);
+            unaligned::Store<int32_t>(element, unaligned::Load<int32_t>(target));
+            unaligned::Store<int32_t>(target, swapped_value);
         }
     }
 
@@ -156,14 +166,17 @@ namespace RUSS {
             return;
         }
 
+        uint8_t* bytes = (uint8_t*)data;
         for (int16_t i = 0; i < count; ++i) {
             int32_t random_offset = game_random::Random((int32_t)count - i);
 
-            int16_t swapped_value = data[i];
             int16_t target_idx = (int16_t)(i + random_offset - 1);
 
-            data[i] = data[target_idx];
-            data[target_idx] = swapped_value;
+            uint8_t* element = bytes + i * sizeof(int16_t);
+            uint8_t* target = bytes + target_idx * sizeof(int16_t);
+            int16_t swapped_value = unaligned::Load<int16_t>(element);
+            unaligned::Store<int16_t>(element, unaligned::Load<int16_t>(target));
+            unaligned::Store<int16_t>(target, swapped_value);
         }
     }
 

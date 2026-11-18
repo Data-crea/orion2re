@@ -74,8 +74,14 @@ namespace MAINSCR {
                 MOX::max_map_scale);
         }
 
+        bool Use_Classic_Maximum_Galaxy_Display() {
+            return maximum_galaxy_display == MAXIMUM_GALAXY_DISPLAY_CLASSIC &&
+                MOX::settings.galaxy_size == GALAXY_SIZE_MAXIMUM &&
+                Is_Extended_Max_Map_View();
+        }
+
         bool Use_Main_Map_Overview_Markers() {
-            return MAP_SCALE::Use_Main_Map_Overview_Markers_(
+            return Use_Maximum_Galaxy_Overview() && MAP_SCALE::Use_Main_Map_Overview_Markers_(
                 main_map_overview_markers,
                 MOX::settings.galaxy_size == GALAXY_SIZE_MAXIMUM,
                 MOX::NUM_STARS,
@@ -263,6 +269,10 @@ namespace MAINSCR {
         return false;
     }
 
+    bool Use_Maximum_Galaxy_Overview() {
+        return Is_Extended_Max_Map_View() && !Use_Classic_Maximum_Galaxy_Display();
+    }
+
     void __cdecl Draw_Stars() {
         n_twinkling_stars = 0;
 
@@ -276,7 +286,7 @@ namespace MAINSCR {
     }
 
     void __cdecl Draw_Influence_Overlay() {
-        const bool draw_automatic_outline = Is_Extended_Max_Map_View();
+        const bool draw_automatic_outline = Use_Maximum_Galaxy_Overview();
         if (influence_view_mode == 0 && !draw_automatic_outline) {
             return;
         }
@@ -600,7 +610,7 @@ namespace MAINSCR {
             HAROLD::Player_Has_Visited(MOX::PLAYER_NUM, star_idx) != 0;
         const bool draw_visited_uncolonized_marker =
             MAP_SCALE::Uses_Visited_Uncolonized_Overview_Marker_(
-                Is_Extended_Max_Map_View(),
+                Use_Maximum_Galaxy_Overview(),
                 star->spectral_class == STAR_CLASS_BLACK_HOLE,
                 owner,
                 visited);
@@ -669,7 +679,7 @@ namespace MAINSCR {
     }
 
     void __cdecl Print_Star_Names() {
-        if (Is_Extended_Max_Map_View()) {
+        if (Use_Maximum_Galaxy_Overview()) {
             return;
         }
 
@@ -895,7 +905,8 @@ namespace MAINSCR {
                         MOX::star[star_idx].size);
 
                     int16_t scale_percent = HAROLD::Map_Star_Scale_Percent();
-                    if (MAP_SCALE::Advance_Black_Hole_Animation_(scale_percent)) {
+                    if (Use_Classic_Maximum_Galaxy_Display() ||
+                        MAP_SCALE::Advance_Black_Hole_Animation_(scale_percent)) {
                         int16_t slot = black_hole_slot;
                         int8_t count = MOX::black_hole_anim_count[slot];
                         int16_t frame_count = animate::Get_Animation_Frame_Count(seg);
@@ -2747,28 +2758,8 @@ namespace MAINSCR {
         int16_t old_y = MOX::cur_map_y;
 
         // Calculate top-left corner based on centered target
-        MOX::cur_map_x = target_x - (int16_t)HAROLD::Get_Up_Scaled_Value(253 /* 0xfd */);
-        MOX::cur_map_y = target_y - (int16_t)HAROLD::Get_Up_Scaled_Value(200 /* 0xc8 */);
-
-        // Clamp X to bounds [0, MAX_X - view_width]
-        if (MOX::cur_map_x < 0) {
-            MOX::cur_map_x = 0;
-        }
-
-        int maxX_limit = (int)MOX::MAP_MAX_X - HAROLD::Get_Up_Scaled_Value(506 /* 0x1fa */);
-        if ((int)MOX::cur_map_x > maxX_limit) {
-            MOX::cur_map_x = (int16_t)MOX::MAP_MAX_X - (int16_t)HAROLD::Get_Up_Scaled_Value(506 /* 0x1fa */);
-        }
-
-        // Clamp Y to bounds [0, MAX_Y - view_height]
-        if (MOX::cur_map_y < 0) {
-            MOX::cur_map_y = 0;
-        }
-
-        int maxY_limit = (int)MOX::MAP_MAX_Y - HAROLD::Get_Up_Scaled_Value(400 /* 0x190 */);
-        if ((int)MOX::cur_map_y > maxY_limit) {
-            MOX::cur_map_y = (int16_t)MOX::MAP_MAX_Y - (int16_t)HAROLD::Get_Up_Scaled_Value(400 /* 0x190 */);
-        }
+        MOX::cur_map_x = MAP_SCALE::Clamp_Map_Offset_(target_x - HAROLD::Get_Up_Scaled_Value(253), MOX::MAP_MAX_X, HAROLD::Get_Up_Scaled_Value(506));
+        MOX::cur_map_y = MAP_SCALE::Clamp_Map_Offset_(target_y - HAROLD::Get_Up_Scaled_Value(200), MOX::MAP_MAX_Y, HAROLD::Get_Up_Scaled_Value(400));
 
         // If viewport position changed, update parallax offsets
         if (old_x != MOX::cur_map_x || old_y != MOX::cur_map_y) {
@@ -3235,8 +3226,8 @@ namespace MAINSCR {
                 font_colors.colors[7] = 22;
 
                 if (FLEETPOP::Some_Icon_Selected()) {
-                    int16_t selected_ship_ids[MAX_SHIPS];
-                    HACCESS::Get_Fleet_Box_Selected_Ship_Ids(selected_ship_ids, MAX_SHIPS, 0xFF);
+                    int16_t selected_ship_ids[SHIP_LIST_CAPACITY];
+                    HACCESS::Get_Fleet_Box_Selected_Ship_Ids(selected_ship_ids, SHIP_LIST_CAPACITY, 0xFF);
                     SHIPMOVE::Ships_Try_To_Move_To(selected_ship_ids, star_idx, &MOX::g_ship_move_info);
                     moving_a_stack = 1;
                 }

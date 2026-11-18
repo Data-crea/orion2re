@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "unaligned.h"
 
 namespace POP {
     using value_type = uint32_t;
@@ -20,12 +21,22 @@ namespace POP {
         PROF_SCIENTIST = 2,
     };
 
+    // Pop words usually live in packed structures (s_colony::pop), so access
+    // them through pointers only via these bytewise helpers.
+    inline value_type __cdecl Load(const void* pop) {
+        return unaligned::Load<value_type>(pop);
+    }
+
+    inline void __cdecl Store(void* pop, value_type value) {
+        unaligned::Store<value_type>(pop, value);
+    }
+
     inline uint32_t __cdecl Get_Race(value_type pop) {
         return pop & MASK_RACE;
     }
 
     inline void __cdecl Set_Race(value_type* pop, uint32_t race) {
-        *pop = (*pop & ~MASK_RACE) | (race & MASK_RACE);
+        Store(pop, (Load(pop) & ~MASK_RACE) | (race & MASK_RACE));
     }
 
     inline uint32_t __cdecl Get_Original_Owner(value_type pop) {
@@ -33,7 +44,7 @@ namespace POP {
     }
 
     inline void __cdecl Set_Original_Owner(value_type* pop, uint32_t owner) {
-        *pop = (*pop & ~MASK_ORIGINAL_OWNER) | ((owner & 0x07u) << 4);
+        Store(pop, (Load(pop) & ~MASK_ORIGINAL_OWNER) | ((owner & 0x07u) << 4));
     }
 
     inline e_prof __cdecl Get_Prof(value_type pop) {
@@ -41,7 +52,7 @@ namespace POP {
     }
 
     inline void __cdecl Set_Prof(value_type* pop, e_prof prof) {
-        *pop = (*pop & ~MASK_PROF) | ((static_cast<value_type>(prof) & 0x03u) << 7);
+        Store(pop, (Load(pop) & ~MASK_PROF) | ((static_cast<value_type>(prof) & 0x03u) << 7));
     }
 
     inline bool __cdecl Is_Farmer(value_type pop) {
@@ -62,9 +73,9 @@ namespace POP {
 
     inline void __cdecl Set_Assigned(value_type* pop, bool assigned) {
         if (assigned) {
-            *pop |= MASK_ASSIGNED;
+            Store(pop, Load(pop) | MASK_ASSIGNED);
         } else {
-            *pop &= ~MASK_ASSIGNED;
+            Store(pop, Load(pop) & ~MASK_ASSIGNED);
         }
     }
 
@@ -74,9 +85,9 @@ namespace POP {
 
     inline void __cdecl Set_Conquered(value_type* pop, bool conquered) {
         if (conquered) {
-            *pop |= MASK_CONQUERED;
+            Store(pop, Load(pop) | MASK_CONQUERED);
         } else {
-            *pop &= ~MASK_CONQUERED;
+            Store(pop, Load(pop) & ~MASK_CONQUERED);
         }
     }
 

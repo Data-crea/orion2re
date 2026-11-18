@@ -1,38 +1,28 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 namespace ESTRINGS {
 
     char* strings[ESTRINGS_COUNT];
-    char string_data[ESTRINGS_DATA_SIZE];
+    std::vector<char> string_data;
 
     const char s_0_0055110c[4] = "\0320";
     const char s_1_00551110[4] = "\0321";
 
     void __cdecl Load_E_Strings() {
-        char* loaded_data;
+        static const char* const filenames[] = {
+            "estrings.lbx", "estrGERM.lbx", "estrFREN.lbx", "estrSPAN.lbx", "estrITAL.lbx", "estrPOLI.lbx"};
+        const uint8_t language = (uint8_t)MOX::settings.language;
+        const char* filename = filenames[language < 6 ? language : 0];
+        std::vector<char> loaded(ESTRINGS_DATA_SIZE);
+        farload::Farload_Data_Static(filename, 0, loaded.data(), 0, 1, ESTRINGS_DATA_SIZE);
+        string_overrides::Apply_Table(filename, &loaded, ESTRINGS_COUNT);
+        string_data.swap(loaded);
 
-        if (MOX::settings.language == 0) {
-            loaded_data = (char*)farload::Farload_Data_Static("estrings.lbx", 0, string_data, 0, 1, ESTRINGS_DATA_SIZE);
-        } else if (MOX::settings.language == 1) {
-            loaded_data = (char*)farload::Farload_Data_Static("estrGERM.lbx", 0, string_data, 0, 1, ESTRINGS_DATA_SIZE);
-        } else if (MOX::settings.language == 2) {
-            loaded_data = (char*)farload::Farload_Data_Static("estrFREN.lbx", 0, string_data, 0, 1, ESTRINGS_DATA_SIZE);
-        } else if (MOX::settings.language == 3) {
-            loaded_data = (char*)farload::Farload_Data_Static("estrSPAN.lbx", 0, string_data, 0, 1, ESTRINGS_DATA_SIZE);
-        } else if (MOX::settings.language == 4) {
-            loaded_data = (char*)farload::Farload_Data_Static("estrITAL.lbx", 0, string_data, 0, 1, ESTRINGS_DATA_SIZE);
-        } else if (MOX::settings.language == 5) {
-            loaded_data = (char*)farload::Farload_Data_Static("estrPOLI.lbx", 0, string_data, 0, 1, ESTRINGS_DATA_SIZE);
-        }
-
-        char* current_string = loaded_data;
+        char* current_string = string_data.data();
         for (int string_index = 0; string_index < ESTRINGS_COUNT; ++string_index) {
             ESTRINGS::strings[string_index] = current_string;
             current_string += strlen(current_string) + 1;
-        }
-
-        if (current_string > ESTRINGS::string_data + ESTRINGS_DATA_SIZE) {
-            exitm::Exit_With_Message("you blew the array eric");
         }
 
         Load_H_And_Pro_File_Strings();

@@ -123,8 +123,8 @@ TEST_CASE("Lua galaxy generator is exclusive versioned and uses ordinary game ob
         &invoked, &diagnostic));
     CHECK(invoked);
     CHECK(diagnostic.empty());
-    CHECK(MOX::star[0].x == 77);
-    CHECK(MOX::star[0].y == expected_y);
+    CHECK((MOX::star[0].x == 77));
+    CHECK((MOX::star[0].y == expected_y));
     CHECK(game_random::Get_Random_Seed() == expected_seed);
 
     orion2re::lua::Reset_Mod_Runtimes();
@@ -539,10 +539,10 @@ TEST_CASE("Lua galaxy structural operations preserve stable candidate handles") 
 
     CHECK(invoked);
     CHECK(diagnostic.empty());
-    CHECK(MOX::star[1].x == 70);
-    CHECK(MOX::star[1].y == 80);
-    CHECK(MOX::star[0].wormhole_star_id == 1);
-    CHECK(MOX::star[1].wormhole_star_id == 0);
+    CHECK((MOX::star[1].x == 70));
+    CHECK((MOX::star[1].y == 80));
+    CHECK((MOX::star[0].wormhole_star_id == 1));
+    CHECK((MOX::star[1].wormhole_star_id == 0));
 
     TEST_LUA_GAME::Reset_();
     orion2re::lua::Reset_Mod_Runtimes();

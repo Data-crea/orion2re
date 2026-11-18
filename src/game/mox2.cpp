@@ -3,7 +3,6 @@
 #include "ext/ext_api.h"
 #endif
 
-#include <exception>
 #include "config/config_loader.h"
 #include "game/config_refresh.h"
 
@@ -344,10 +343,10 @@ namespace MOX2 {
         if (MOX2::skip_intro == 0) {
             JIM::Draw_Logos();
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "mox2: logos drawn");
-            fields::Assign_Update_Function(RUSS::Mox_Update);
-            fonts::Load_Palette(5, 0, 0xFF);
-            mouse::Set_Mouse_List(&MOX::mouse_list_arrow, 1);
         }
+        fields::Assign_Update_Function(RUSS::Mox_Update);
+        fonts::Load_Palette(5, 0, 0xFF);
+        mouse::Set_Mouse_List(&MOX::mouse_list_arrow, 1);
 
         JIM::Play_Background_Music();
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "mox2: background music requested");
@@ -459,7 +458,7 @@ namespace MOX2 {
 
         memcpy(MOX2::leave_game_message, thanks_src, thanks_size);
 
-        exitm::Exit_Normally(MOX2::leave_game_message);
+        exitm::Exit_Normally(MOX2::show_exit_message ? MOX2::leave_game_message : "");
     }
 
     int SDLCALL thunk_main2(void* unused) {
@@ -503,9 +502,19 @@ namespace MOX2 {
         }
     }
 
+    static void Append_Missing_Data_File_Hint_(std::string* message, const char* missing_file) {
+        message->append("\nRequired original game file: ");
+        message->append(missing_file);
+        message->append("\nOriginal Master of Orion II data directories:");
+        for (const std::string& directory : vfs::Get_Data_Search_Paths()) {
+            message->append("\n  ");
+            message->append(directory);
+        }
+    }
+
     void __cdecl Set_Mox_Alt_Path() {
         char alternate_path[61] = {};
-        char error_message[100] = "Unable to read ORIONCD.INI.";
+        std::string error_message = "Unable to read ORIONCD.INI.";
         FILE* config_file;
         const char* error_text = nullptr;
 
@@ -525,10 +534,11 @@ namespace MOX2 {
             }
 
             if (error_text != nullptr) {
-                strlcpy(error_message, error_text, sizeof(error_message));
+                error_message = error_text;
             }
 
-            exitm::Exit_With_Message(error_message);
+            Append_Missing_Data_File_Hint_(&error_message, "ORIONCD.INI");
+            exitm::Exit_With_Message(error_message.c_str());
             return;
         }
 
@@ -538,13 +548,17 @@ namespace MOX2 {
             if (config_file != nullptr) {
                 fclose(config_file);
             }
-            exitm::Exit_With_Message(error_message);
+            Append_Missing_Data_File_Hint_(&error_message, "ORIONCD.INI");
+            exitm::Exit_With_Message(error_message.c_str());
+            return;
         }
         fclose(config_file);
 
         alternate_path[strcspn(alternate_path, "\r\n")] = '\0';
         if (alternate_path[0] == '\0') {
-            exitm::Exit_With_Message(error_message);
+            Append_Missing_Data_File_Hint_(&error_message, "ORIONCD.INI");
+            exitm::Exit_With_Message(error_message.c_str());
+            return;
         }
 
         farload::Set_Alternate_Path(alternate_path);
@@ -575,10 +589,11 @@ namespace MOX2 {
         }
 
         if (error_text != nullptr) {
-            strlcpy(error_message, error_text, sizeof(error_message));
+            error_message = error_text;
         }
 
-        exitm::Exit_With_Message(error_message);
+        Append_Missing_Data_File_Hint_(&error_message, "diplomat.lbx");
+        exitm::Exit_With_Message(error_message.c_str());
     }
 
 } // namespace MOX2

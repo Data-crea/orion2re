@@ -2,7 +2,8 @@
   id: "v150",
   name: "Basic",
   description: "Basic mod",
-  version: "26.10",
+  version: "26.11",
+  compatible_versions: "26.10",
 
   requires: {
     engine: ">=2.0.0 <3.0.0",

@@ -73,9 +73,8 @@ namespace file_ani {
         }
 
         int16_t current_frame = animate::animation_header->current_frame;
-        const uint32_t* frame_offsets = Animation_Frame_Offsets_(animate::animation_header);
-        uint32_t frame_offset = frame_offsets[current_frame];
-        uint32_t next_frame_offset = frame_offsets[current_frame + 1];
+        uint32_t frame_offset = Animation_Frame_Offset_(animate::animation_header, current_frame);
+        uint32_t next_frame_offset = Animation_Frame_Offset_(animate::animation_header, current_frame + 1);
 
         uint32_t frame_size = next_frame_offset - frame_offset;
 
@@ -167,9 +166,8 @@ namespace file_ani {
         }
 
         int16_t current_frame = animate::animation_header->current_frame;
-        const uint32_t* frame_offsets = Animation_Frame_Offsets_(animate::animation_header);
-        uint32_t frame_offset = frame_offsets[current_frame];
-        uint32_t next_frame_offset = frame_offsets[current_frame + 1];
+        uint32_t frame_offset = Animation_Frame_Offset_(animate::animation_header, current_frame);
+        uint32_t next_frame_offset = Animation_Frame_Offset_(animate::animation_header, current_frame + 1);
         uint32_t frame_size = next_frame_offset - frame_offset;
 
         int32_t available_space = allocate::Get_Max_Block_Space(file_animation_buffer);
@@ -296,9 +294,8 @@ namespace file_ani {
         }
 
         int16_t current_frame = animate::animation_header->current_frame;
-        const uint32_t* frame_offsets = Animation_Frame_Offsets_(animate::animation_header);
-        uint32_t frame_offset = frame_offsets[current_frame];
-        uint32_t next_frame_offset = frame_offsets[current_frame + 1];
+        uint32_t frame_offset = Animation_Frame_Offset_(animate::animation_header, current_frame);
+        uint32_t next_frame_offset = Animation_Frame_Offset_(animate::animation_header, current_frame + 1);
 
         uint32_t frame_size = next_frame_offset - frame_offset;
 
@@ -362,9 +359,8 @@ namespace file_ani {
 
         int16_t current_frame = animate::animation_header->current_frame;
 
-        const uint32_t* frame_offsets = Animation_Frame_Offsets_(animate::animation_header);
-        uint32_t frame_offset = frame_offsets[current_frame];
-        uint32_t next_frame_offset = frame_offsets[current_frame + 1];
+        uint32_t frame_offset = Animation_Frame_Offset_(animate::animation_header, current_frame);
+        uint32_t next_frame_offset = Animation_Frame_Offset_(animate::animation_header, current_frame + 1);
 
         uint32_t frame_size = next_frame_offset - frame_offset;
 

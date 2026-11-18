@@ -207,9 +207,9 @@ TEST_CASE("home-system mirror package copies the selected native orbit layout") 
     CHECK(invoked);
     CHECK(diagnostic.empty());
     CHECK(game_random::Get_Random_Seed() == expected_seed);
-    CHECK(MOX::player[source_player].home_planet_id == source_home);
-    CHECK(MOX::player[destination_player].home_planet_id ==
-        destination_home);
+    CHECK((MOX::player[source_player].home_planet_id == source_home));
+    CHECK((MOX::player[destination_player].home_planet_id ==
+        destination_home));
     CHECK(MOX::planet[source_home].star_index == source_system);
     CHECK(MOX::planet[source_home].orbit == source_orbit);
     CHECK(MOX::planet[destination_home].star_index == destination_system);
@@ -418,8 +418,8 @@ TEST_CASE("full mirror package rebuilds destination home systems") {
     CHECK(diagnostic.empty());
     CHECK(game_random::Get_Random_Seed() == expected_seed);
     CHECK(MOX::NUM_COLONIES == 3);
-    CHECK(MOX::player[0].home_planet_id == 0);
-    CHECK(MOX::player[1].home_planet_id == 2);
+    CHECK((MOX::player[0].home_planet_id == 0));
+    CHECK((MOX::player[1].home_planet_id == 2));
     CHECK(MOX::planet[0].star_index == 0);
     CHECK(MOX::planet[0].orbit == source_home_planet.orbit);
     CHECK(MOX::planet[0].colony_index == 0);
@@ -441,8 +441,8 @@ TEST_CASE("full mirror package rebuilds destination home systems") {
               sizeof(source_colony_officer)) == 0);
     CHECK(MOX::star[4].officer_index[1] == 1);
     CHECK(MOX::leaders[2].status == 0);
-    CHECK(MOX::leaders[2].location == -1);
-    CHECK(MOX::star[0].officer_index[0] == -1);
+    CHECK((MOX::leaders[2].location == -1));
+    CHECK((MOX::star[0].officer_index[0] == -1));
     CHECK(memcmp(&MOX::ship[1],
               &advanced_start_ship,
               sizeof(advanced_start_ship)) == 0);
@@ -452,22 +452,22 @@ TEST_CASE("full mirror package rebuilds destination home systems") {
 
     const int16_t copied_home_extra = MOX::star[0].planet_index[1];
     REQUIRE(copied_home_extra >= 0);
-    CHECK(MOX::star[0].planet_index[0] == -1);
-    CHECK(MOX::star[0].planet_index[2] == -1);
-    CHECK(MOX::star[0].planet_index[3] == 0);
-    CHECK(MOX::star[0].planet_index[4] == -1);
+    CHECK((MOX::star[0].planet_index[0] == -1));
+    CHECK((MOX::star[0].planet_index[2] == -1));
+    CHECK((MOX::star[0].planet_index[3] == 0));
+    CHECK((MOX::star[0].planet_index[4] == -1));
     CHECK(MOX::planet[copied_home_extra].planet_type ==
         source_extra_planet.planet_type);
     CHECK(MOX::planet[copied_home_extra].size == source_extra_planet.size);
     CHECK(MOX::planet[copied_home_extra].colony_index == -1);
-    CHECK(MOX::star[4].planet_index[1] == 3);
-    CHECK(MOX::star[4].planet_index[3] == 2);
-    CHECK(MOX::star[0].x == 356);
-    CHECK(MOX::star[0].y == 218);
+    CHECK((MOX::star[4].planet_index[1] == 3));
+    CHECK((MOX::star[4].planet_index[3] == 2));
+    CHECK((MOX::star[0].x == 356));
+    CHECK((MOX::star[0].y == 218));
     CHECK(MOX::star[0].spectral_class == STAR_CLASS_F);
     CHECK(MOX::star[0].visited == 1);
-    CHECK(MOX::star[4].x == 150);
-    CHECK(MOX::star[4].y == 182);
+    CHECK((MOX::star[4].x == 150));
+    CHECK((MOX::star[4].y == 182));
     CHECK(MOX::star[4].visited == 2);
 
     int16_t copied_marooned_system = -1;
@@ -509,13 +509,13 @@ TEST_CASE("full mirror package rebuilds destination home systems") {
     CHECK(copied_leader_found);
     CHECK(MOX::NUM_SHIPS == 3);
     CHECK(MOX::ship[2].owner == NONPLAYER_SHIP_TYPE_GUARDIAN);
-    CHECK(MOX::ship[2].location == copied_monster_system);
-    CHECK(MOX::ship[2].x == MOX::star[copied_monster_system].x);
-    CHECK(MOX::ship[2].y == MOX::star[copied_monster_system].y);
+    CHECK((MOX::ship[2].location == copied_monster_system));
+    CHECK((MOX::ship[2].x == MOX::star[copied_monster_system].x));
+    CHECK((MOX::ship[2].y == MOX::star[copied_monster_system].y));
     CHECK(MOX::nebula[0].x == nebula_x - 40);
     CHECK(MOX::nebula[0].y == nebula_y - 40);
-    CHECK(MOX::nebula[1].x == 366 - nebula_x);
-    CHECK(MOX::nebula[1].y == 260 - nebula_y);
+    CHECK((MOX::nebula[1].x == 366 - nebula_x));
+    CHECK((MOX::nebula[1].y == 260 - nebula_y));
 
     TEST_LUA_GAME::Reset_();
     orion2re::lua::Reset_Mod_Runtimes();
@@ -684,8 +684,8 @@ TEST_CASE("full mirror package preserves native home systems") {
     CHECK(diagnostic.empty());
     CHECK(game_random::Get_Random_Seed() == expected_seed);
     CHECK(MOX::NUM_COLONIES == 2);
-    CHECK(MOX::player[0].home_planet_id == 0);
-    CHECK(MOX::player[1].home_planet_id == 2);
+    CHECK((MOX::player[0].home_planet_id == 0));
+    CHECK((MOX::player[1].home_planet_id == 2));
     CHECK(memcmp(&MOX::planet[0],
               &home_planet_0,
               sizeof(home_planet_0)) == 0);
@@ -708,31 +708,31 @@ TEST_CASE("full mirror package preserves native home systems") {
               &advanced_start_ship,
               sizeof(advanced_start_ship)) == 0);
 
-    CHECK(MOX::star[4].x == 150);
-    CHECK(MOX::star[4].y == 182);
+    CHECK((MOX::star[4].x == 150));
+    CHECK((MOX::star[4].y == 182));
     CHECK(MOX::star[4].size == home_size_1);
     CHECK(MOX::star[4].pict_type == home_picture_1);
     CHECK(MOX::star[4].owner == 1);
     CHECK(MOX::star[4].system_special == SYSTEM_SPECIAL_NO_SPECIAL);
     CHECK(MOX::star[4].visited == 2);
-    CHECK(MOX::star[0].x == 356);
-    CHECK(MOX::star[0].y == 218);
+    CHECK((MOX::star[0].x == 356));
+    CHECK((MOX::star[0].y == 218));
     CHECK(MOX::star[0].spectral_class == STAR_CLASS_F);
     CHECK(MOX::star[0].size == home_size_0);
     CHECK(MOX::star[0].pict_type == home_picture_0);
     CHECK(MOX::star[0].owner == 0);
     CHECK(MOX::star[0].system_special == SYSTEM_SPECIAL_NO_SPECIAL);
     CHECK(MOX::star[0].visited == 1);
-    CHECK(MOX::star[0].planet_index[0] == 0);
-    CHECK(MOX::star[0].planet_index[1] == -1);
-    CHECK(MOX::star[0].planet_index[2] == 1);
-    CHECK(MOX::star[0].planet_index[3] == -1);
-    CHECK(MOX::star[0].planet_index[4] == -1);
-    CHECK(MOX::star[4].planet_index[0] == -1);
-    CHECK(MOX::star[4].planet_index[3] == 2);
-    CHECK(MOX::star[4].planet_index[1] == 3);
-    CHECK(MOX::star[4].planet_index[2] == -1);
-    CHECK(MOX::star[4].planet_index[4] == -1);
+    CHECK((MOX::star[0].planet_index[0] == 0));
+    CHECK((MOX::star[0].planet_index[1] == -1));
+    CHECK((MOX::star[0].planet_index[2] == 1));
+    CHECK((MOX::star[0].planet_index[3] == -1));
+    CHECK((MOX::star[0].planet_index[4] == -1));
+    CHECK((MOX::star[4].planet_index[0] == -1));
+    CHECK((MOX::star[4].planet_index[3] == 2));
+    CHECK((MOX::star[4].planet_index[1] == 3));
+    CHECK((MOX::star[4].planet_index[2] == -1));
+    CHECK((MOX::star[4].planet_index[4] == -1));
 
     int16_t copied_marooned_system = -1;
     int16_t copied_monster_system = -1;
@@ -796,14 +796,14 @@ TEST_CASE("full mirror package preserves native home systems") {
     CHECK(MOX::NUM_SHIPS == 3);
     CHECK(MOX::ship[2].owner == NONPLAYER_SHIP_TYPE_GUARDIAN);
     CHECK(MOX::ship[2].status == 1);
-    CHECK(MOX::ship[2].location == copied_monster_system);
-    CHECK(MOX::ship[2].x == MOX::star[copied_monster_system].x);
-    CHECK(MOX::ship[2].y == MOX::star[copied_monster_system].y);
+    CHECK((MOX::ship[2].location == copied_monster_system));
+    CHECK((MOX::ship[2].x == MOX::star[copied_monster_system].x));
+    CHECK((MOX::ship[2].y == MOX::star[copied_monster_system].y));
     CHECK(MOX::nebula[0].x == nebula_x - 40);
     CHECK(MOX::nebula[0].y == nebula_y - 40);
     CHECK(MOX::nebula[0].type == 1);
-    CHECK(MOX::nebula[1].x == 366 - nebula_x);
-    CHECK(MOX::nebula[1].y == 260 - nebula_y);
+    CHECK((MOX::nebula[1].x == 366 - nebula_x));
+    CHECK((MOX::nebula[1].y == 260 - nebula_y));
     CHECK(MOX::nebula[1].type == 2);
 
     TEST_LUA_GAME::Reset_();

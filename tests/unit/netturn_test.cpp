@@ -236,7 +236,7 @@ DOCTEST_TEST_CASE("client next turn preserves a payload that arrives before the 
     NETTURN::Client_Next_Turn();
 
     DOCTEST_CHECK(MULTPLAY::g_chat_box_input_loop_hook == nullptr);
-    DOCTEST_CHECK(NETMOX::net.total_bytes_received == 1);
+    DOCTEST_CHECK((NETMOX::net.total_bytes_received == 1));
 
     std::free((s_alloc_header*)MOX::screen_seg - 1);
     MOX::screen_seg = nullptr;
@@ -260,19 +260,19 @@ DOCTEST_TEST_CASE("Lua game data accepts only the elected sender with full decod
     MAINSCR::Main_Receive_Message(
         1, 174, NET_PACKET_GAME_DATA_PAYLOAD, sizeof(payload), const_cast<uint8_t*>(payload));
 
-    DOCTEST_CHECK(NETMOX::net.network_data_ptr == &retained_payload);
-    DOCTEST_CHECK(NETMOX::net.total_bytes_received == 1);
+    DOCTEST_CHECK((NETMOX::net.network_data_ptr == &retained_payload));
+    DOCTEST_CHECK((NETMOX::net.total_bytes_received == 1));
     DOCTEST_CHECK(NETMOX::net.host_election_winner_id == 91);
     DOCTEST_CHECK(allocate::mark_stack_pos[0] == 0);
 
     MAINSCR::Main_Receive_Message(
         1, 176, NET_PACKET_GAME_DATA_PAYLOAD, sizeof(payload), const_cast<uint8_t*>(payload));
 
-    DOCTEST_REQUIRE(NETMOX::net.network_data_ptr != nullptr);
+    DOCTEST_REQUIRE((NETMOX::net.network_data_ptr != nullptr));
     DOCTEST_CHECK(std::memcmp(
                       NETMOX::net.network_data_ptr, payload, sizeof(payload)) ==
         0);
-    DOCTEST_CHECK(NETMOX::net.total_bytes_received == sizeof(payload));
+    DOCTEST_CHECK((NETMOX::net.total_bytes_received == sizeof(payload)));
     DOCTEST_CHECK(NETMOX::net.host_election_winner_id == 176);
     DOCTEST_CHECK(allocate::Get_Max_Block_Space(
                       NETMOX::net.network_data_ptr) ==
@@ -319,7 +319,7 @@ DOCTEST_TEST_CASE("client handles host disconnect when local player becomes reco
 
     NETMOX::Handle_Network_Player_Disconnected(1);
 
-    DOCTEST_CHECK(MOX::player[1].network_player_id == -1);
+    DOCTEST_CHECK((MOX::player[1].network_player_id == -1));
     DOCTEST_CHECK(NETMOX::net.num_connected_players == 2);
     DOCTEST_CHECK(NETMOX::net.players_hit_next_turn[1] == 1);
     DOCTEST_CHECK(NETMOX::net.host_election_id == 202);
@@ -348,7 +348,7 @@ DOCTEST_TEST_CASE("local player disconnect is ignored") {
 
     NETMOX::Handle_Network_Player_Disconnected(0);
 
-    DOCTEST_CHECK(MOX::player[0].network_player_id == 202);
+    DOCTEST_CHECK((MOX::player[0].network_player_id == 202));
     DOCTEST_CHECK(NETMOX::net.num_connected_players == 2);
 }
 

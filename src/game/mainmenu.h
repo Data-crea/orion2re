@@ -1,6 +1,7 @@
 #pragma once
 
 namespace MAINMENU {
+    extern int16_t autoload_save_slot; // Zero-based, or -1 for no request.
     extern bool show_mod_list;
 
 #pragma pack(push, 1)

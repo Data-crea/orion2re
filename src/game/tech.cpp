@@ -95,6 +95,9 @@ namespace TECH {
     s_list_item_research* g_selected_entry_p;
     char tech_group_names[10][20];
     s_list_item_research* g_entries_p;
+    // Not allocated from screen_seg: pool blocks are only 2-byte aligned,
+    // and this struct holds a pointer.
+    s_list_item_research research_entries[8];
     s_colors tech_color[5];
 
     s_list_state g_tech_list_header = {
@@ -169,7 +172,7 @@ namespace TECH {
 
         saved_current_field = MOX::cur_plyr_ptr->current_research_field;
 
-        s_list_item_research* entries = (s_list_item_research*)(allocate::Allocate_Next_Block(MOX::screen_seg, sizeof(s_list_item_research) * 8));
+        s_list_item_research* entries = research_entries;
         MOX::tech_desc_seg = allocate::Allocate_Next_Block(MOX::screen_seg, 0x57C);
 
         RUSS::Mox_Update();

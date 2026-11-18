@@ -611,7 +611,7 @@ DOCTEST_TEST_CASE("returning fighters refill surviving bays in slot order") {
     DOCTEST_CHECK(source->weapons[0].ammo == 1);
     DOCTEST_CHECK(source->weapons[0].shots_left == 0);
     DOCTEST_CHECK(source->weapons[1].count == 1);
-    DOCTEST_CHECK(source->weapons[1].ammo == 1);
+    DOCTEST_CHECK((source->weapons[1].ammo == 1));
     DOCTEST_CHECK(source->weapons[1].shots_left == 0);
     DOCTEST_CHECK(source->weapons[2].count == 3);
     DOCTEST_CHECK(source->weapons[2].ammo == 0);
@@ -1253,7 +1253,7 @@ DOCTEST_TEST_CASE("classic missile merging combines stacks from different rounds
 
     CMBTMIS::Merge_Missile(1);
 
-    DOCTEST_CHECK(MOX::missile[0].quantity == 7);
+    DOCTEST_CHECK((MOX::missile[0].quantity == 7));
     DOCTEST_CHECK(MOX::missile[1].type == WEAPON_NO_WEAPONS);
 }
 
@@ -1269,13 +1269,13 @@ DOCTEST_TEST_CASE("missile merging preserves oversized groups and reserves MIRV 
 
         CMBTMIS::Merge_Missile(1);
 
-        DOCTEST_CHECK(MOX::missile[0].quantity == limit - 3);
-        DOCTEST_CHECK(MOX::missile[1].quantity == 4);
+        DOCTEST_CHECK((MOX::missile[0].quantity == limit - 3));
+        DOCTEST_CHECK((MOX::missile[1].quantity == 4));
         DOCTEST_CHECK(MOX::missile[1].type == WEAPON_NUCLEAR_MISSILE);
 
         MOX::missile[1].quantity = 3;
         CMBTMIS::Merge_Missile(1);
-        DOCTEST_CHECK(MOX::missile[0].quantity == limit);
+        DOCTEST_CHECK((MOX::missile[0].quantity == limit));
         DOCTEST_CHECK(MOX::missile[1].type == WEAPON_NO_WEAPONS);
     }
 }
@@ -1286,8 +1286,8 @@ DOCTEST_TEST_CASE("cross-round missile merging can be disabled") {
 
     CMBTMIS::Merge_Missile(1);
 
-    DOCTEST_CHECK(MOX::missile[0].quantity == 3);
-    DOCTEST_CHECK(MOX::missile[1].quantity == 4);
+    DOCTEST_CHECK((MOX::missile[0].quantity == 3));
+    DOCTEST_CHECK((MOX::missile[1].quantity == 4));
 }
 
 DOCTEST_TEST_CASE("same-round missile stacks still merge") {
@@ -1297,7 +1297,7 @@ DOCTEST_TEST_CASE("same-round missile stacks still merge") {
 
     CMBTMIS::Merge_Missile(1);
 
-    DOCTEST_CHECK(MOX::missile[0].quantity == 7);
+    DOCTEST_CHECK((MOX::missile[0].quantity == 7));
     DOCTEST_CHECK(MOX::missile[1].type == WEAPON_NO_WEAPONS);
 }
 
@@ -1307,8 +1307,8 @@ DOCTEST_TEST_CASE("missile stacks from different owners do not merge") {
 
     CMBTMIS::Merge_Missile(1);
 
-    DOCTEST_CHECK(MOX::missile[0].quantity == 3);
-    DOCTEST_CHECK(MOX::missile[1].quantity == 4);
+    DOCTEST_CHECK((MOX::missile[0].quantity == 3));
+    DOCTEST_CHECK((MOX::missile[1].quantity == 4));
 }
 
 DOCTEST_TEST_CASE("dead missile stacks are not merged") {
@@ -1317,7 +1317,7 @@ DOCTEST_TEST_CASE("dead missile stacks are not merged") {
 
     CMBTMIS::Merge_Missile(1);
 
-    DOCTEST_CHECK(MOX::missile[0].quantity == 3);
+    DOCTEST_CHECK((MOX::missile[0].quantity == 3));
 }
 
 DOCTEST_TEST_CASE("bombardment cleanup removes lingering missile stacks") {
@@ -1326,6 +1326,6 @@ DOCTEST_TEST_CASE("bombardment cleanup removes lingering missile stacks") {
 
     CMBTMIS::Merge_Missile(1);
 
-    DOCTEST_CHECK(MOX::missile[0].quantity == 3);
+    DOCTEST_CHECK((MOX::missile[0].quantity == 3));
     DOCTEST_CHECK(MOX::missile[1].type == WEAPON_NO_WEAPONS);
 }

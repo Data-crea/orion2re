@@ -883,8 +883,8 @@ namespace MOX {
         {1, 0, 0, 421, 639, 479},
     };
     uint8_t main_palette_player_colors[MAX_PLAYERS] = {73, 98, 110, 32, 62, 148, 45, 85};
-    int16_t h_string_ix[397];
-    char h_strings[0x4074];
+    size_t h_string_ix[397];
+    std::vector<char> h_strings;
     s_help_box help_entry_list[50];
     uint8_t planet_special = 64;
     uint8_t planet_special_weighted_chance[SYSTEM_SPECIAL_COUNT] = {64, 5, 3, 2, 3, 2, 9, 4, 3, 0, 5, 0};
@@ -907,7 +907,9 @@ namespace MOX {
     void __cdecl Apply_Save_Settings(s_settings* settings) {
         MOX::settings.xenons_exist = settings->xenons_exist;
         MOX::settings.game_difficulty = settings->game_difficulty;
-        MOX::settings.number_of_players = settings->number_of_players;
+        // The saved setup preference is separate from the loaded game's player count.
+        MOX::settings.number_of_players = (int8_t)INITGAME::Normalize_New_Game_Player_Count(
+            settings->number_of_players, MOX::NUM_PLAYERS);
         MOX::settings.galaxy_size = settings->galaxy_size;
         MOX::settings.galaxy_age = settings->galaxy_age;
         MOX::settings.strategic_combat_flag = settings->strategic_combat_flag;

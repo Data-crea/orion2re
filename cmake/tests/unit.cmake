@@ -1,3 +1,5 @@
+include("${CMAKE_CURRENT_LIST_DIR}/shared_objects.cmake")
+
 set(ORION2RE_DEFAULT_CONFIG_SOURCES
     src/game/aibuild_config.cpp
     src/game/aidesign_config.cpp
@@ -33,6 +35,7 @@ set(ORION2RE_DEFAULT_CONFIG_SOURCES
     src/game/mainmenu_config.cpp
     src/game/maintain_config.cpp
     src/game/mainscr_config.cpp
+    src/game/mox2_config.cpp
     src/game/multplay_config.cpp
     src/game/newtech_config.cpp
     src/game/officer_config.cpp
@@ -49,24 +52,33 @@ set(ORION2RE_DEFAULT_CONFIG_SOURCES
     src/game/techinit_config.cpp
 )
 
+orion2re_test_shared_sources(ORION2RE_DEFAULT_CONFIG_OBJECTS ${ORION2RE_DEFAULT_CONFIG_SOURCES})
 add_library(orion2re_test_config_defaults STATIC
-    ${ORION2RE_DEFAULT_CONFIG_SOURCES}
+    ${ORION2RE_DEFAULT_CONFIG_OBJECTS}
 )
 target_compile_features(orion2re_test_config_defaults PRIVATE cxx_std_20)
 target_include_directories(orion2re_test_config_defaults PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 target_link_libraries(orion2re_test_config_defaults PRIVATE SDL3::Headers)
+orion2re_enable_sanitizers(orion2re_test_config_defaults)
 
 function(orion2re_add_unit_test TARGET_NAME)
     cmake_parse_arguments(ORION2RE_TEST "LINK_SDL" "" "SOURCES;PRODUCTION_SOURCES;FAKE_SOURCES;LIBRARIES" ${ARGN})
 
-    add_executable(${TARGET_NAME}
-        tests/test_main.cpp
+    if("src/game/compat.cpp" IN_LIST ORION2RE_TEST_PRODUCTION_SOURCES)
+        list(APPEND ORION2RE_TEST_PRODUCTION_SOURCES src/game/user_paths.cpp)
+    endif()
+
+    orion2re_test_shared_sources(ORION2RE_TEST_OBJECTS
         ${ORION2RE_TEST_SOURCES}
         ${ORION2RE_TEST_PRODUCTION_SOURCES}
         ${ORION2RE_TEST_FAKE_SOURCES}
         src/pch.cpp
+    )
+    add_executable(${TARGET_NAME}
+        tests/test_main.cpp
+        ${ORION2RE_TEST_OBJECTS}
     )
 
     target_compile_features(${TARGET_NAME} PRIVATE cxx_std_20)
@@ -90,6 +102,7 @@ function(orion2re_add_unit_test TARGET_NAME)
         orion2re_test_config_defaults
         ${ORION2RE_TEST_LIBRARIES}
     )
+    orion2re_enable_sanitizers(${TARGET_NAME})
 
     if(MSVC)
         target_compile_options(${TARGET_NAME} PRIVATE /W3 /permissive-)
@@ -104,6 +117,16 @@ function(orion2re_add_unit_test TARGET_NAME)
 
     add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 endfunction()
+
+orion2re_add_unit_test(test_user_paths
+    SOURCES
+        tests/unit/user_paths_test.cpp
+    PRODUCTION_SOURCES
+        src/game/compat.cpp
+        src/game/dos.cpp
+        src/startup_directory.cpp
+    LINK_SDL
+)
 
 orion2re_add_unit_test(test_fields_helpers
     SOURCES
@@ -194,6 +217,25 @@ orion2re_add_unit_test(test_allocate
     PRODUCTION_SOURCES
         src/game/allocate.cpp
 )
+
+orion2re_add_unit_test(test_score
+    SOURCES tests/unit/score_test.cpp
+    PRODUCTION_SOURCES
+        src/game/score.cpp
+        src/game/allocate.cpp
+    LINK_SDL
+)
+if(MSVC)
+    target_compile_options(test_score PRIVATE /Gy)
+    target_link_options(test_score PRIVATE /OPT:REF)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_score PRIVATE -ffunction-sections -fdata-sections)
+    if(APPLE)
+        target_link_options(test_score PRIVATE -Wl,-dead_strip)
+    else()
+        target_link_options(test_score PRIVATE -Wl,--gc-sections)
+    endif()
+endif()
 
 orion2re_add_unit_test(test_resource_reload
     SOURCES tests/unit/resource_reload_test.cpp
@@ -485,6 +527,30 @@ orion2re_add_unit_test(test_config_lifecycle
     LINK_SDL
 )
 
+orion2re_add_unit_test(test_startup_directory
+    SOURCES
+        tests/unit/startup_directory_test.cpp
+    PRODUCTION_SOURCES
+        src/startup_directory.cpp
+        src/game/compat.cpp
+        src/game/vfs.cpp
+        src/game/vfs_file.cpp
+        src/game/vfs_lbx.cpp
+        src/game/vfs_path.cpp
+        src/game/vfs_zip.cpp
+    LIBRARIES
+        miniz
+    LINK_SDL
+)
+
+orion2re_add_unit_test(test_startup_options
+    SOURCES
+        tests/unit/startup_options_test.cpp
+    PRODUCTION_SOURCES
+        src/command_line.cpp
+        src/startup_options.cpp
+)
+
 orion2re_add_unit_test(test_config_loader
     SOURCES
         tests/unit/config_loader_test.cpp
@@ -660,6 +726,34 @@ orion2re_add_unit_test(test_aidudes
         tests/fakes/fake_aidudes_runtime.cpp
 )
 
+orion2re_add_unit_test(test_orbital_defense
+    SOURCES
+        tests/unit/orbital_defense_test.cpp
+    PRODUCTION_SOURCES
+        src/game/aidudes.cpp
+        src/game/colcalc_config.cpp
+        src/game/compat.cpp
+        src/game/ericnet.cpp
+        src/game/production_rules.cpp
+        src/game/special.cpp
+        src/game/sys.cpp
+    FAKE_SOURCES
+        tests/fakes/fake_ericnet_runtime.cpp
+        tests/fakes/fake_orbital_defense_runtime.cpp
+)
+
+if(MSVC)
+    target_compile_options(test_orbital_defense PRIVATE /Gy)
+    target_link_options(test_orbital_defense PRIVATE /OPT:REF)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_orbital_defense PRIVATE -ffunction-sections -fdata-sections)
+    if(APPLE)
+        target_link_options(test_orbital_defense PRIVATE -Wl,-dead_strip)
+    else()
+        target_link_options(test_orbital_defense PRIVATE -Wl,--gc-sections)
+    endif()
+endif()
+
 orion2re_add_unit_test(test_antarans
     SOURCES
         tests/unit/antarans_test.cpp
@@ -789,6 +883,32 @@ orion2re_add_unit_test(test_colony_production_helpers
         tests/fakes/fake_colcalc_base_runtime.cpp
 )
 
+orion2re_add_unit_test(test_plntsum_filters
+    SOURCES
+        tests/unit/plntsum_test.cpp
+    PRODUCTION_SOURCES
+        src/game/bomb.cpp
+        src/game/compat.cpp
+        src/game/plntsum.cpp
+        src/game/harold.cpp
+        src/game/struct.cpp
+    FAKE_SOURCES
+        tests/fakes/fake_plntsum_runtime.cpp
+        tests/fakes/fake_sdl_string.cpp
+)
+
+if(MSVC)
+    target_compile_options(test_plntsum_filters PRIVATE /Gy)
+    target_link_options(test_plntsum_filters PRIVATE /OPT:REF)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_plntsum_filters PRIVATE -ffunction-sections -fdata-sections)
+    if(APPLE)
+        target_link_options(test_plntsum_filters PRIVATE -Wl,-dead_strip)
+    else()
+        target_link_options(test_plntsum_filters PRIVATE -Wl,--gc-sections)
+    endif()
+endif()
+
 orion2re_add_unit_test(test_colony_production_draw
     SOURCES
         tests/unit/coldraw_test.cpp
@@ -906,6 +1026,7 @@ orion2re_add_unit_test(test_events
         src/game/events.cpp
     FAKE_SOURCES
         tests/fakes/fake_events_runtime.cpp
+        tests/fakes/fake_string_message_loader.cpp
         tests/fakes/fake_sdl_string.cpp
 )
 
@@ -968,6 +1089,27 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_link_options(test_events PRIVATE -Wl,--gc-sections)
         target_link_options(test_mainpups_leader_technology PRIVATE -Wl,--gc-sections)
         target_link_options(test_nextturn_order PRIVATE -Wl,--gc-sections)
+    endif()
+endif()
+
+orion2re_add_unit_test(test_nonplayer_spawn
+    SOURCES
+        tests/unit/nonplayer_spawn_test.cpp
+    PRODUCTION_SOURCES
+        src/game/ships.cpp
+        src/game/harold.cpp
+        src/game/random.cpp
+)
+
+if(MSVC)
+    target_compile_options(test_nonplayer_spawn PRIVATE /Gy)
+    target_link_options(test_nonplayer_spawn PRIVATE /OPT:REF)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_nonplayer_spawn PRIVATE -ffunction-sections -fdata-sections)
+    if(APPLE)
+        target_link_options(test_nonplayer_spawn PRIVATE -Wl,-dead_strip)
+    else()
+        target_link_options(test_nonplayer_spawn PRIVATE -Wl,--gc-sections)
     endif()
 endif()
 
@@ -1102,6 +1244,25 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         target_link_options(test_geo PRIVATE -Wl,--gc-sections)
         target_link_options(test_homegen PRIVATE -Wl,--gc-sections)
         target_link_options(test_mapgen_planet_max PRIVATE -Wl,--gc-sections)
+    endif()
+endif()
+
+orion2re_add_unit_test(test_colgcbt
+    SOURCES
+        tests/unit/colgcbt_test.cpp
+    PRODUCTION_SOURCES
+        src/game/colgcbt.cpp
+)
+
+if(MSVC)
+    target_compile_options(test_colgcbt PRIVATE /Gy)
+    target_link_options(test_colgcbt PRIVATE /OPT:REF)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_colgcbt PRIVATE -ffunction-sections -fdata-sections)
+    if(APPLE)
+        target_link_options(test_colgcbt PRIVATE -Wl,-dead_strip)
+    else()
+        target_link_options(test_colgcbt PRIVATE -Wl,--gc-sections)
     endif()
 endif()
 
@@ -1597,6 +1758,7 @@ orion2re_add_unit_test(test_techinit
     FAKE_SOURCES
         tests/fakes/fake_arena_runtime.cpp
         tests/fakes/fake_techinit_runtime.cpp
+        tests/fakes/fake_string_table_loader.cpp
     LINK_SDL
 )
 
@@ -1811,6 +1973,13 @@ orion2re_add_unit_test(test_vfs
     LINK_SDL
 )
 
+orion2re_add_unit_test(test_smack
+    SOURCES
+        tests/unit/smack_test.cpp
+    PRODUCTION_SOURCES
+        src/game/smack.cpp
+)
+
 orion2re_add_unit_test(test_smckplay
     SOURCES
         tests/unit/smckplay_test.cpp
@@ -1862,6 +2031,9 @@ orion2re_add_unit_test(test_farload_buffer_vfs
         src/game/buffer.cpp
         src/game/compat.cpp
         src/game/farload.cpp
+        src/game/string_overrides.cpp
+        src/config/text_encoding.cpp
+        vendors/yyjson/src/yyjson.c
         src/game/vfs.cpp
         src/game/vfs_file.cpp
         src/game/vfs_lbx.cpp
@@ -1879,6 +2051,17 @@ orion2re_add_unit_test(test_farload_buffer_vfs
         miniz
     LINK_SDL
 )
+
+target_include_directories(test_farload_buffer_vfs PRIVATE "${ORION2RE_VENDORED_YYJSON_DIR}/src")
+target_compile_definitions(test_farload_buffer_vfs PRIVATE
+    STRING_OVERRIDE_BASE_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/base"
+)
+
+foreach(TARGET_NAME IN ITEMS test_newgame test_homegen test_mapgen_planet_max
+    test_lua_mod_runtime test_refit_cost test_design_weapon_damage test_shield_table
+    test_ground_commando test_mainpups_leader_technology test_racesel_digest)
+    target_sources(${TARGET_NAME} PRIVATE tests/fakes/fake_string_overrides.cpp)
+endforeach()
 
 orion2re_add_unit_test(test_fields
     SOURCES

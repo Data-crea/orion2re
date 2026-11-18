@@ -53,8 +53,8 @@ namespace TEST_LUA_GAME {
             GOVERNMENT_UNIFICATION;
         players[1].home_planet_id = -1;
         for (s_star_data& system : systems) {
-            for (std::int16_t& planet_id : system.planet_index) {
-                planet_id = -1;
+            for (int index = 0; index < 5; ++index) {
+                system.planet_index[index] = -1;
             }
         }
         for (s_planet_data& planet : planets) {

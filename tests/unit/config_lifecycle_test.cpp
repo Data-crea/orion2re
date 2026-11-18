@@ -43,6 +43,51 @@ namespace {
 
 DOCTEST_TEST_SUITE("configuration lifecycle") {
 
+DOCTEST_TEST_CASE("startup display settings preserve defaults and accept overrides") {
+    const auto width = Variable_Id_("interface.window_width");
+    const auto height = Variable_Id_("interface.window_height");
+    const auto fullscreen = Variable_Id_("interface.fullscreen");
+    DOCTEST_REQUIRE(width != config::CONFIG_NO_VARIABLE);
+    DOCTEST_REQUIRE(height != config::CONFIG_NO_VARIABLE);
+    DOCTEST_REQUIRE(fullscreen != config::CONFIG_NO_VARIABLE);
+    config::s_effective_config effective;
+    DOCTEST_REQUIRE(config::Initialize_Effective_Config(&effective));
+    DOCTEST_CHECK(effective.state.values[width].integer_value == 640);
+    DOCTEST_CHECK(effective.state.values[height].integer_value == 480);
+    DOCTEST_CHECK_FALSE(effective.state.values[fullscreen].bool_value);
+
+    config::s_cfg_diagnostic diagnostic;
+    DOCTEST_REQUIRE(Apply_(
+        "interface window_width = 1280; interface window_height = 960; "
+        "interface fullscreen = true;",
+        "base_game", &effective, &diagnostic));
+    DOCTEST_CHECK(platform::g_window_width == 1280);
+    DOCTEST_CHECK(platform::g_window_height == 960);
+    DOCTEST_CHECK(platform::g_fullscreen == 1);
+
+    const config::s_config_state prior = effective.state;
+    for (const char* source : {
+             "interface window_width = 0;",
+             "interface window_height = -1;",
+             "interface window_width = 16385;",
+             "interface window_height = 16385;",
+             "interface fullscreen = invalid;"}) {
+        DOCTEST_CHECK_FALSE(Apply_(source, "base_game", &effective, &diagnostic));
+        DOCTEST_CHECK(States_Equal_(effective.state, prior));
+        DOCTEST_CHECK(platform::g_window_width == 1280);
+        DOCTEST_CHECK(platform::g_window_height == 960);
+        DOCTEST_CHECK(platform::g_fullscreen == 1);
+    }
+
+    DOCTEST_REQUIRE(Apply_(
+        "interface window_width = 640; interface window_height = 480; "
+        "interface fullscreen = false;",
+        "base_game", &effective, &diagnostic));
+    DOCTEST_CHECK(platform::g_window_width == 640);
+    DOCTEST_CHECK(platform::g_window_height == 480);
+    DOCTEST_CHECK(platform::g_fullscreen == 0);
+}
+
 DOCTEST_TEST_CASE("effective state initializes from defaults or current native values") {
     const config::t_variable_id scroll_interval =
         Variable_Id_("interface.scroll_interval");

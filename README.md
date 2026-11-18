@@ -186,6 +186,8 @@ off on request).
 
 This project is a restoration effort for the Master of Orion II game engine. Check our [documentation portal](https://moo2mod.com/redone/doc/) too.
 
+The game is fully playable and includes all bug fixes and optional community improvements up to the latest version of the unofficial 1.50 patch.
+
 All rights to Master of Orion II, its assets, trademarks, and related intellectual property belong to their corresponding owners.
 
 This repository does not include the original game data. To play, you must own a legitimate copy of Master of Orion II and provide the original game files from a supported release such as GOG or Steam.
@@ -222,6 +224,54 @@ Supported build paths:
 - Linux-hosted MinGW-w64 cross-builds for Win32 and Win64
 
 macOS builds use the native host architecture.
+
+## Downloads and CI packages
+
+Download stable builds from [GitHub Releases](https://github.com/orion2re/orion2re/releases).
+New release ZIPs include the tag, for example `orion2re-win-win32-v2.0.0.zip`;
+older assets keep their original names. Windows x86/x64 and macOS ARM64 are available.
+
+For development builds, select a successful **main** run under
+[Actions / CI and packages](https://github.com/orion2re/orion2re/actions/workflows/ci.yml)
+and download its platform artifact (sign-in required; retained for 30 days).
+The download is the distributable ZIP itself, such as `orion2re-win-win32-main.zip`,
+with the executable and `data/` at its root, not inside another archive or directory.
+The workflow run identifies the exact commit.
+
+Extract the ZIP over your existing game installation. Packages include runtime
+data but no commercial game files or `orion2re.cfg`, so your configuration survives
+updates. macOS builds are not Developer ID signed or notarized and may require
+approval in System Settings / Privacy & Security. Extract with Archive Utility or
+`ditto`, keeping the app, executable, and data together to preserve the app symlink.
+
+On all platforms, the game uses the executable's directory for data, configuration,
+and save files, regardless of the launcher's working directory. Linux desktop
+launchers do not need a `Path=` entry pointing to the installation directory.
+
+### Bumping the game version
+
+Record public-facing changes in the [changelog](docs/content/changelog.md) under
+the relevant version and change category, using a short description of what
+changes for players or mod authors. Keep the newest version at the top, even
+before it is released.
+
+Edit only the root [`VERSION`](VERSION) file, for example from `2.0.0` to
+`2.0.1`, and commit the change. Use `major.minor.patch` without a `v` prefix,
+leading zeroes, or prerelease suffix. CMake regenerates the engine version used
+by mod `requires.engine` checks, the menu label, and macOS bundle metadata.
+An existing CMake build automatically reconfigures when this file changes.
+
+To publish an official release, tag that commit with `v` followed by `VERSION`
+(for example `v2.0.1`), push the tag, and publish its GitHub Release. Publishing
+the release triggers CI; pushing the tag alone does not. CI rejects a tag that
+does not match `VERSION`, then builds and attaches the game ZIPs, documentation
+ZIP, and PDF with that tag in their filenames. Development artifacts retain
+the `main` suffix. A version edit alone does not publish anything.
+
+Do not bump bundled mods' own versions or their `requires.engine` ranges just
+to match the game: those describe package versions and supported engine ranges.
+Save-format versions, network protocol versions, and the multiplayer build-date
+compatibility marker are separate and are not changed by a release version bump.
 
 ## Vendored submodules
 

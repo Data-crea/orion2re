@@ -50,10 +50,10 @@ struct s_tech_review_achievement {
 
 namespace INFO {
     enum {
-        TECH_REVIEW_ACHIEVEMENT_COUNT = 58,
-        TECH_REVIEW_COLONY_COUNT = 53,
-        TECH_REVIEW_WEAPON_COUNT = 45,
-        TECH_REVIEW_EQUIPMENT_COUNT = 79,
+        TECH_REVIEW_ACHIEVEMENT_COUNT = 256,
+        TECH_REVIEW_COLONY_COUNT = 256,
+        TECH_REVIEW_WEAPON_COUNT = 256,
+        TECH_REVIEW_EQUIPMENT_COUNT = 256,
     };
 
     extern s_tech_review_achievement review_achievements[TECH_REVIEW_ACHIEVEMENT_COUNT];

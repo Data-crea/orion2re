@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 #include "fields.h"
 #include "raceopt.h"
 
@@ -817,14 +818,16 @@ namespace RACESEL {
         fields::Assign_Auto_Function(RACESEL::Draw_Naming_Popup, 1);
         allocate::Push_Block(MOX::screen_seg);
 
+        const int32_t name_index = (int32_t)game_random::Random(8) + (int32_t)race_idx * 8 - 1;
         RACESEL::temp_ruler_name = (char*)farload::Far_Reload_Next_Data(
             "RACENAME.LBX",
             0,
             MOX::screen_seg,
-            (int32_t)game_random::Random(8) + (int32_t)race_idx * 8 - 1,
+            name_index,
             1,
             sizeof(original_name));
 
+        string_overrides::Apply_String("RACENAME.LBX", name_index + 1, temp_ruler_name, sizeof(original_name));
         strlcpy(original_name, RACESEL::temp_ruler_name, sizeof(original_name));
 
         KEN::Ken_Get_Text_Message(0x6A, popup_text, sizeof(popup_text));

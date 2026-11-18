@@ -184,8 +184,8 @@ DOCTEST_TEST_CASE("tactical initialization fills all six persistent designs") {
 
     for (int16_t design_idx = 0; design_idx < SHIP_SIZE_COUNT; ++design_idx) {
         DOCTEST_CHECK(players[kPlayer].ship_designs[design_idx].size == design_idx);
-        DOCTEST_CHECK(players[kPlayer].ship_designs[design_idx].cost ==
-            100 + design_idx);
+        DOCTEST_CHECK((players[kPlayer].ship_designs[design_idx].cost ==
+            100 + design_idx));
     }
 }
 
@@ -403,6 +403,11 @@ DOCTEST_TEST_CASE("monster structural hits use configured encounter values") {
         1001,
         1501,
         2501,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
     };
 
     ships[0].d.previous_owner = NONPLAYER_SHIP_TYPE_AMOEBA;
@@ -423,6 +428,50 @@ DOCTEST_TEST_CASE("monster structural hits use configured encounter values") {
     ships[0].d.ftl_type = DRIVE_FUSION_DRIVE;
     DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == 1501);
 
+    const uint8_t builders[] = {
+        NONPLAYER_SHIP_TYPE_CRYSTAL,
+        NONPLAYER_SHIP_TYPE_HYDRA,
+        NONPLAYER_SHIP_TYPE_DRAGON,
+    };
+    for (uint8_t builder : builders) {
+        ships[0].d.previous_owner = builder;
+        ships[0].d.ftl_type = DRIVE_NO_DRIVE;
+        DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == 501);
+        ships[0].d.ftl_type = DRIVE_FUSION_DRIVE;
+        DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) ==
+            (builder == NONPLAYER_SHIP_TYPE_HYDRA ? 1501 : 2501));
+    }
+
+    SHIP_CONFIG::monster.hit_points.system_crystal = 502;
+    SHIP_CONFIG::monster.hit_points.system_hydra = 503;
+    SHIP_CONFIG::monster.hit_points.system_dragon = 504;
+    SHIP_CONFIG::monster.hit_points.event_crystal = 2502;
+    SHIP_CONFIG::monster.hit_points.event_dragon = 2503;
+    const int16_t system_hits[] = {502, 503, 504};
+    const int16_t event_hits[] = {2502, 1501, 2503};
+    for (int i = 0; i < 3; ++i) {
+        ships[0].d.previous_owner = builders[i];
+        ships[0].d.ftl_type = DRIVE_NO_DRIVE;
+        DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == system_hits[i]);
+        ships[0].d.ftl_type = DRIVE_FUSION_DRIVE;
+        DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == event_hits[i]);
+    }
+
+    ships[0].d.previous_owner = NONPLAYER_SHIP_TYPE_DRAGON;
+    SHIP_CONFIG::monster.hit_points.event_dragon = 0;
+    DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == 0);
+    SHIP_CONFIG::monster.hit_points.event_dragon = 32767;
+    DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == 32767);
+    SHIP_CONFIG::monster.hit_points.event_dragon = -1;
+    DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == 2501);
+    ships[0].d.ftl_type = DRIVE_NO_DRIVE;
+    SHIP_CONFIG::monster.hit_points.system_dragon = 0;
+    DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == 0);
+    SHIP_CONFIG::monster.hit_points.system_dragon = 32767;
+    DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == 32767);
+    SHIP_CONFIG::monster.hit_points.system_dragon = -1;
+    DOCTEST_CHECK(INITSHIP::Get_Ship_Structure(0) == 501);
+
     SHIP_CONFIG::monster.hit_points = original;
 }
 
@@ -431,7 +480,7 @@ DOCTEST_TEST_CASE("defensive Antaran loaders preserve configured weapons and spe
     MOX::settings.game_difficulty = GAME_DIFFICULTY_AVERAGE;
 
     INITSHIP::Load_Small_Antaran_Combat_Ship(0);
-    DOCTEST_CHECK(combat_data[0].weapons[1].weapon_id == 24);
+    DOCTEST_CHECK((combat_data[0].weapons[1].weapon_id == 24));
     DOCTEST_CHECK(combat_data[0].weapons[1].count == 1);
     DOCTEST_CHECK(combat_data[0].weapons[0].ammo == -1);
 
@@ -440,7 +489,7 @@ DOCTEST_TEST_CASE("defensive Antaran loaders preserve configured weapons and spe
     DOCTEST_CHECK(combat_data[0].weapons[4].count == 3);
 
     INITSHIP::Load_Titan_Antaran_Combat_Ship(0);
-    DOCTEST_CHECK(combat_data[0].weapons[7].weapon_id == 31);
+    DOCTEST_CHECK((combat_data[0].weapons[7].weapon_id == 31));
     DOCTEST_CHECK(combat_data[0].weapons[7].count == 6);
 
     s_ship_design& titan = SHIP_CONFIG::antaran_defensive_templates
@@ -452,9 +501,9 @@ DOCTEST_TEST_CASE("defensive Antaran loaders preserve configured weapons and spe
 
     INITSHIP::Load_Titan_Antaran_Combat_Ship(0);
     DOCTEST_CHECK(combat_data[0].special_device_flags[1] == 0x04);
-    DOCTEST_CHECK(combat_data[0].shield_arc_max == 37);
+    DOCTEST_CHECK((combat_data[0].shield_arc_max == 37));
     for (int i = 0; i < 4; ++i) {
-        DOCTEST_CHECK(combat_data[0].shield_arc_current[i] == 37);
+        DOCTEST_CHECK((combat_data[0].shield_arc_current[i] == 37));
     }
 
     titan.special_device_flags[1] = original_special;
@@ -547,9 +596,9 @@ DOCTEST_TEST_CASE("default defensive Harbinger loader preserves all tactical slo
         DOCTEST_CHECK(combat_data[0].weapons[6].weapon_id ==
             WEAPON_BLACK_HOLE_GENERATOR);
         DOCTEST_CHECK(combat_data[0].weapons[6].count == 1);
-        DOCTEST_CHECK(combat_data[0].weapons[7].weapon_id == WEAPON_INTERCEPTOR);
+        DOCTEST_CHECK((combat_data[0].weapons[7].weapon_id == WEAPON_INTERCEPTOR));
         DOCTEST_CHECK(combat_data[0].weapons[7].count == 6);
-        DOCTEST_CHECK(combat_data[0].weapons[7].ammo == 1);
+        DOCTEST_CHECK((combat_data[0].weapons[7].ammo == 1));
         if (difficulty == GAME_DIFFICULTY_TUTOR) {
             DOCTEST_CHECK(struct_::Test_Bit_Field(
                 combat_data[0].special_device_flags, SPECIAL_ECM_JAMMER));

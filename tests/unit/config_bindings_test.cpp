@@ -43,6 +43,7 @@
 #include "game/mainmenu.h"
 #include "game/mainscr.h"
 #include "game/mox.h"
+#include "game/mox2.h"
 #include "game/multplay.h"
 #include "game/newtech.h"
 #include "game/newpup.h"
@@ -825,6 +826,230 @@ DOCTEST_TEST_CASE("Tech Review ordering binds named applications and groups") {
         &diagnostic));
 }
 
+DOCTEST_TEST_CASE("Tech Review full lists allow swapping technologies between categories") {
+    std::string source = R"(
+interface tech_review_achievements =
+    no_tech new_construction_types
+    doom_star_construction none
+    planet_construction none
+    titan_construction none
+    transport none
+    freighters none
+    outpost_ship none
+    colony_ship none
+    colony_base none
+    no_tech spies
+    psionics none
+    stealth_suit none
+    cyber_security_link none
+    telepathic_training none
+    neural_scanner none
+    spy_network none
+    no_tech ground_combat
+    battleoids none
+    powered_armor none
+    personal_shield none
+    anti_grav_harness none
+    plasma_rifle none
+    phasor_rifle none
+    fusion_rifle none
+    laser_rifle none
+    pulse_rifle none
+    no_tech ship_equipment
+    galactic_currency_exchange none
+    megafluxers none
+    emissions_guidance_system none
+    dauntless_guidance_system none
+    advanced_damage_control none
+    survival_pods none
+    no_tech colony
+    star_gate none
+    jump_gate none
+    android_scientists none
+    android_workers none
+    android_farmers none
+    advanced_city_planning none
+    nano_disassemblers none
+    microlite_construction none
+    biomorphic_fungi none
+    universal_antidote none
+    microbiotics none
+    no_tech miscellaneous
+    hyperspace_communications none
+    sub_space_communications none
+    tachyon_communications none
+    evolutionary_mutation none
+    heightened_intelligence none
+    xeno_psychology none
+    imperium none
+    galactic_unification none
+    federation none
+    confederation none
+    capitol none
+    no_tech none;
+interface tech_review_colony =
+    no_tech food
+    gaia_transformation none
+    terraforming none
+    food_replicators none
+    weather_control_system none
+    soil_enrichment none
+    subterranean_farms none
+    hydroponic_farm none
+    no_tech production
+    deep_core_mining none
+    robotic_factory none
+    recyclotron none
+    robo_miners none
+    automated_factories none
+    no_tech pollution
+    core_waste_dumps none
+    atmospheric_renewer none
+    pollution_processor none
+    no_tech research
+    galactic_cybernet none
+    autolab none
+    planetary_supercomputer none
+    research_laboratory none
+    no_tech money
+    planetary_stock_exchange none
+    spaceport none
+    no_tech morale
+    virtual_reality_network none
+    pleasure_dome none
+    holo_simulator none
+    no_tech colony_defense
+    warp_interdictor none
+    artemis_system_net none
+    star_fortress none
+    battlestation none
+    star_base none
+    planetary_barrier_shield none
+    planetary_flux_shield none
+    planetary_radiation_shield none
+    ground_batteries none
+    fighter_garrison none
+    planetary_missile_base none
+    armor_barracks none
+    marine_barracks none
+    no_tech miscellaneous
+    dimensional_portal none
+    planetary_gravity_generator none
+    astro_university none
+    alien_management_center none
+    space_academy none
+    cloning_center none
+    biospheres none
+    no_tech none;
+)";
+    config::s_config_write_set writes;
+    config::s_cfg_diagnostic diagnostic;
+
+    DOCTEST_SUBCASE("one-for-one exchange preserves both list capacities") {
+        config::s_config_state state;
+        DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+        DOCTEST_REQUIRE_MESSAGE(Append_Decoded_(source.c_str(), &writes, &diagnostic),
+            diagnostic.message);
+        DOCTEST_CHECK(writes.writes.size() == 2 * (58 + 53));
+        DOCTEST_REQUIRE_MESSAGE(config::Apply_Write_Set(&writes, &state, &diagnostic),
+            diagnostic.message);
+        DOCTEST_REQUIRE(config::Commit_State(&state));
+
+        DOCTEST_CHECK(INFO::review_achievements[26].group == TECH_REVIEW_GROUP_SHIP_EQUIPMENT);
+        DOCTEST_CHECK(INFO::review_achievements[27].application == TECH_APP_GALACTIC_CURRENCY_EXCHANGE);
+        DOCTEST_CHECK(INFO::review_achievements[27].group == TECH_REVIEW_GROUP_NONE);
+        DOCTEST_CHECK(INFO::review_colony[26].group == TECH_REVIEW_GROUP_MORALE);
+        DOCTEST_CHECK(INFO::review_colony[27].application == TECH_APP_VIRTUAL_REALITY_NETWORK);
+        DOCTEST_CHECK(INFO::review_colony[27].group == TECH_REVIEW_GROUP_NONE);
+        for (const s_tech_review_achievement& entry : INFO::review_achievements) {
+            DOCTEST_CHECK(entry.application != TECH_APP_VIRTUAL_REALITY_NETWORK);
+        }
+        for (const s_tech_review_achievement& entry : INFO::review_colony) {
+            DOCTEST_CHECK(entry.application != TECH_APP_GALACTIC_CURRENCY_EXCHANGE);
+        }
+    }
+
+    DOCTEST_SUBCASE("an extra colony entry fits beyond the original capacity") {
+        source.insert(source.rfind("    no_tech none;"), "    virtual_reality_network none\n");
+        config::s_config_state state;
+        DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+        DOCTEST_REQUIRE_MESSAGE(Append_Decoded_(source.c_str(), &writes, &diagnostic),
+            diagnostic.message);
+        DOCTEST_REQUIRE_MESSAGE(config::Apply_Write_Set(&writes, &state, &diagnostic),
+            diagnostic.message);
+        DOCTEST_REQUIRE(config::Commit_State(&state));
+        DOCTEST_CHECK(INFO::review_colony[52].application == TECH_APP_VIRTUAL_REALITY_NETWORK);
+        DOCTEST_CHECK(INFO::review_colony[52].group == TECH_REVIEW_GROUP_NONE);
+        DOCTEST_CHECK(INFO::review_colony[53].application == TECH_APP_NO_TECH);
+        DOCTEST_CHECK(INFO::review_colony[53].group == TECH_REVIEW_GROUP_NONE);
+    }
+}
+
+DOCTEST_TEST_CASE("Tech Review categories accept 256 slots and reject overflow") {
+    const char* categories[] = {
+        "tech_review_achievements",
+        "tech_review_colony",
+        "tech_review_weapons",
+        "tech_review_equipment",
+    };
+    for (int category = 0; category < 4; ++category) {
+        DOCTEST_CAPTURE(categories[category]);
+        config::s_config_state state;
+        DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+        const std::string path = std::string("interface ") + categories[category];
+        std::string source = path + " =\n";
+        for (int entry = 0; entry < 255; ++entry) {
+            source += entry % 17 == 0 ? "no_tech miscellaneous\n" : "virtual_reality_network none\n";
+        }
+        source += "no_tech none;";
+
+        config::s_config_write_set writes;
+        config::s_cfg_diagnostic diagnostic;
+        DOCTEST_REQUIRE_MESSAGE(Append_Decoded_(source.c_str(), &writes, &diagnostic),
+            diagnostic.message);
+        DOCTEST_CHECK(writes.writes.size() == 512);
+        DOCTEST_REQUIRE_MESSAGE(config::Apply_Write_Set(&writes, &state, &diagnostic),
+            diagnostic.message);
+        DOCTEST_REQUIRE(config::Commit_State(&state));
+        const s_tech_review_achievement* review = INFO::review_list[category];
+        for (int entry = 0; entry < 255; ++entry) {
+            DOCTEST_CHECK(review[entry].application ==
+                (entry % 17 == 0 ? TECH_APP_NO_TECH : TECH_APP_VIRTUAL_REALITY_NETWORK));
+            DOCTEST_CHECK(review[entry].group ==
+                (entry % 17 == 0 ? TECH_REVIEW_GROUP_MISCELLANEOUS : TECH_REVIEW_GROUP_NONE));
+        }
+        DOCTEST_CHECK(review[255].application == TECH_APP_NO_TECH);
+        DOCTEST_CHECK(review[255].group == TECH_REVIEW_GROUP_NONE);
+
+        writes.writes.clear();
+        DOCTEST_REQUIRE(Append_Decoded_((path + " 256 = no_tech none;").c_str(),
+            &writes,
+            &diagnostic));
+        DOCTEST_CHECK(writes.writes.size() == 2);
+        writes.writes.clear();
+        DOCTEST_CHECK_FALSE(Append_Decoded_((path + " 257 = no_tech none;").c_str(),
+            &writes,
+            &diagnostic));
+
+        writes.writes.clear();
+        DOCTEST_REQUIRE(Append_Decoded_(
+            (path + " = no_tech miscellaneous virtual_reality_network none no_tech none;").c_str(),
+            &writes,
+            &diagnostic));
+        DOCTEST_REQUIRE(config::Apply_Write_Set(&writes, &state, &diagnostic));
+        DOCTEST_REQUIRE(config::Commit_State(&state));
+        DOCTEST_CHECK(review[2].application == TECH_APP_NO_TECH);
+        DOCTEST_CHECK(review[2].group == TECH_REVIEW_GROUP_NONE);
+
+        writes.writes.clear();
+        source.insert(source.rfind("no_tech none;"), "virtual_reality_network none\n");
+        DOCTEST_REQUIRE_FALSE(Append_Decoded_(source.c_str(), &writes, &diagnostic));
+        DOCTEST_CHECK(diagnostic.message ==
+            std::string("value 513 exceeds selected configuration object 'interface.") +
+                categories[category] + "'");
+    }
+}
+
 DOCTEST_TEST_CASE("colony autobuild settings bind and validate queue defaults") {
     config::s_config_state state;
     DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
@@ -1035,6 +1260,7 @@ DOCTEST_TEST_CASE("interface and colony formula settings preserve 1.50 defaults"
 
 DOCTEST_TEST_CASE("local presentation settings stay out of saves and synchronization") {
     const char* paths[] = {
+        "interface.show_exit_message",
         "interface.allow_future_technology_browsing",
         "interface.main_menu_mod_list",
     };
@@ -1048,6 +1274,24 @@ DOCTEST_TEST_CASE("local presentation settings stay out of saves and synchroniza
         DOCTEST_CHECK_FALSE(group->save);
         DOCTEST_CHECK_FALSE(group->synchronize);
     }
+}
+
+DOCTEST_TEST_CASE("exit message defaults off and can be enabled through configuration") {
+    config::s_config_state state;
+    DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+    DOCTEST_REQUIRE(config::Commit_State(&state));
+    DOCTEST_CHECK_FALSE(MOX2::show_exit_message);
+
+    config::s_config_write_set writes;
+    config::s_cfg_diagnostic diagnostic;
+    DOCTEST_REQUIRE(Append_Decoded_("interface show_exit_message = true;", &writes, &diagnostic));
+    DOCTEST_REQUIRE(config::Apply_Write_Set(&writes, &state, &diagnostic));
+    DOCTEST_REQUIRE(config::Commit_State(&state));
+    DOCTEST_CHECK(MOX2::show_exit_message);
+
+    DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+    DOCTEST_REQUIRE(config::Commit_State(&state));
+    DOCTEST_CHECK_FALSE(MOX2::show_exit_message);
 }
 
 DOCTEST_TEST_CASE("saved interface settings and synchronized policies use distinct groups") {
@@ -1107,6 +1351,45 @@ DOCTEST_TEST_CASE("ship communication ranges preserve and replace classic relay 
         "movement ship_communication_range tachyon = 256;",
         &writes,
         &diagnostic));
+}
+
+DOCTEST_TEST_CASE("Phase Shifter strategic speed ratio defaults to unity and binds gameplay settings") {
+    config::s_config_state state;
+    DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+    DOCTEST_REQUIRE(config::Commit_State(&state));
+    DOCTEST_CHECK(SHIPMOVE::phase_shifter_speed_multiplier.numerator == 1);
+    DOCTEST_CHECK(SHIPMOVE::phase_shifter_speed_multiplier.denominator == 1);
+
+    const config::t_variable_id variable =
+        Variable_Id_("movement.phase_shifter_speed_multiplier");
+    DOCTEST_REQUIRE(variable != config::CONFIG_NO_VARIABLE);
+    const config::s_config_group_descriptor* group =
+        config::Get_Config_Group(config::Get_Variable_Group(variable));
+    DOCTEST_REQUIRE(group != nullptr);
+    DOCTEST_CHECK(group->save);
+    DOCTEST_CHECK(group->synchronize);
+
+    const char* sources[] = {
+        "movement phase_shifter_speed_multiplier = 1/2;",
+        "movement phase_shifter_speed_multiplier = 2/1;",
+        "movement phase_shifter_speed_multiplier = 1;",
+    };
+    const s_ratio16 expected[] = {{1, 2}, {2, 1}, {1, 1}};
+    config::s_cfg_diagnostic diagnostic;
+    for (int i = 0; i < 3; ++i) {
+        config::s_config_write_set writes;
+        DOCTEST_REQUIRE(Append_Decoded_(sources[i], &writes, &diagnostic));
+        DOCTEST_REQUIRE(config::Apply_Write_Set(&writes, &state, &diagnostic));
+        DOCTEST_REQUIRE(config::Commit_State(&state));
+        DOCTEST_CHECK(SHIPMOVE::phase_shifter_speed_multiplier.numerator == expected[i].numerator);
+        DOCTEST_CHECK(SHIPMOVE::phase_shifter_speed_multiplier.denominator == expected[i].denominator);
+    }
+
+    config::s_config_write_set writes;
+    DOCTEST_CHECK_FALSE(Append_Decoded_(
+        "movement phase_shifter_speed_multiplier = 2/0;", &writes, &diagnostic));
+    DOCTEST_CHECK_FALSE(Append_Decoded_(
+        "movement phase_shifter_speed_multiplier = 32768/1;", &writes, &diagnostic));
 }
 
 DOCTEST_TEST_CASE("Warp Interdictor range preserves the 1.50 squared-coordinate default") {
@@ -2071,7 +2354,7 @@ DOCTEST_TEST_CASE("leader progression settings preserve 1.50 defaults and bounds
     DOCTEST_CHECK(OFFICER::progression.availability.base_amount == 10);
     DOCTEST_CHECK(OFFICER::progression.availability.increment_step == 5);
     DOCTEST_CHECK(OFFICER::progression.hire_chance.initial_delay == 5);
-    DOCTEST_CHECK(OFFICER::reject_declined_offers == 0);
+    DOCTEST_CHECK(OFFICER::rejected_offer_keeps_timer == 0);
     DOCTEST_CHECK(
         OFFICER::progression.special_leaders.advanced_government_leader_id == 47);
     DOCTEST_CHECK(
@@ -2089,7 +2372,7 @@ DOCTEST_TEST_CASE("leader progression settings preserve 1.50 defaults and bounds
         "leaders progression hire_chance initial_delay = 7;"
         "leaders progression hire_chance charismatic_bonus = 6;"
         "leaders progression hire_chance repulsive_penalty = 9;"
-        "leaders reject_declined_offers = true;"
+        "leaders rejected_offer_keeps_timer = true;"
         "leaders progression special_leaders advanced_government_leader_id = 67;"
         "leaders progression special_leaders random_skills_colony_leader_id = 128;"
         "leaders progression special_leaders random_skills_ship_officer_id = 255;",
@@ -2104,7 +2387,7 @@ DOCTEST_TEST_CASE("leader progression settings preserve 1.50 defaults and bounds
     DOCTEST_CHECK(OFFICER::progression.hire_chance.initial_delay == 7);
     DOCTEST_CHECK(OFFICER::progression.hire_chance.charismatic_bonus == 6);
     DOCTEST_CHECK(OFFICER::progression.hire_chance.repulsive_penalty == 9);
-    DOCTEST_CHECK(OFFICER::reject_declined_offers == 1);
+    DOCTEST_CHECK(OFFICER::rejected_offer_keeps_timer == 1);
     DOCTEST_CHECK(
         OFFICER::progression.special_leaders.advanced_government_leader_id == 67);
     DOCTEST_CHECK(
@@ -5903,6 +6186,7 @@ DOCTEST_TEST_CASE("combat bonus settings preserve 1.50 defaults") {
     DOCTEST_CHECK(CMBTFIR2::combat_bonus.phasing_cloak_beam_defense == 80);
     DOCTEST_CHECK(CMBTFIR2::combat_bonus.phasing_cloak_effective_turns == 10);
     DOCTEST_CHECK(CMBTFIR2::combat_bonus.displacement_device_beam_miss_percent == 30);
+    DOCTEST_CHECK(CMBTFIR2::combat_bonus.displacement_device_affects_stellar_converter == 0);
     DOCTEST_CHECK(CMBTFIR2::combat_bonus.reflection_field_strength == 15);
 
     config::s_config_write_set writes;
@@ -5920,6 +6204,7 @@ DOCTEST_TEST_CASE("combat bonus settings preserve 1.50 defaults") {
         "combat bonus phasing_cloak_beam_defense = 82;"
         "combat bonus phasing_cloak_effective_turns = 12;"
         "combat bonus displacement_device_beam_miss_percent = 14;"
+        "combat bonus displacement_device_affects_stellar_converter = true;"
         "combat bonus reflection_field_strength = 16;",
         &writes,
         &diagnostic));
@@ -5937,6 +6222,7 @@ DOCTEST_TEST_CASE("combat bonus settings preserve 1.50 defaults") {
     DOCTEST_CHECK(CMBTFIR2::combat_bonus.phasing_cloak_beam_defense == 82);
     DOCTEST_CHECK(CMBTFIR2::combat_bonus.phasing_cloak_effective_turns == 12);
     DOCTEST_CHECK(CMBTFIR2::combat_bonus.displacement_device_beam_miss_percent == 14);
+    DOCTEST_CHECK(CMBTFIR2::combat_bonus.displacement_device_affects_stellar_converter == 1);
     DOCTEST_CHECK(CMBTFIR2::combat_bonus.reflection_field_strength == 16);
 
     writes.writes.clear();
@@ -6243,6 +6529,7 @@ DOCTEST_TEST_CASE("combat namespace settings resolve bidirectionally and commit 
         "combat.bonus.starbase_fleet_beam_offense",
         "combat.bonus.phasing_cloak_effective_turns",
         "combat.bonus.displacement_device_beam_miss_percent",
+        "combat.bonus.displacement_device_affects_stellar_converter",
         "combat.ship_explosion.drive_damage_multiplier",
         "combat.quantum_detonator.explode_chance",
         "combat.satellite_racial_defense_bonus",
@@ -6335,11 +6622,11 @@ DOCTEST_TEST_CASE("flyer hit points and planetary shields preserve classic defau
     DOCTEST_CHECK(CMBTMIS::flyer_hit_points.heavy_fighter == 10);
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_SHIELD_NONE].tech_app_id == 0);
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_SHIELD_NONE].absorption == 0);
-    DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_RADIATION_SHIELD].tech_app_id == 134);
+    DOCTEST_CHECK((TECHDATA::planetary_shields[PLANETARY_RADIATION_SHIELD].tech_app_id == 134));
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_RADIATION_SHIELD].absorption == 5);
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_FLUX_SHIELD].tech_app_id == 130);
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_FLUX_SHIELD].absorption == 10);
-    DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_BARRIER_SHIELD].tech_app_id == 129);
+    DOCTEST_CHECK((TECHDATA::planetary_shields[PLANETARY_BARRIER_SHIELD].tech_app_id == 129));
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_BARRIER_SHIELD].absorption == 20);
 
     config::s_config_write_set writes;
@@ -6362,11 +6649,11 @@ DOCTEST_TEST_CASE("flyer hit points and planetary shields preserve classic defau
     DOCTEST_CHECK(CMBTMIS::flyer_hit_points.heavy_fighter == 20);
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_SHIELD_NONE].tech_app_id == 0);
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_SHIELD_NONE].absorption == 0);
-    DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_RADIATION_SHIELD].tech_app_id == 513);
+    DOCTEST_CHECK((TECHDATA::planetary_shields[PLANETARY_RADIATION_SHIELD].tech_app_id == 513));
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_RADIATION_SHIELD].absorption == 6);
-    DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_FLUX_SHIELD].tech_app_id == 1027);
+    DOCTEST_CHECK((TECHDATA::planetary_shields[PLANETARY_FLUX_SHIELD].tech_app_id == 1027));
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_FLUX_SHIELD].absorption == 11);
-    DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_BARRIER_SHIELD].tech_app_id == 1541);
+    DOCTEST_CHECK((TECHDATA::planetary_shields[PLANETARY_BARRIER_SHIELD].tech_app_id == 1541));
     DOCTEST_CHECK(TECHDATA::planetary_shields[PLANETARY_BARRIER_SHIELD].absorption == 24);
 
     writes.writes.clear();
@@ -6758,7 +7045,7 @@ DOCTEST_TEST_CASE("rifle, troop, and tactical turn settings preserve 1.50 defaul
     DOCTEST_REQUIRE(config::Apply_Write_Set(&writes, &state, &diagnostic));
     DOCTEST_REQUIRE(config::Commit_State(&state));
 
-    DOCTEST_CHECK(TECHDATA::rifles[RIFLE_PLASMA_RIFLE].tech_app_id == TECH_APP_FUSION_RIFLE);
+    DOCTEST_CHECK((TECHDATA::rifles[RIFLE_PLASMA_RIFLE].tech_app_id == TECH_APP_FUSION_RIFLE));
     DOCTEST_CHECK(TECHDATA::rifles[RIFLE_PLASMA_RIFLE].bonus == 31);
     DOCTEST_CHECK(invasion::troop.type.tanks == 14);
     DOCTEST_CHECK(invasion::troop.type.militia == -8);
@@ -6939,6 +7226,34 @@ DOCTEST_TEST_CASE("maximum galaxy star count binds through the canonical map tab
     writes.writes.clear();
     DOCTEST_CHECK_FALSE(Append_Decoded_(
         "map star_count maximum = 1024;", &writes, &diagnostic));
+}
+
+DOCTEST_TEST_CASE("map planet limit supports raised and disabled thresholds") {
+    config::s_config_state state;
+    DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+    DOCTEST_REQUIRE(config::Commit_State(&state));
+    DOCTEST_CHECK(MAPGEN::planet_limit == 250);
+
+    const int limits[] = {400, 0, 5120};
+    for (int limit : limits) {
+        config::s_config_write_set writes;
+        config::s_cfg_diagnostic diagnostic;
+        const std::string assignment =
+            "map planet_limit = " + std::to_string(limit) + ";";
+        DOCTEST_REQUIRE(Append_Decoded_(
+            assignment.c_str(), &writes, &diagnostic));
+        DOCTEST_REQUIRE(config::Apply_Write_Set(&writes, &state, &diagnostic));
+        DOCTEST_REQUIRE(config::Commit_State(&state));
+        DOCTEST_CHECK(MAPGEN::planet_limit == limit);
+    }
+
+    config::s_config_write_set writes;
+    config::s_cfg_diagnostic diagnostic;
+    DOCTEST_CHECK_FALSE(Append_Decoded_(
+        "map planet_limit = -1;", &writes, &diagnostic));
+    DOCTEST_CHECK_FALSE(Append_Decoded_(
+        "map planet_limit = 5121;", &writes, &diagnostic));
+    MAPGEN::planet_limit = 250;
 }
 
 DOCTEST_TEST_CASE("descriptive map settings bind native generation policy") {
@@ -7407,7 +7722,7 @@ DOCTEST_TEST_SUITE("generated configuration bindings") {
     DOCTEST_TEST_CASE("predefined ship templates have native defaults before configuration") {
         DOCTEST_CHECK(SHIP_CONFIG::guardian_template.picture_num == 7);
         DOCTEST_CHECK(SHIP_CONFIG::guardian_template.ship_weapon[2].type == 20);
-        DOCTEST_CHECK(SHIP_CONFIG::guardian_template.ship_weapon[2].specials == 0x4500);
+        DOCTEST_CHECK((SHIP_CONFIG::guardian_template.ship_weapon[2].specials == 0x4500));
         DOCTEST_CHECK(SHIP_CONFIG::guardian_template.ship_weapon[2].count == 1);
         DOCTEST_CHECK(SHIP_CONFIG::guardian_template.ship_weapon[2].current_count == 1);
         DOCTEST_CHECK((SHIP_CONFIG::guardian_template.special_device_flags[3] & 0x02) != 0);
@@ -7567,9 +7882,9 @@ DOCTEST_TEST_SUITE("generated configuration bindings") {
                               sizeof(design.special_device_flags)) == 0);
             for (int slot = 0; slot < 8; ++slot) {
                 const s_ship_weapons& weapon = design.ship_weapon[slot];
-                DOCTEST_CHECK(weapon.type == expected[slot].type);
+                DOCTEST_CHECK((weapon.type == expected[slot].type));
                 DOCTEST_CHECK(weapon.firing_arc == expected[slot].arc);
-                DOCTEST_CHECK(weapon.specials == expected[slot].mods);
+                DOCTEST_CHECK((weapon.specials == expected[slot].mods));
                 DOCTEST_CHECK(weapon.ammo == expected[slot].ammo);
                 DOCTEST_CHECK(weapon.count == expected[slot].amount);
                 DOCTEST_CHECK(weapon.current_count == expected[slot].amount);
@@ -7619,9 +7934,9 @@ DOCTEST_TEST_SUITE("generated configuration bindings") {
                               sizeof(design.special_device_flags)) == 0);
             for (int slot = 0; slot < 8; ++slot) {
                 const s_ship_weapons& weapon = design.ship_weapon[slot];
-                DOCTEST_CHECK(weapon.type == expected[slot].type);
+                DOCTEST_CHECK((weapon.type == expected[slot].type));
                 DOCTEST_CHECK(weapon.firing_arc == expected[slot].arc);
-                DOCTEST_CHECK(weapon.specials == expected[slot].mods);
+                DOCTEST_CHECK((weapon.specials == expected[slot].mods));
                 DOCTEST_CHECK(weapon.ammo == expected[slot].ammo);
                 DOCTEST_CHECK(weapon.count == expected[slot].amount);
                 DOCTEST_CHECK(weapon.current_count == expected[slot].amount);
@@ -7811,6 +8126,11 @@ DOCTEST_TEST_SUITE("generated configuration bindings") {
         DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_eel == 1000);
         DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_hydra == 1500);
         DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_crystal_dragon == 2500);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_crystal == -1);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_hydra == -1);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_dragon == -1);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_crystal == -1);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_dragon == -1);
         DOCTEST_CHECK(SHIP_CONFIG::monster.drives.amoeba == DRIVE_FUSION_DRIVE);
         DOCTEST_CHECK(SHIP_CONFIG::monster.drives.guardian == DRIVE_ANTI_MATTER_DRIVE);
         DOCTEST_CHECK(SHIP_CONFIG::monster.drives.crystal == DRIVE_ANTI_MATTER_DRIVE);
@@ -7899,6 +8219,67 @@ DOCTEST_TEST_SUITE("generated configuration bindings") {
         DOCTEST_REQUIRE(config::Commit_State(&state));
     }
 
+    DOCTEST_TEST_CASE("individual monster hit points bind independently of shared fallbacks") {
+        config::s_config_state state;
+        DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+        config::s_config_write_set writes;
+        config::s_cfg_diagnostic diagnostic;
+        DOCTEST_REQUIRE(Append_Decoded_(
+            "ships monster hit_points system_crystal_hydra_dragon = 800;"
+            "ships monster hit_points system_crystal = 500;"
+            "ships monster hit_points system_hydra = 600;"
+            "ships monster hit_points system_dragon = 700;"
+            "ships monster hit_points event_crystal = 2500;"
+            "ships monster hit_points event_dragon = 3000;"
+            "ships monster hit_points event_crystal_dragon = 4000;",
+            &writes,
+            &diagnostic));
+        DOCTEST_REQUIRE(config::Apply_Write_Set(&writes, &state, &diagnostic));
+        DOCTEST_REQUIRE(config::Commit_State(&state));
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_crystal_hydra_dragon == 800);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_crystal == 500);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_hydra == 600);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_dragon == 700);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_crystal == 2500);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_dragon == 3000);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_crystal_dragon == 4000);
+        DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_hydra == 1500);
+
+        const char* fields[] = {
+            "system_crystal",
+            "system_hydra",
+            "system_dragon",
+            "event_crystal",
+            "event_dragon",
+        };
+        for (int value : {0, 32767, -1}) {
+            writes.writes.clear();
+            for (const char* field : fields) {
+                const std::string source = std::string("ships monster hit_points ") +
+                    field + " = " + std::to_string(value) + ";";
+                DOCTEST_REQUIRE(Append_Decoded_(source.c_str(), &writes, &diagnostic));
+            }
+            DOCTEST_REQUIRE(config::Apply_Write_Set(&writes, &state, &diagnostic));
+            DOCTEST_REQUIRE(config::Commit_State(&state));
+            DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_crystal == value);
+            DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_hydra == value);
+            DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.system_dragon == value);
+            DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_crystal == value);
+            DOCTEST_CHECK(SHIP_CONFIG::monster.hit_points.event_dragon == value);
+        }
+        for (const char* field : fields) {
+            for (int value : {-2, 32768}) {
+                writes.writes.clear();
+                const std::string source = std::string("ships monster hit_points ") +
+                    field + " = " + std::to_string(value) + ";";
+                DOCTEST_CHECK_FALSE(Append_Decoded_(source.c_str(), &writes, &diagnostic));
+            }
+        }
+
+        DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
+        DOCTEST_REQUIRE(config::Commit_State(&state));
+    }
+
     DOCTEST_TEST_CASE("Crystal variants use one shared equipment record") {
         config::s_config_state state;
         DOCTEST_REQUIRE(config::Initialize_Defaults(&state));
@@ -7958,10 +8339,10 @@ DOCTEST_TEST_SUITE("generated configuration bindings") {
         DOCTEST_CHECK(SHIP_CONFIG::hydra_templates[0].ship_weapon[0].count == 3);
         DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[0].computer_type ==
             COMPUTER_MOLECULARTRONIC_COMPUTER);
-        DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[0].ship_weapon[0].specials ==
-            WEAPON_MOD_FLAG_POINT_DEFENSE);
-        DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[1].ship_weapon[1].specials ==
-            WEAPON_MOD_FLAG_OVERLOADED);
+        DOCTEST_CHECK((SHIP_CONFIG::dragon_templates[0].ship_weapon[0].specials ==
+            WEAPON_MOD_FLAG_POINT_DEFENSE));
+        DOCTEST_CHECK((SHIP_CONFIG::dragon_templates[1].ship_weapon[1].specials ==
+            WEAPON_MOD_FLAG_OVERLOADED));
         DOCTEST_CHECK(SHIP_CONFIG::guardian_template.computer_type ==
             COMPUTER_MOLECULARTRONIC_COMPUTER);
 
@@ -7981,20 +8362,20 @@ DOCTEST_TEST_SUITE("generated configuration bindings") {
         DOCTEST_REQUIRE(config::Apply_Write_Set(&writes, &state, &diagnostic));
         DOCTEST_REQUIRE(config::Commit_State(&state));
 
-        DOCTEST_CHECK(SHIP_CONFIG::hydra_templates[0].ship_weapon[0].specials ==
-            WEAPON_MOD_FLAG_HEAVY_MOUNT);
+        DOCTEST_CHECK((SHIP_CONFIG::hydra_templates[0].ship_weapon[0].specials ==
+            WEAPON_MOD_FLAG_HEAVY_MOUNT));
         DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[0].shield_type ==
             SHIELD_CLASS_I_SHIELD);
         DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[0].computer_type ==
             COMPUTER_ELECTRONIC_COMPUTER);
-        DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[0].ship_weapon[1].specials ==
-            WEAPON_MOD_FLAG_HEAVY_MOUNT);
+        DOCTEST_CHECK((SHIP_CONFIG::dragon_templates[0].ship_weapon[1].specials ==
+            WEAPON_MOD_FLAG_HEAVY_MOUNT));
         DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[1].shield_type ==
             SHIELD_CLASS_III_SHIELD);
         DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[1].computer_type ==
             COMPUTER_OPTRONIC_COMPUTER);
-        DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[1].ship_weapon[2].type ==
-            WEAPON_PLASMA_BREATH);
+        DOCTEST_CHECK((SHIP_CONFIG::dragon_templates[1].ship_weapon[2].type ==
+            WEAPON_PLASMA_BREATH));
         DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[1].ship_weapon[2].count == 2);
         DOCTEST_CHECK(SHIP_CONFIG::dragon_templates[1].ship_weapon[2].current_count == 2);
         DOCTEST_CHECK(SHIP_CONFIG::guardian_template.ship_weapon[0].count == 99);

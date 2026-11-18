@@ -22,6 +22,19 @@ namespace {
 namespace MOX {
     uint8_t draw_main_screen_to_back;
     int8_t game_type;
+    int16_t NUM_STARS;
+    int16_t cur_map_scale;
+    int16_t max_map_scale;
+    int16_t cur_map_x;
+    int16_t cur_map_y;
+    int16_t MAP_MAX_X;
+    int16_t MAP_MAX_Y;
+    int16_t near_star_x;
+    int16_t near_star_y;
+    int16_t mid_star_x;
+    int16_t mid_star_y;
+    int16_t far_star_x;
+    int16_t far_star_y;
 } // namespace MOX
 
 namespace fields {
@@ -56,11 +69,104 @@ namespace config {
 } // namespace config
 
 namespace HAROLD {
+    int32_t __cdecl Get_Up_Scaled_Value(int16_t value) {
+        return (static_cast<int32_t>(value) * MOX::cur_map_scale) / 10;
+    }
+
     int16_t __cdecl User_Box(uint8_t*, const char* message, int16_t) {
         user_box_message = message;
         return 0;
     }
 } // namespace HAROLD
+
+DOCTEST_TEST_CASE("classic Maximum display replaces overview behavior only in its all-stars view") {
+    struct s_display_case {
+        uint8_t mode;
+        int8_t galaxy_size;
+        int16_t stars;
+        int16_t scale;
+        bool overview;
+    };
+    const s_display_case cases[] = {
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_OVERVIEW, GALAXY_SIZE_MAXIMUM, 99, 100, true},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_CLASSIC, GALAXY_SIZE_MAXIMUM, 99, 100, false},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_OVERVIEW, GALAXY_SIZE_MAXIMUM, 99, 50, false},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_CLASSIC, GALAXY_SIZE_MAXIMUM, 99, 50, false},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_CLASSIC, GALAXY_SIZE_MAXIMUM, 72, 100, false},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_CLASSIC, GALAXY_SIZE_MAXIMUM, 73, 100, false},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_OVERVIEW, GALAXY_SIZE_MAXIMUM, 1024, 100, true},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_CLASSIC, GALAXY_SIZE_MAXIMUM, 1024, 100, false},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_OVERVIEW, GALAXY_SIZE_HUGE, 99, 100, true},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_CLASSIC, GALAXY_SIZE_HUGE, 99, 100, true},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_CLASSIC, GALAXY_SIZE_HUGE, 71, 100, false},
+        {MAINSCR::MAXIMUM_GALAXY_DISPLAY_CLASSIC, GALAXY_SIZE_SMALL, 20, 100, false},
+    };
+    const uint8_t saved_setting = MAINSCR::maximum_galaxy_display;
+    const bool saved_markers = MAINSCR::main_map_overview_markers;
+    const int8_t saved_galaxy_size = MOX::settings.galaxy_size;
+    const int16_t saved_stars = MOX::NUM_STARS;
+    const int16_t saved_scale = MOX::cur_map_scale;
+    const int16_t saved_max_scale = MOX::max_map_scale;
+    for (const auto& test_case : cases) {
+        DOCTEST_CAPTURE(test_case.mode);
+        DOCTEST_CAPTURE(test_case.galaxy_size);
+        DOCTEST_CAPTURE(test_case.stars);
+        DOCTEST_CAPTURE(test_case.scale);
+        MAINSCR::maximum_galaxy_display = test_case.mode;
+        MOX::settings.galaxy_size = test_case.galaxy_size;
+        MOX::NUM_STARS = test_case.stars;
+        MOX::cur_map_scale = test_case.scale;
+        MOX::max_map_scale = 100;
+        for (bool markers : {false, true}) {
+            MAINSCR::main_map_overview_markers = markers;
+            DOCTEST_CHECK(MAINSCR::Use_Maximum_Galaxy_Overview() == test_case.overview);
+        }
+    }
+    MAINSCR::maximum_galaxy_display = saved_setting;
+    MAINSCR::main_map_overview_markers = saved_markers;
+    MOX::settings.galaxy_size = saved_galaxy_size;
+    MOX::NUM_STARS = saved_stars;
+    MOX::cur_map_scale = saved_scale;
+    MOX::max_map_scale = saved_max_scale;
+}
+
+DOCTEST_TEST_CASE("main-screen centering clamps each axis without changing zoom") {
+    struct s_center_case {
+        int16_t width;
+        int16_t height;
+        int16_t scale;
+        int16_t target_x;
+        int16_t target_y;
+        int16_t expected_x;
+        int16_t expected_y;
+    };
+    const s_center_case cases[] = {
+        {1800, 1350, 36, 150, 150, 0, 0},
+        {1800, 1350, 36, 1650, 1200, 0, 0},
+        {1518, 1200, 30, 900, 675, 0, 0},
+        {1800, 1350, 30, 900, 675, 141, 75},
+        {1800, 1350, 30, 150, 150, 0, 0},
+        {1800, 1350, 30, 1650, 1200, 282, 150},
+        {1500, 1350, 30, 900, 675, 0, 75},
+        {1800, 1100, 30, 900, 675, 141, 0},
+    };
+    for (const auto& test_case : cases) {
+        DOCTEST_CAPTURE(test_case.width);
+        DOCTEST_CAPTURE(test_case.height);
+        DOCTEST_CAPTURE(test_case.scale);
+        MOX::MAP_MAX_X = test_case.width;
+        MOX::MAP_MAX_Y = test_case.height;
+        MOX::cur_map_scale = test_case.scale;
+        MOX::cur_map_x = 0;
+        MOX::cur_map_y = 0;
+        MOX::draw_main_screen_to_back = 0;
+        MAINSCR::Center_Map(test_case.target_x, test_case.target_y);
+        DOCTEST_CHECK(MOX::cur_map_x == test_case.expected_x);
+        DOCTEST_CHECK(MOX::cur_map_y == test_case.expected_y);
+        DOCTEST_CHECK(MOX::cur_map_scale == test_case.scale);
+        DOCTEST_CHECK(MOX::draw_main_screen_to_back == 1);
+    }
+}
 
 DOCTEST_TEST_CASE("main-screen tax percentage matches research font and line spacing") {
     const bool saved_setting = MAINSCR::main_screen_tax_rate;

@@ -638,18 +638,37 @@ namespace COLGCBT {
     }
 
     void __cdecl Verify_Legal_Totals() {
-        for (int16_t i = 0; i < 40; ++i) {
-            if ((int8_t)g_units[0][i].state > 1 &&
-                g_units[0][i].type < (int32_t)(uint8_t)g_attack_ptr->current_troop_type_idx) {
-                g_units[0][i].state = 1;
-                g_units[0][i].anim_frame = 0;
-                g_units[0][i].is_hit = 0;
-            }
-            if ((int8_t)g_units[1][i].state > 1 &&
-                g_units[1][i].type < (int32_t)(uint8_t)g_defend_ptr->current_troop_type_idx) {
-                g_units[1][i].state = 1;
-                g_units[1][i].anim_frame = 0;
-                g_units[1][i].is_hit = 0;
+        for (uint8_t side = 0; side < 2; ++side) {
+            s_invasion_side_info* side_info = side == 0 ? g_attack_ptr : g_defend_ptr;
+            for (int16_t type = 0; type < UNIT_COUNT; ++type) {
+                int16_t excess = -side_info->unit_counts[type];
+                for (const auto& unit : g_units[side]) {
+                    if (unit.type == type && unit.state > 1) {
+                        ++excess;
+                    }
+                }
+
+                // Fast-forward can overwrite casualty events between draws.
+                // Reconcile living sprites without restarting death animations.
+                for (auto& unit : g_units[side]) {
+                    if (excess <= 0) {
+                        break;
+                    }
+                    if (unit.type == type && unit.state > 1) {
+                        unit.state = 1;
+                        unit.anim_frame = 0;
+                        unit.is_hit = 0;
+                        unit.target = nullptr;
+                        --excess;
+                        COLONY::full_draw = 1;
+
+                        // This casualty is already reflected in unit_counts.
+                        if (side_info->round_killed_unit_type == type) {
+                            side_info->round_killed_unit_type = -1;
+                            side_info->round_hit_unit_type = -1;
+                        }
+                    }
+                }
             }
         }
     }

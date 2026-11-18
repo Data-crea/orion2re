@@ -5,6 +5,10 @@
 #include <cstring>
 #include <utility>
 
+// Field payloads are packed, so their members may be misaligned. Assertions
+// on them use double parentheses so doctest compares the values directly
+// instead of binding references to the packed members.
+
 DOCTEST_TEST_SUITE("fields helpers") {
 
 DOCTEST_TEST_CASE("field data button returns typed payload for mutable and const access") {
@@ -19,7 +23,7 @@ DOCTEST_TEST_CASE("field data button returns typed payload for mutable and const
     DOCTEST_REQUIRE(payload == &field.detail.button);
     DOCTEST_REQUIRE(const_payload == &field.detail.button);
     DOCTEST_REQUIRE(std::strcmp(payload->help, "ok") == 0);
-    DOCTEST_REQUIRE(const_payload->draw_style == 3);
+    DOCTEST_REQUIRE((const_payload->draw_style == 3));
 }
 
 DOCTEST_TEST_CASE("field data irregular button returns irregular payload") {
@@ -35,8 +39,8 @@ DOCTEST_TEST_CASE("field data irregular button returns irregular payload") {
     DOCTEST_REQUIRE(payload == &field.detail.irregular_button);
     DOCTEST_REQUIRE(const_payload == &field.detail.irregular_button);
     DOCTEST_REQUIRE(std::strcmp(payload->help, "odd") == 0);
-    DOCTEST_REQUIRE(const_payload->draw_x == 11);
-    DOCTEST_REQUIRE(const_payload->draw_y == 17);
+    DOCTEST_REQUIRE((const_payload->draw_x == 11));
+    DOCTEST_REQUIRE((const_payload->draw_y == 17));
 }
 
 DOCTEST_TEST_CASE("field data radio returns radio payload") {
@@ -52,8 +56,8 @@ DOCTEST_TEST_CASE("field data radio returns radio payload") {
 
     DOCTEST_REQUIRE(payload == &field.detail.radio);
     DOCTEST_REQUIRE(const_payload == &field.detail.radio);
-    DOCTEST_REQUIRE(payload->selection == &selection);
-    DOCTEST_REQUIRE(const_payload->draw_style == 2);
+    DOCTEST_REQUIRE((payload->selection == &selection));
+    DOCTEST_REQUIRE((const_payload->draw_style == 2));
 }
 
 DOCTEST_TEST_CASE("field data locked button returns locked payload") {
@@ -70,7 +74,7 @@ DOCTEST_TEST_CASE("field data locked button returns locked payload") {
     DOCTEST_REQUIRE(payload == &field.detail.locked);
     DOCTEST_REQUIRE(const_payload == &field.detail.locked);
     DOCTEST_REQUIRE(std::strcmp(payload->help, "lock") == 0);
-    DOCTEST_REQUIRE(const_payload->selection == &selection);
+    DOCTEST_REQUIRE((const_payload->selection == &selection));
 }
 
 DOCTEST_TEST_CASE("field data multi button returns multi button payload") {
@@ -86,8 +90,8 @@ DOCTEST_TEST_CASE("field data multi button returns multi button payload") {
 
     DOCTEST_REQUIRE(payload == &field.detail.multibtn);
     DOCTEST_REQUIRE(const_payload == &field.detail.multibtn);
-    DOCTEST_REQUIRE(payload->selection == &selection);
-    DOCTEST_REQUIRE(const_payload->button_value == 6);
+    DOCTEST_REQUIRE((payload->selection == &selection));
+    DOCTEST_REQUIRE((const_payload->button_value == 6));
 }
 
 DOCTEST_TEST_CASE("field data scroll accepts scroll type") {
@@ -104,9 +108,9 @@ DOCTEST_TEST_CASE("field data scroll accepts scroll type") {
 
     DOCTEST_REQUIRE(payload == &field.detail.scroll);
     DOCTEST_REQUIRE(const_payload == &field.detail.scroll);
-    DOCTEST_REQUIRE(payload->value == &value);
-    DOCTEST_REQUIRE(const_payload->range_min == 3);
-    DOCTEST_REQUIRE(const_payload->range_max == 15);
+    DOCTEST_REQUIRE((payload->value == &value));
+    DOCTEST_REQUIRE((const_payload->range_min == 3));
+    DOCTEST_REQUIRE((const_payload->range_max == 15));
 }
 
 DOCTEST_TEST_CASE("field data scroll accepts scroll return type") {
@@ -120,8 +124,8 @@ DOCTEST_TEST_CASE("field data scroll accepts scroll return type") {
 
     DOCTEST_REQUIRE(payload == &field.detail.scroll);
     DOCTEST_REQUIRE(const_payload == &field.detail.scroll);
-    DOCTEST_REQUIRE(payload->return_value == 7);
-    DOCTEST_REQUIRE(const_payload->set_value == 5);
+    DOCTEST_REQUIRE((payload->return_value == 7));
+    DOCTEST_REQUIRE((const_payload->set_value == 5));
 }
 
 DOCTEST_TEST_CASE("field data legacy input returns legacy input payload pointer") {
@@ -140,10 +144,10 @@ DOCTEST_TEST_CASE("field data legacy input returns legacy input payload pointer"
 
     DOCTEST_REQUIRE(payload == &field.detail.input);
     DOCTEST_REQUIRE(const_payload == &field.detail.input);
-    DOCTEST_REQUIRE(payload->buffer == buffer);
-    DOCTEST_REQUIRE(const_payload->max_length == 16);
-    DOCTEST_REQUIRE(const_payload->input_mode == 2);
-    DOCTEST_REQUIRE(const_payload->cursor_color_ramp == cursor_colors);
+    DOCTEST_REQUIRE((payload->buffer == buffer));
+    DOCTEST_REQUIRE((const_payload->max_length == 16));
+    DOCTEST_REQUIRE((const_payload->input_mode == 2));
+    DOCTEST_REQUIRE((const_payload->cursor_color_ramp == cursor_colors));
 }
 
 DOCTEST_TEST_CASE("field data continuous input returns cont input payload pointer") {
@@ -161,10 +165,10 @@ DOCTEST_TEST_CASE("field data continuous input returns cont input payload pointe
 
     DOCTEST_REQUIRE(payload == &field.detail.cont_input);
     DOCTEST_REQUIRE(const_payload == &field.detail.cont_input);
-    DOCTEST_REQUIRE(payload->buffer == buffer);
-    DOCTEST_REQUIRE(payload->max_length == 8);
-    DOCTEST_REQUIRE(const_payload->full_store_flag == 1);
-    DOCTEST_REQUIRE(const_payload->font_shadow_style == 4);
+    DOCTEST_REQUIRE((payload->buffer == buffer));
+    DOCTEST_REQUIRE((payload->max_length == 8));
+    DOCTEST_REQUIRE((const_payload->full_store_flag == 1));
+    DOCTEST_REQUIRE((const_payload->font_shadow_style == 4));
 }
 
 DOCTEST_TEST_CASE("field data string list returns string list payload pointer") {
@@ -187,12 +191,12 @@ DOCTEST_TEST_CASE("field data string list returns string list payload pointer") 
     DOCTEST_REQUIRE(payload == &field.detail.strings);
     DOCTEST_REQUIRE(const_payload == &field.detail.strings);
     DOCTEST_REQUIRE(std::strcmp(payload->help, "row") == 0);
-    DOCTEST_REQUIRE(payload->value == &selected_value);
-    DOCTEST_REQUIRE(const_payload->help_start == 19);
-    DOCTEST_REQUIRE(const_payload->is_selectable == 1);
-    DOCTEST_REQUIRE(const_payload->gradient_mode == 7);
-    DOCTEST_REQUIRE(const_payload->gradient_palette == gradient_palette);
-    DOCTEST_REQUIRE(const_payload->gradient_extra == 42);
+    DOCTEST_REQUIRE((payload->value == &selected_value));
+    DOCTEST_REQUIRE((const_payload->help_start == 19));
+    DOCTEST_REQUIRE((const_payload->is_selectable == 1));
+    DOCTEST_REQUIRE((const_payload->gradient_mode == 7));
+    DOCTEST_REQUIRE((const_payload->gradient_palette == gradient_palette));
+    DOCTEST_REQUIRE((const_payload->gradient_extra == 42));
 }
 
 DOCTEST_TEST_CASE("field data grid returns grid payload pointer") {
@@ -211,10 +215,10 @@ DOCTEST_TEST_CASE("field data grid returns grid payload pointer") {
 
     DOCTEST_REQUIRE(payload == &field.detail.grid);
     DOCTEST_REQUIRE(const_payload == &field.detail.grid);
-    DOCTEST_REQUIRE(payload->step_x == 12);
-    DOCTEST_REQUIRE(payload->step_y == 14);
-    DOCTEST_REQUIRE(const_payload->grid_x_ptr == &grid_x);
-    DOCTEST_REQUIRE(const_payload->grid_y_ptr == &grid_y);
+    DOCTEST_REQUIRE((payload->step_x == 12));
+    DOCTEST_REQUIRE((payload->step_y == 14));
+    DOCTEST_REQUIRE((const_payload->grid_x_ptr == &grid_x));
+    DOCTEST_REQUIRE((const_payload->grid_y_ptr == &grid_y));
 }
 
 DOCTEST_TEST_CASE("field data circle returns circle payload pointer") {
@@ -229,9 +233,9 @@ DOCTEST_TEST_CASE("field data circle returns circle payload pointer") {
 
     DOCTEST_REQUIRE(payload == &field.detail.circle);
     DOCTEST_REQUIRE(const_payload == &field.detail.circle);
-    DOCTEST_REQUIRE(payload->center_x == 21);
-    DOCTEST_REQUIRE(payload->center_y == 34);
-    DOCTEST_REQUIRE(const_payload->radius_squared == 144);
+    DOCTEST_REQUIRE((payload->center_x == 21));
+    DOCTEST_REQUIRE((payload->center_y == 34));
+    DOCTEST_REQUIRE((const_payload->radius_squared == 144));
 }
 
 DOCTEST_TEST_CASE("field data multi hot key returns multi hot key payload pointer") {
@@ -247,8 +251,8 @@ DOCTEST_TEST_CASE("field data multi hot key returns multi hot key payload pointe
     DOCTEST_REQUIRE(payload == &field.detail.multi_hotkey);
     DOCTEST_REQUIRE(const_payload == &field.detail.multi_hotkey);
     DOCTEST_REQUIRE(std::strcmp(payload->help, "ctrl-h") == 0);
-    DOCTEST_REQUIRE(const_payload->help_start == 3);
-    DOCTEST_REQUIRE(const_payload->help_len == 6);
+    DOCTEST_REQUIRE((const_payload->help_start == 3));
+    DOCTEST_REQUIRE((const_payload->help_len == 6));
 }
 
 }

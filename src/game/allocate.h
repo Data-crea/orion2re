@@ -71,6 +71,14 @@ namespace allocate {
     /// @return Pointer to the sub-block payload after its header.
     void* __cdecl Allocate_Next_Block(void* block, uint32_t size);
 
+    /// Allocates a header-backed sub-block with an aligned payload.
+    /// Padding precedes the sub-block header, preserving the normal block API contract.
+    /// @param block Pool base pointer previously returned by this allocator.
+    /// @param size Requested payload size in bytes.
+    /// @param alignment Nonzero power-of-two payload alignment in bytes.
+    /// @return Aligned payload pointer immediately after its header; exits on failure.
+    void* __cdecl Allocate_Next_Block_Aligned(void* block, uint32_t size, size_t alignment);
+
     /// Allocates header-backed storage through the DOS-space path.
     /// @param size Requested payload size in bytes.
     /// @return Pointer to the payload bytes after the internal header.

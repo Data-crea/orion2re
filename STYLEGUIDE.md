@@ -21,7 +21,6 @@ New code follows the conventions already established by the restored game source
 - Type aliases use the existing `t_lower_case_with_underscores` form.
 - Local variables, parameters, data members, and namespace-scope data use `lower_case_with_underscores`.
 - Constants and enum values follow the convention of the owning subsystem; new configuration code should use an uppercase subsystem prefix when values enter a shared namespace.
-- File-local helper functions append `_`, for example `Parse_Number_`.
 - Namespaces use the owning subsystem name. Configuration code uses `config`; build-tool-only code uses `config::tool`.
 - Source filenames use `lower_case_with_underscores.cpp` and `.h`.
 - Avoid abbreviations unless they are established game or protocol terms.

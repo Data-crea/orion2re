@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 namespace HOMEGEN {
     static void Add_Planet_To_System(int16_t star_idx) {
@@ -485,6 +486,9 @@ namespace HOMEGEN {
         }
 
         char* star_names = (char*)farload::Far_Reload_Data(MAPGEN::s_starname_lbx, 0, MOX::screen_seg, 0, 0x0D, 0x0F);
+        for (int i = 0; i < 13; ++i) {
+            string_overrides::Apply_String(MAPGEN::s_starname_lbx, i + 1, star_names + i * 15, 15);
+        }
 
         for (int16_t i = 0; i < (int16_t)MOX::NUM_PLAYERS; ++i) {
             s_player* plr = &MOX::player[i];
@@ -707,10 +711,10 @@ namespace HOMEGEN {
 
     int16_t __cdecl Random_Planet(int16_t star_idx) {
         uint16_t weights[5] = {0, 0, 0, 0, 0};
-        const int16_t* planet_indices = MOX::star[star_idx].planet_index;
+        const s_star_data* star = &MOX::star[star_idx];
 
         for (int16_t i = 0; i < 5; ++i) {
-            int16_t p_idx = planet_indices[i];
+            int16_t p_idx = star->planet_index[i];
             if (p_idx != -1) {
                 int8_t type = MOX::planet[p_idx].planet_type;
                 if (type >= PLANET_TYPE_ASTEROID && type <= PLANET_TYPE_PLANET) {
@@ -720,7 +724,7 @@ namespace HOMEGEN {
         }
 
         uint16_t choice_idx = RUSS::Get_Weighted_Choice_Short(weights, 5);
-        return planet_indices[choice_idx];
+        return star->planet_index[choice_idx];
     }
 
     void __cdecl Set_Special_For_Star_Guarded_By_Monster(s_star_data* star, int16_t monster_type) {

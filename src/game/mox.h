@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include <vector>
+
 typedef struct s_skill_data s_skill_data, *Ps_skill_data;
 
 struct s_skill_data {
@@ -326,8 +329,8 @@ namespace MOX {
 
     extern uint8_t main_palette_player_colors[MAX_PLAYERS];
 
-    extern int16_t h_string_ix[397];
-    extern char h_strings[0x4074];
+    extern size_t h_string_ix[397];
+    extern std::vector<char> h_strings;
 
     extern s_help_box help_entry_list[50];
 

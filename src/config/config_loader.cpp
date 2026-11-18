@@ -246,7 +246,7 @@ namespace config {
         return Apply_Config_With_Mods(document, package_id, effective, diagnostic, Load_Document);
     }
 
-    bool Load_Startup_Config(const char* entry_path, const char* package_id, s_effective_config* effective, bool* loaded, s_cfg_diagnostic* diagnostic) {
+    bool Load_Startup_Config(const char* entry_path, const char* package_id, s_effective_config* effective, bool* loaded, s_cfg_diagnostic* diagnostic, bool require_file) {
         s_config_profile profile("startup");
         if (entry_path == nullptr || package_id == nullptr || effective == nullptr ||
             loaded == nullptr || diagnostic == nullptr) {
@@ -254,11 +254,22 @@ namespace config {
         }
         *loaded = false;
         *diagnostic = {};
+        std::string normalized_entry;
+        if (!Canonicalize_Path(entry_path, &normalized_entry)) {
+            diagnostic->location.source = entry_path;
+            diagnostic->message = "invalid configuration entry path";
+            return false;
+        }
         if (!Initialize_Effective_Config(effective)) {
             diagnostic->message = "unable to initialize configuration defaults";
             return false;
         }
         if (vfs::File_Exists(entry_path) == 0) {
+            if (require_file) {
+                diagnostic->location.source = entry_path;
+                diagnostic->message = "selected startup configuration not found";
+                return false;
+            }
             if (!Commit_Initial_State(&effective->state)) {
                 diagnostic->message = "unable to commit configuration defaults";
                 return false;
@@ -274,12 +285,6 @@ namespace config {
             loaded_game_config = false;
             Invalidate_Snapshot_Cache();
             return true;
-        }
-        std::string normalized_entry;
-        if (!Canonicalize_Path(entry_path, &normalized_entry)) {
-            diagnostic->location.source = entry_path;
-            diagnostic->message = "invalid configuration entry path";
-            return false;
         }
         s_cfg_document document;
         if (!Load_Document(normalized_entry, &document, diagnostic)) {

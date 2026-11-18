@@ -1,6 +1,5 @@
 #include "pch.h"
-
-#include <string>
+#include "string_overrides.h"
 
 #include "config/mod_manager.h"
 
@@ -10,6 +9,7 @@ namespace MAINMENU {
     s_animation_header* mainmenu_first_seg;
     s_animation_header* mainmenu_last_seg;
     void* _gametype;
+    int16_t autoload_save_slot = -1;
     int16_t max_credits;
     int32_t credit_count;
     int16_t credits_font_style;
@@ -707,9 +707,11 @@ namespace MAINMENU {
             MOX::scanned_field = fields::Scan_Input();
             timer::Mark_Time();
 
-            // Continue (Load Game 9)
-            if (input_field == mainmenu->fields[MAIN_MENU_BTN_CONTINUE].field || (last_input_scan == 0x43 && mainmenu->fields[MAIN_MENU_BTN_CONTINUE].field != -1000)) {
-                if (FILEDEF::Load_Game(9) != 0) {
+            const int16_t autoload_slot = autoload_save_slot;
+            autoload_save_slot = -1;
+            // Continue (SAVE10.GAM), or a one-shot startup save request.
+            if (autoload_slot >= 0 || input_field == mainmenu->fields[MAIN_MENU_BTN_CONTINUE].field || (last_input_scan == 0x43 && mainmenu->fields[MAIN_MENU_BTN_CONTINUE].field != -1000)) {
+                if (FILEDEF::Load_Game(autoload_slot >= 0 ? autoload_slot : 9) != 0) {
                     if (MOX::game_type != 2 && MOX::game_type != 3) {
                         MOX::current_screen = (MOX::game_type == 1) ? SCREEN_HOTSEAT_SELECT_PLAYER : SCREEN_REPORTS;
                     } else {
@@ -811,12 +813,14 @@ namespace MAINMENU {
             data = (char*)farload::Far_Reload_Next_Data(path, 0, MOX::screen_seg, entry_idx++, 1, 127);
             allocate::Pop_Block(MOX::screen_seg);
             strlcpy(credits[credit_idx][0], data, sizeof(credits[credit_idx][0]));
+            string_overrides::Apply_String(path, credit_idx * 2 + 1, credits[credit_idx][0], sizeof(credits[credit_idx][0]));
 
             // Load second line of credit entry
             allocate::Push_Block(MOX::screen_seg);
             data = (char*)farload::Far_Reload_Next_Data(path, 0, MOX::screen_seg, entry_idx++, 1, 127);
             allocate::Pop_Block(MOX::screen_seg);
             strlcpy(credits[credit_idx][1], data, sizeof(credits[credit_idx][1]));
+            string_overrides::Apply_String(path, credit_idx * 2 + 2, credits[credit_idx][1], sizeof(credits[credit_idx][1]));
         }
 
         credit_num = 1;
@@ -835,9 +839,8 @@ namespace MAINMENU {
     int32_t __cdecl Get_File_Animation_Block_Space() {
         s_animation_header* header = init::io_buffer;
         int16_t index = header->current_frame;
-        const uint32_t* frame_offsets = Animation_Frame_Offsets_(header);
-        int32_t current_val = frame_offsets[index];
-        int32_t next_val = frame_offsets[index + 1];
+        int32_t current_val = Animation_Frame_Offset_(header, index);
+        int32_t next_val = Animation_Frame_Offset_(header, index + 1);
         return (next_val - current_val) + 1;
     }
 

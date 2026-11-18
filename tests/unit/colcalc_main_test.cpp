@@ -34,21 +34,21 @@ DOCTEST_TEST_CASE("government economy bonuses apply generically to every governm
         s_colony_job_production breakdown = {};
         DOCTEST_CHECK(COLCALC::Colony_Job_Production(
             colony, ECON_FOOD, &breakdown) == 2);
-        DOCTEST_CHECK(breakdown.govt_bonus == 30);
+        DOCTEST_CHECK((breakdown.govt_bonus == 30));
 
         colony->pop[0] = 0x280;
         DOCTEST_CHECK(COLCALC::Colony_Job_Production(
             colony, ECON_INDUSTRY, &breakdown) == 2);
-        DOCTEST_CHECK(breakdown.govt_bonus == 10);
+        DOCTEST_CHECK((breakdown.govt_bonus == 10));
 
         colony->pop[0] = 0x300;
         DOCTEST_CHECK(COLCALC::Colony_Job_Production(
             colony, ECON_RESEARCH, &breakdown) == 4);
-        DOCTEST_CHECK(breakdown.govt_bonus == 15);
+        DOCTEST_CHECK((breakdown.govt_bonus == 15));
 
         colony->pop[0] = 0;
         COLCALC::Colony_BC_Production(colony, nullptr);
-        DOCTEST_CHECK(colony->production[ECON_BC] == 2);
+        DOCTEST_CHECK((colony->production[ECON_BC] == 2));
     }
 
     memcpy(COLCALC::government_bonuses, saved_bonuses, sizeof(saved_bonuses));
@@ -84,18 +84,18 @@ DOCTEST_TEST_CASE("Android morale policy applies to the selected jobs") {
 
             s_colony_job_production all_droids = {};
             COLCALC::Colony_Job_Production(colony, jobs[index], &all_droids);
-            DOCTEST_REQUIRE(all_droids.morale_bonus != 0);
+            DOCTEST_REQUIRE((all_droids.morale_bonus != 0));
 
             COLCALC::android_morale = policy.value;
             s_colony_job_production configured = {};
             COLCALC::Colony_Job_Production(colony, jobs[index], &configured);
-            DOCTEST_CHECK(configured.morale_bonus ==
-                (policy.applies[index] ? all_droids.morale_bonus : 0));
+            DOCTEST_CHECK((configured.morale_bonus ==
+                (policy.applies[index] ? all_droids.morale_bonus : 0)));
 
             MOX::player[0].traits[TRAIT_CURRENT_GOVERNMENT] = GOVERNMENT_UNIFICATION;
             s_colony_job_production unification = {};
             COLCALC::Colony_Job_Production(colony, jobs[index], &unification);
-            DOCTEST_CHECK(unification.morale_bonus == 0);
+            DOCTEST_CHECK((unification.morale_bonus == 0));
         }
     }
 
@@ -111,16 +111,16 @@ DOCTEST_TEST_CASE("configured planet special BC bonuses feed colony income") {
 
     MOX::planet[0].planet_special = SYSTEM_SPECIAL_GOLD_DEPOSITS;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 12);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 12));
 
     colony->buildings[BUILDING_SPACEPORT] = 1;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 18);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 18));
 
     colony->buildings[BUILDING_SPACEPORT] = 0;
     MOX::planet[0].planet_special = SYSTEM_SPECIAL_GEM_DEPOSITS;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 18);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 18));
 
     TEST_GOVERNMENT_BONUS::Cleanup_();
 }
@@ -134,20 +134,20 @@ DOCTEST_TEST_CASE("configured Trade Goods ratios apply by Fantastic Traders trai
     colony->production[ECON_INDUSTRY] = 9;
 
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 6);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 6));
 
     MOX::player[0].traits[TRAIT_FANTASTIC_TRADERS] = 1;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 10);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 10));
 
     COLCALC::trade_goods_ratio = {40, 175};
     MOX::player[0].traits[TRAIT_FANTASTIC_TRADERS] = 0;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 5);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 5));
 
     MOX::player[0].traits[TRAIT_FANTASTIC_TRADERS] = 1;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 17);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 17));
 
     TEST_GOVERNMENT_BONUS::Cleanup_();
 }
@@ -161,22 +161,22 @@ DOCTEST_TEST_CASE("configured colony BC bonuses apply independently") {
     COLCALC::bc_bonus = {75, 125, 50};
 
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 5);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 5));
 
     colony->buildings[BUILDING_SPACEPORT] = 1;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 8);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 8));
 
     colony->buildings[BUILDING_SPACEPORT] = 0;
     colony->buildings[BUILDING_STOCK_EXCHANGE] = 1;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 11);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 11));
 
     colony->buildings[BUILDING_STOCK_EXCHANGE] = 0;
     MOX::player[0].tech_applications[TECH_APP_GALACTIC_CURRENCY_EXCHANGE] =
         TECH_RESEARCH_STATUS_RESEARCHED;
     COLCALC::Colony_BC_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_BC] == 7);
+    DOCTEST_CHECK((colony->production[ECON_BC] == 7));
 
     COLCALC::bc_bonus = saved_bonus;
     TEST_GOVERNMENT_BONUS::Cleanup_();
@@ -203,9 +203,9 @@ DOCTEST_TEST_CASE("configured research bonuses drive production and predictions"
     DOCTEST_CHECK(COLCALC::Colony_Research_Per_Scientist(
         colony, 0, &breakdown) == 106);
     DOCTEST_CHECK(breakdown.base_prod == 7);
-    DOCTEST_CHECK(breakdown.artifacts_bonus == 11);
-    DOCTEST_CHECK(breakdown.buildings_prod[BUILDING_ASTRO_UNIVERSITY] == 29);
-    DOCTEST_CHECK(breakdown.buildings_prod[BUILDING_SUPERCOMPUTER] == 19);
+    DOCTEST_CHECK((breakdown.artifacts_bonus == 11));
+    DOCTEST_CHECK((breakdown.buildings_prod[BUILDING_ASTRO_UNIVERSITY] == 29));
+    DOCTEST_CHECK((breakdown.buildings_prod[BUILDING_SUPERCOMPUTER] == 19));
     DOCTEST_CHECK(breakdown.buildings_prod[BUILDING_GALACTIC_CYBERNET] == 23);
     DOCTEST_CHECK(breakdown.buildings_prod[BUILDING_RESEARCH_LAB] == 17);
 
@@ -238,7 +238,7 @@ DOCTEST_TEST_CASE("configured research bonuses drive production and predictions"
     colony->buildings[BUILDING_GALACTIC_CYBERNET] = 1;
     colony->buildings[BUILDING_AUTOLAB] = 1;
     COLCALC::Colony_Research_Production(colony, nullptr);
-    DOCTEST_CHECK(colony->production[ECON_RESEARCH] == 184);
+    DOCTEST_CHECK((colony->production[ECON_RESEARCH] == 184));
 
     TEST_GOVERNMENT_BONUS::Cleanup_();
 }
@@ -336,9 +336,9 @@ DOCTEST_TEST_CASE("configured pollution reductions preserve order and upward rou
         COLCALC::Colony_Industry_Production(colony, nullptr);
 
         DOCTEST_CHECK(colony->pollution == test_case.expected_pollution);
-        DOCTEST_CHECK(
+        DOCTEST_CHECK((
             colony->production[ECON_INDUSTRY] ==
-            20 - test_case.expected_pollution);
+            20 - test_case.expected_pollution));
     }
 
     COLCALC::planet_no_pollution_prod[0] = 2;
@@ -375,8 +375,8 @@ DOCTEST_TEST_CASE("high Pollution Processor ratios preserve wide arithmetic") {
         COLCALC::Colony_Industry_Production(colony, nullptr);
 
         DOCTEST_CHECK(colony->pollution == test_case.expected_pollution);
-        DOCTEST_CHECK(
-            colony->production[ECON_INDUSTRY] == test_case.expected_industry);
+        DOCTEST_CHECK((
+            colony->production[ECON_INDUSTRY] == test_case.expected_industry));
     }
 
     TEST_GOVERNMENT_BONUS::Cleanup_();
@@ -482,7 +482,7 @@ DOCTEST_TEST_CASE("configured fixed production and Recyclotron bonuses are appli
 
     COLCALC::Colony_Industry_Production(colony, nullptr);
 
-    DOCTEST_CHECK(colony->production[ECON_INDUSTRY] == 34);
+    DOCTEST_CHECK((colony->production[ECON_INDUSTRY] == 34));
     DOCTEST_CHECK(colony->n_industry_recyclers == 15);
 
     COLCALC::production_worker_bonus = saved_worker_bonus;
@@ -625,8 +625,8 @@ DOCTEST_TEST_CASE("configured Food Replicator PP costs cap spending without nega
         COLCALC::Colony_Replicators(colony);
 
         DOCTEST_CHECK((uint8_t)colony->n_food_replicated == test_case.expected_food);
-        DOCTEST_CHECK(colony->production[ECON_FOOD] == test_case.expected_food);
-        DOCTEST_CHECK(colony->production[ECON_INDUSTRY] == test_case.expected_industry);
+        DOCTEST_CHECK((colony->production[ECON_FOOD] == test_case.expected_food));
+        DOCTEST_CHECK((colony->production[ECON_INDUSTRY] == test_case.expected_industry));
     }
 }
 

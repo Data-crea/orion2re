@@ -1,11 +1,10 @@
 #include "pch.h"
+#include "string_overrides.h"
 
 #include "lua/lua_game.h"
 #include "lua/lua_game_internal.h"
 #include "lua/lua_game_ship_identity.h"
 #include "lua/lua_mod_runtime.h"
-
-#include <array>
 
 namespace MAPGEN {
     int16_t star_count_by_galaxy_size[GALAXY_SIZE_COUNT] = {20, 36, 54, 71, 99, 71};
@@ -23,6 +22,7 @@ namespace MAPGEN {
     s_special_generation_config special_generation_config = {1, 1, 1, 1, 1, 1};
     s_monster_generation_config monster_generation_config = {
         255, 0, 0, 0, {5, 5, 5, 8, 12}, 20};
+    int16_t planet_limit = 250;
     uint8_t starting_reveal_radius;
     uint8_t star_visual_size_weight[3] = {3, 4, 3};
     s_nebula_count_config nebula_count[GALAXY_SIZE_COUNT] = {
@@ -596,11 +596,19 @@ namespace MAPGEN {
         return result >= 0 ? (int8_t)result : PLANET_CLIMATE_TERRAN;
     }
 
+    void Enforce_Configured_Planet_Max() {
+        if (MOX::NUM_STARS <= ORIGINAL_MAX_STARS) {
+            if (planet_limit == 0) return;
+            Enforce_Planet_Max(planet_limit);
+        } else {
+            Enforce_Planet_Max(MAX_PLANETS);
+        }
+    }
+
     void __cdecl Enforce_Planet_Max(int16_t max_planets) {
         int16_t original_planet_count = MOX::planet_count;
-        int16_t gas_giant_count = Gas_Giants();
 
-        if (max_planets <= original_planet_count - gas_giant_count) {
+        if (max_planets <= original_planet_count) {
             uint8_t is_home_system[MAX_STARS];
             memset(is_home_system, 0, sizeof(is_home_system));
 
@@ -612,6 +620,7 @@ namespace MAPGEN {
             }
 
             if (capture::Check_Release_Version() == 0) {
+                int16_t gas_giant_count = Gas_Giants();
                 RUSS::PFMT(0, 1, "Colony Planets: %d  Max: %d  Planet Count: %d  Removing %d planets", (int32_t)(original_planet_count - gas_giant_count), (int32_t)max_planets, (int32_t)original_planet_count, (int32_t)((original_planet_count - gas_giant_count) - max_planets));
                 key::Wait_For_Key();
             }
@@ -629,13 +638,12 @@ namespace MAPGEN {
                 if ((!special_generation_config.generate_orion ||
                         backup_p->star_index != 0) &&
                     is_home_system[backup_p->star_index] == 0 &&
-                    !HOMEGEN::Is_Added_Food_World(backup_p->star_index) &&
-                    backup_p->planet_type != PLANET_TYPE_GAS_GIANT) {
+                    !HOMEGEN::Is_Added_Food_World(backup_p->star_index)) {
                     removable_planets[removable_planet_count++] = planet_idx;
                 }
             }
 
-            while (max_planets <= MOX::planet_count - gas_giant_count) {
+            while (max_planets <= MOX::planet_count) {
                 if (removable_planet_count == 0) break;
 
                 int16_t choice = (int16_t)(game_random::Random(removable_planet_count) - 1);
@@ -1458,6 +1466,9 @@ namespace MAPGEN {
             RUSS::Mox_Update();
 
             name_seg = farload::Far_Reload_Data("starname.lbx", 1, MOX::screen_seg, 0, 0x33D, 0xF);
+            for (int i = 0; i < STAR_NAME_COUNT; ++i) {
+                string_overrides::Apply_String("starname.lbx", 13 + i + 1, (char*)name_seg + i * 15, 15);
+            }
             RUSS::Mox_Update();
             name_index = (uint16_t*)allocate::Allocate_Next_Block(MOX::screen_seg, 0xCF4);
             RUSS::Mox_Update();

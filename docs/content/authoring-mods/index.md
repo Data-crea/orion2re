@@ -9,14 +9,15 @@ This is separate from [Using mods](../manual/legacy-modding/index.md), which exp
 | What the mod needs to do | Use |
 | --- | --- |
 | Change an exposed rule, table entry, display option, or other generated setting | [CFG overrides](configuration-overrides.md) |
-| Replace graphics, text, sound, video, a complete LBX file, or one LBX entry | [VFS asset overrides](vfs-and-assets.md) |
+| Change individual strings in supported LBX resources | [JSON5 string overrides](string-overrides.md) |
+| Replace graphics, sound, video, a complete text asset or LBX file, or one LBX entry | [VFS asset overrides](vfs-and-assets.md) |
 | Edit a text resource that uses inline layout, substitution, or style commands | [Text formatting](text-formatting.md) |
 | React to a supported game event or change a supported calculation | [Lua events and rules](events-and-api.md) |
 | Transform the generated galaxy through the supported topology API | Lua `galaxy_generator` service |
 | Keep mod-private state in saves | Lua `storage` and [persistence](persistence.md) |
 | Add behavior for which no semantic API exists | Request a new semantic event, rule, service, or object operation; do not depend on native memory layout |
 
-Prefer CFG for declarative values already listed in the [configuration reference](../generated/configuration/index.md). Prefer VFS replacement for an asset whose virtual path is known. Use Lua only when behavior depends on lifecycle, game state, deterministic calculation, or mod-private saved state.
+Prefer CFG for declarative values already listed in the [configuration reference](../generated/configuration/index.md). Prefer JSON5 string overrides for supported text resources, and VFS replacement for other assets whose virtual paths are known. Use Lua only when behavior depends on lifecycle, game state, deterministic calculation, or mod-private saved state.
 
 ## Minimal package
 
@@ -84,7 +85,7 @@ The manifest, CFG, Lua sources, and migrations are private package files. They d
 
 1. Pick a stable lowercase package ID.
 2. Develop the package as a directory under `data/mods/<id>/`.
-3. Add the smallest CFG, VFS, or Lua change that implements the feature.
+3. Add the smallest CFG, JSON5 string, VFS asset, or Lua change that implements the feature.
 4. Enable the package explicitly and test startup diagnostics.
 5. Test interactions with dependencies and packages that touch the same configuration or assets.
 6. Start a new game when the mod changes setup data or scripts.

@@ -140,7 +140,7 @@ namespace SYS {
                 MOX::sys_disp[orbit_idx].oribit_pos = (int8_t)orbit_pos_out;
 
                 allocate::Get_Remaining_Block_Space((void*)sys_data_buffer);
-                Get_Rotating_Planet_Segment(&MOX::sys_disp[orbit_idx].pic, planet_idx, star_idx, 0);
+                MOX::sys_disp[orbit_idx].pic = Get_Rotating_Planet_Segment(planet_idx, star_idx, 0);
 
                 int16_t frame_count = animate::Get_Animation_Frame_Count(MOX::sys_disp[orbit_idx].pic);
                 MOX::sys_disp[orbit_idx].current_frame = (int16_t)((orbit_idx * 5) % frame_count);
@@ -204,7 +204,7 @@ namespace SYS {
         }
     }
 
-    void __cdecl Get_Rotating_Planet_Segment(s_animation_header** out_ptr, int16_t planet_idx, int16_t unused_star_idx, int32_t unused_arg) {
+    s_animation_header* __cdecl Get_Rotating_Planet_Segment(int16_t planet_idx, int16_t unused_star_idx, int32_t unused_arg) {
         (void)unused_star_idx;
         (void)unused_arg;
 
@@ -230,7 +230,7 @@ namespace SYS {
             entry_idx = (int16_t)climate * PLANET_SIZE_COUNT + (int16_t)size;
         }
 
-        *out_ptr = (s_animation_header*)buffer::Buffer_Reload("BUFFER0.LBX", (int)entry_idx + 0x5c, MOX::global_cache_seg);
+        return (s_animation_header*)buffer::Buffer_Reload("BUFFER0.LBX", (int)entry_idx + 0x5c, MOX::global_cache_seg);
     }
 
     void __cdecl Potential_Colony_Info_Popup(int16_t planet_idx) {
@@ -546,8 +546,7 @@ namespace SYS {
             (s_animation_header*)buffer::Buffer_Reload("BUFFER0.LBX", planet_mask_index + 0x8f, MOX::global_cache_seg);
         animate::Set_Animation_Frame(MOX::planet_mask_seg[planet_mask_index], orbit_pos);
 
-        SYS::Get_Rotating_Planet_Segment(
-            &MOX::sys_disp[sys_slot].pic,
+        MOX::sys_disp[sys_slot].pic = SYS::Get_Rotating_Planet_Segment(
             MOX::sys_disp[sys_slot].orbit,
             orbit_pos,
             0);
@@ -569,8 +568,7 @@ namespace SYS {
             (s_animation_header*)buffer::Buffer_Reload("BUFFER0.LBX", planet_mask_index + 0x8f, MOX::global_cache_seg);
         animate::Set_Animation_Frame(MOX::planet_mask_seg[planet_mask_index], orbit_pos);
 
-        SYS::Get_Rotating_Planet_Segment(
-            &MOX::sys_disp[sys_slot].pic,
+        MOX::sys_disp[sys_slot].pic = SYS::Get_Rotating_Planet_Segment(
             MOX::sys_disp[sys_slot].orbit,
             orbit_pos,
             0);

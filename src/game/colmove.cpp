@@ -39,7 +39,7 @@ namespace COLMOVE {
                     if (col.n_pops > 0) {
                         int16_t current_x = x + 5;
                         for (int16_t i = 0; i < col.n_pops; ++i) {
-                            if (!(col.pop[i] & 0x200)) {
+                            if (!POP::Is_Assigned(col.pop[i])) {
                                 s_animation_header* pop_anim = COLONY::Colony_Pop_Anim(cluster_colony_n, i);
                                 animate::Draw(current_x, y - 10, pop_anim);
                                 current_x += 20; // 0x14
@@ -57,10 +57,10 @@ namespace COLMOVE {
         int16_t unemployed_idx = Get_First_Unemployed(cluster_colony_n);
 
         while (unemployed_idx != -1) {
-            uint32_t& pop_flags = MOX::colony[cluster_colony_n].pop[unemployed_idx];
+            uint32_t* pop_flags = &MOX::colony[cluster_colony_n].pop[unemployed_idx];
 
-            if ((pop_flags & 0x200) == 0) {
-                pop_flags |= 0x200;
+            if (!POP::Is_Assigned(POP::Load(pop_flags))) {
+                POP::Set_Assigned(pop_flags, true);
             }
 
             unemployed_idx = Get_First_Unemployed(cluster_colony_n);
@@ -84,7 +84,7 @@ namespace COLMOVE {
 
         for (int16_t i = start_pop_idx; i < (int16_t)(uint8_t)colony->n_pops; ++i) {
             if (Pops_Identical(colony_idx, start_pop_idx, colony_idx, i)) {
-                colony->pop[i] &= 0xFFFFFDFF;
+                POP::Set_Assigned(&colony->pop[i], false);
             }
         }
 
@@ -98,7 +98,7 @@ namespace COLMOVE {
 
         if (n_pops != 0) {
             for (int16_t i = 0; i < (int16_t)n_pops; ++i) {
-                if ((colony.pop[i] & 0x200) == 0) {
+                if (!POP::Is_Assigned(colony.pop[i])) {
                     return i;
                 }
             }
@@ -112,7 +112,7 @@ namespace COLMOVE {
         int16_t n_pops = (uint8_t)MOX::colony[colony_idx].n_pops;
 
         for (int16_t i = 0; i < n_pops; ++i) {
-            if ((MOX::colony[colony_idx].pop[i] & 0x200) == 0) {
+            if (!POP::Is_Assigned(MOX::colony[colony_idx].pop[i])) {
                 unemployed_count++;
             }
         }
@@ -124,7 +124,7 @@ namespace COLMOVE {
         uint32_t pop1 = MOX::colony[source_colony_idx].pop[source_pop_idx];
         uint32_t pop2 = MOX::colony[dest_colony_idx].pop[dest_pop_idx];
 
-        if (((pop1 ^ pop2) & 0x180) != 0) {
+        if (POP::Get_Prof(pop1) != POP::Get_Prof(pop2)) {
             return false;
         }
 
@@ -135,7 +135,8 @@ namespace COLMOVE {
             return false;
         }
 
-        if (((pop2 ^ pop1) & 0x40f) != 0) {
+        if (POP::Get_Race(pop1) != POP::Get_Race(pop2) ||
+            POP::Is_Conquered(pop1) != POP::Is_Conquered(pop2)) {
             return false;
         }
 
@@ -176,11 +177,11 @@ namespace COLMOVE {
 
         while (unemployed_pop_idx != -1) {
             if (colony_idx == COLMOVE::cluster_colony_n) {
-                uint32_t& pop_flags = MOX::colony[COLMOVE::cluster_colony_n].pop[unemployed_pop_idx];
-                const int32_t current_job = (int32_t)((pop_flags & 0x180u) >> 7);
+                uint32_t* pop_flags = &MOX::colony[COLMOVE::cluster_colony_n].pop[unemployed_pop_idx];
+                const int32_t current_job = (int32_t)POP::Get_Prof(POP::Load(pop_flags));
 
                 if (requested_job == -1 || current_job == requested_job) {
-                    pop_flags |= 0x200u;
+                    POP::Set_Assigned(pop_flags, true);
                 } else {
                     if (COLMOVE::Give_Colonist_New_Job(
                             COLMOVE::cluster_colony_n,
@@ -272,8 +273,8 @@ namespace COLMOVE {
                             extra_success_notice = true;
                         }
 
-                        uint32_t& pop_flags = source_colony->pop[unemployed_pop_idx];
-                        const int32_t current_job = (int32_t)((pop_flags & 0x180u) >> 7);
+                        uint32_t* pop_flags = &source_colony->pop[unemployed_pop_idx];
+                        const int32_t current_job = (int32_t)POP::Get_Prof(POP::Load(pop_flags));
 
                         if (requested_job != -1 && current_job != requested_job) {
                             if (COLMOVE::Give_Colonist_New_Job(
@@ -285,7 +286,7 @@ namespace COLMOVE {
                             }
 
                             extra_success_notice = true;
-                            pop_flags &= 0xFFFFFDFFu;
+                            POP::Set_Assigned(pop_flags, false);
                         }
 
                         SETTLER::Settle_Pop(source_colony, unemployed_pop_idx, destination_colony);
@@ -583,20 +584,20 @@ namespace COLMOVE {
         if (MOX::settings.language == 4) {
             int16_t pop_state = COLONY::Pop_To_Pop_State(colony_idx, pop_idx);
             char* pop_state_string = COLONY::Pop_State_String(pop_state);
-            char* conquered_string = COLONY::Conquered_String((bool)((pop_value >> 10) & 1U));
+            char* conquered_string = COLONY::Conquered_String(POP::Is_Conquered(pop_value));
             char* pop_race_string = COLONY::Pop_Race_String(colony_idx, pop_idx);
-            char* job_string = COLONY::Job_String((int16_t)((pop_value >> 7) & 3U));
+            char* job_string = COLONY::Job_String((int16_t)POP::Get_Prof(pop_value));
             char* format = ESTRINGS::E_Strings(0x4C);
 
             snprintf(output_buffer, output_buffer_size, format, job_string, pop_race_string, conquered_string, pop_state_string);
             return;
         }
 
-        char* job_string = COLONY::Job_String((int16_t)((pop_value >> 7) & 3U));
+        char* job_string = COLONY::Job_String((int16_t)POP::Get_Prof(pop_value));
         int16_t pop_state = COLONY::Pop_To_Pop_State(colony_idx, pop_idx);
         char* pop_state_string = COLONY::Pop_State_String(pop_state);
         char* pop_race_string = COLONY::Pop_Race_String(colony_idx, pop_idx);
-        char* conquered_string = COLONY::Conquered_String((bool)((pop_value >> 10) & 1U));
+        char* conquered_string = COLONY::Conquered_String(POP::Is_Conquered(pop_value));
         char* format = ESTRINGS::E_Strings(0x4C);
 
         snprintf(output_buffer, output_buffer_size, format, conquered_string, pop_race_string, pop_state_string, job_string);

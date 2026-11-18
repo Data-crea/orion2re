@@ -135,6 +135,9 @@ namespace COLBLDG {
 namespace platform {
     uint8_t g_vsync_enabled = 1;
     e_present_scaler g_present_scaler = PRESENT_SCALER_PIXELART;
+    int32_t g_window_width = 640;
+    int32_t g_window_height = 480;
+    uint8_t g_fullscreen = 0;
 } // namespace platform
 
 namespace debug_overlay {
@@ -175,6 +178,7 @@ namespace MAPGEN {
     s_special_generation_config special_generation_config = {1, 1, 1, 1, 1, 1};
     s_monster_generation_config monster_generation_config = {
         255, 0, 0, 0, {5, 5, 5, 8, 12}, 20};
+    int16_t planet_limit = 250;
     uint8_t starting_reveal_radius;
     uint8_t star_visual_size_weight[3] = {3, 4, 3};
     s_nebula_count_config nebula_count[GALAXY_SIZE_COUNT] = {
@@ -342,6 +346,7 @@ namespace CMBTFIR2 {
         80,
         10,
         30,
+        0,
         15,
     };
     s_ship_explosion ship_explosion = {5, 3};

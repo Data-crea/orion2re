@@ -3,6 +3,10 @@
 #include "doctest/doctest.h"
 #include "game/colonize.h"
 
+// Game records are packed, so their members may be misaligned. Assertions
+// on them use double parentheses so doctest compares the values directly
+// instead of binding references to the packed members.
+
 namespace TEST_COLONIZE {
     void Reset_();
 }
@@ -27,7 +31,7 @@ DOCTEST_TEST_CASE("same-owner outpost ship does not suppress colony ship priorit
 
     COLONIZE::Find_Colonize_Players();
 
-    DOCTEST_CHECK(MOX::star[0].colonize_player == 0);
+    DOCTEST_CHECK((MOX::star[0].colonize_player == 0));
 }
 
 DOCTEST_TEST_CASE("same-owner outpost ship does not suppress colony base priority") {
@@ -61,9 +65,9 @@ DOCTEST_TEST_CASE("same-owner outpost ship does not suppress colony base priorit
 
     COLONIZE::Find_Colonize_Players();
 
-    DOCTEST_CHECK(MOX::star[0].colonize_player == 0);
-    DOCTEST_CHECK(MOX::colony[0].buildings[BUILDING_COLONY_BASE] == 1);
-    DOCTEST_CHECK(MOX::player[0].bc == 0);
+    DOCTEST_CHECK((MOX::star[0].colonize_player == 0));
+    DOCTEST_CHECK((MOX::colony[0].buildings[BUILDING_COLONY_BASE] == 1));
+    DOCTEST_CHECK((MOX::player[0].bc == 0));
 }
 
 DOCTEST_TEST_CASE("outpost on non-planet body uses barren climate") {
@@ -75,7 +79,7 @@ DOCTEST_TEST_CASE("outpost on non-planet body uses barren climate") {
 
     COLONIZE::Make_New_Outpost(0, 0);
 
-    DOCTEST_CHECK(MOX::colony[0].climate == PLANET_CLIMATE_BARREN);
+    DOCTEST_CHECK((MOX::colony[0].climate == PLANET_CLIMATE_BARREN));
 }
 
 DOCTEST_TEST_CASE("outpost on planet preserves planet climate") {
@@ -87,7 +91,7 @@ DOCTEST_TEST_CASE("outpost on planet preserves planet climate") {
 
     COLONIZE::Make_New_Outpost(0, 0);
 
-    DOCTEST_CHECK(MOX::colony[0].climate == PLANET_CLIMATE_OCEAN);
+    DOCTEST_CHECK((MOX::colony[0].climate == PLANET_CLIMATE_OCEAN));
 }
 
 DOCTEST_TEST_CASE("first colony after losing the homeworld becomes the new home") {
@@ -97,7 +101,7 @@ DOCTEST_TEST_CASE("first colony after losing the homeworld becomes the new home"
 
     COLONIZE::Make_New_Colony(0, 0);
 
-    DOCTEST_CHECK(MOX::player[0].home_planet_id == 0);
+    DOCTEST_CHECK((MOX::player[0].home_planet_id == 0));
 }
 
 DOCTEST_TEST_CASE("new outpost does not become the homeworld") {
@@ -107,7 +111,7 @@ DOCTEST_TEST_CASE("new outpost does not become the homeworld") {
 
     COLONIZE::Make_New_Outpost(0, 0);
 
-    DOCTEST_CHECK(MOX::player[0].home_planet_id == -1);
+    DOCTEST_CHECK((MOX::player[0].home_planet_id == -1));
 }
 
 DOCTEST_TEST_CASE("first colony population uses the configured worker rule") {
@@ -118,7 +122,7 @@ DOCTEST_TEST_CASE("first colony population uses the configured worker rule") {
 
     COLONIZE::Make_New_Colony(0, 0);
 
-    DOCTEST_CHECK(POP::Get_Prof(MOX::colony[0].pop[0]) == POP::PROF_FARMER);
+    DOCTEST_CHECK((POP::Get_Prof(MOX::colony[0].pop[0]) == POP::PROF_FARMER));
 
     TEST_COLONIZE::Reset_();
     MOX::planet[0].star_index = 0;
@@ -127,7 +131,7 @@ DOCTEST_TEST_CASE("first colony population uses the configured worker rule") {
 
     COLONIZE::Make_New_Colony(0, 0);
 
-    DOCTEST_CHECK(POP::Get_Prof(MOX::colony[0].pop[0]) == POP::PROF_WORKER);
+    DOCTEST_CHECK((POP::Get_Prof(MOX::colony[0].pop[0]) == POP::PROF_WORKER));
 }
 
 DOCTEST_TEST_CASE("new colony populations use semantic identity and assignment fields") {
@@ -140,14 +144,14 @@ DOCTEST_TEST_CASE("new colony populations use semantic identity and assignment f
 
     COLONIZE::Make_New_Colony(0, player_idx);
 
-    DOCTEST_CHECK(POP::Get_Race(MOX::colony[0].pop[0]) == player_idx);
-    DOCTEST_CHECK(POP::Get_Original_Owner(MOX::colony[0].pop[0]) == player_idx);
-    DOCTEST_CHECK(POP::Is_Assigned(MOX::colony[0].pop[0]));
-    DOCTEST_CHECK(POP::Get_Prof(MOX::colony[0].pop[0]) == POP::PROF_FARMER);
+    DOCTEST_CHECK((POP::Get_Race(MOX::colony[0].pop[0]) == player_idx));
+    DOCTEST_CHECK((POP::Get_Original_Owner(MOX::colony[0].pop[0]) == player_idx));
+    DOCTEST_CHECK((POP::Is_Assigned(MOX::colony[0].pop[0])));
+    DOCTEST_CHECK((POP::Get_Prof(MOX::colony[0].pop[0]) == POP::PROF_FARMER));
     for (int index = 1; index < 4; ++index) {
-        DOCTEST_CHECK(POP::Get_Race(MOX::colony[0].pop[index]) == POP::RACE_NATIVE);
-        DOCTEST_CHECK(POP::Get_Original_Owner(MOX::colony[0].pop[index]) == player_idx);
-        DOCTEST_CHECK(POP::Is_Assigned(MOX::colony[0].pop[index]));
-        DOCTEST_CHECK(POP::Get_Prof(MOX::colony[0].pop[index]) == POP::PROF_FARMER);
+        DOCTEST_CHECK((POP::Get_Race(MOX::colony[0].pop[index]) == POP::RACE_NATIVE));
+        DOCTEST_CHECK((POP::Get_Original_Owner(MOX::colony[0].pop[index]) == player_idx));
+        DOCTEST_CHECK((POP::Is_Assigned(MOX::colony[0].pop[index])));
+        DOCTEST_CHECK((POP::Get_Prof(MOX::colony[0].pop[index]) == POP::PROF_FARMER));
     }
 }

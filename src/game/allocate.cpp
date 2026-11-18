@@ -177,6 +177,13 @@ namespace allocate {
     }
 
     void* __cdecl Allocate_Next_Block(void* block, uint32_t size) {
+        return Allocate_Next_Block_Aligned(block, size, 1);
+    }
+
+    void* __cdecl Allocate_Next_Block_Aligned(void* block, uint32_t size, size_t alignment) {
+        if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
+            exitm::Exit_With_Message("Invalid Block Alignment");
+        }
         const uint64_t padded = (size & 1u) != 0 ? ((uint64_t)size + 3u) & ~UINT64_C(3) : size;
         if (padded + sizeof(s_alloc_header) > INT32_MAX) {
             Reallocation_Error(size, INT32_MAX, Get_Max_Block_Space(block));
@@ -188,9 +195,11 @@ namespace allocate {
         uint32_t current_offset = pool_header->current;
         int32_t capacity = (int32_t)pool_header->size;
 
-        // Total required space for the new sub-block includes a 12-byte internal header.
+        // Pad before the header so the aligned payload remains a normal block.
+        const uintptr_t payload_address = (uintptr_t)block + current_offset + sizeof(s_alloc_header);
+        const size_t padding = (alignment - (payload_address & (alignment - 1))) & (alignment - 1);
         const uint64_t total_required =
-            (uint64_t)current_offset + aligned_size + sizeof(s_alloc_header);
+            (uint64_t)current_offset + padding + aligned_size + sizeof(s_alloc_header);
 
         if (total_required > pool_header->size) {
             Reallocation_Error(
@@ -201,10 +210,10 @@ namespace allocate {
 
         // Pointer to the start of the new sub-block (header starts here)
         uint8_t* pool_base = (uint8_t*)block;
-        s_alloc_header* sub_block_header = (s_alloc_header*)(pool_base + current_offset);
+        s_alloc_header* sub_block_header = (s_alloc_header*)(pool_base + current_offset + padding);
 
         // Advance the pool's allocation pointer for future allocations
-        pool_header->current = current_offset + aligned_size + sizeof(s_alloc_header);
+        pool_header->current = (uint32_t)total_required;
 
         // Initialize the sub-block header.
         sub_block_header->current = 0;

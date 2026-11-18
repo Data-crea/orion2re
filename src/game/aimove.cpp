@@ -1710,7 +1710,10 @@ namespace AIMOVE {
 
                                 if (move_star != -1) {
                                     SHIPMOVE::Make_Ships_Move_To(ship_list, target_star, &move_info);
-                                    (*AIDATA::i_all_combat_ships)[i_ai][ship_loc] = -1;
+                                    // Redirected ships in transit may not be at any star.
+                                    if (ship_loc != -1) {
+                                        (*AIDATA::i_all_combat_ships)[i_ai][ship_loc] = -1;
+                                    }
                                 }
                             }
                         }
