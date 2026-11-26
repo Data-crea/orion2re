@@ -186,6 +186,7 @@ off on request).
 | `bec858ba` | Open Fix 123: a command frame that arrives in two pieces no longer drops the client (`HandleClientMessage` peeks the whole frame before it reads any of it) |
 | `bf37dae6` | Open Fix 124: `g_injected_mouse_pending` is a `std::atomic<bool>` (the game thread sets and clears it, the main thread's event loop reads it) |
 | `0296ca0c` | Open Fix 125: `MSG_CANCEL_FIELD` holds the real mouse off like the two injected clicks |
+| `0a800387` | Open Fix 129: a real pointer move during an injected click no longer rewrites it (the hold lasts 300 ms from the click, not until the first pump, and the SDL motion path reads it) |
 
 ---
 
