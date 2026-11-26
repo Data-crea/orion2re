@@ -121,6 +121,11 @@ option(ORION2RE_BUILD_TESTS "Build tests" OFF)
 option(ORION2RE_USE_SYSTEM_PACKAGES
        "Use the system library for every vendored dependency instead of the bundled copy"
        OFF)
+# For distributions that do not package libsmacker. Declared here because
+# the master switch below leaves libsmacker alone when it is enabled.
+option(ORION2RE_USE_FFMPEG_SMACKER
+       "Decode Smacker video with the system FFmpeg libraries instead of libsmacker"
+       OFF)
 
 # The master switch enables every individual ORION2RE_USE_SYSTEM_*
 # option. It is placed here, before the per-library selections below,
@@ -136,7 +141,13 @@ if(ORION2RE_USE_SYSTEM_PACKAGES)
     set(ORION2RE_USE_SYSTEM_MINIZ ON CACHE BOOL "" FORCE)
     set(ORION2RE_USE_SYSTEM_YYJSON ON CACHE BOOL "" FORCE)
     set(ORION2RE_USE_SYSTEM_DOCTEST ON CACHE BOOL "" FORCE)
-    set(ORION2RE_USE_SYSTEM_LIBSMACKER ON CACHE BOOL "" FORCE)
+    # A build directory configured before FFmpeg was selected still has
+    # libsmacker switched on in its cache, so it is switched off again.
+    if(ORION2RE_USE_FFMPEG_SMACKER)
+        set(ORION2RE_USE_SYSTEM_LIBSMACKER OFF CACHE BOOL "" FORCE)
+    else()
+        set(ORION2RE_USE_SYSTEM_LIBSMACKER ON CACHE BOOL "" FORCE)
+    endif()
     set(ORION2RE_USE_SYSTEM_IMGUI ON CACHE BOOL "" FORCE)
     set(ORION2RE_USE_SYSTEM_LUA ON CACHE BOOL "" FORCE)
 endif()
@@ -146,7 +157,7 @@ if(APPLE AND ORION2RE_BUILD_TESTS)
     set(ORION2RE_ENABLE_ASAN_DEFAULT ON)
 endif()
 option(ORION2RE_ENABLE_ASAN "Enable AddressSanitizer (and UBSan with GCC/Clang) for supported debug builds" ${ORION2RE_ENABLE_ASAN_DEFAULT})
-option(ORION2RE_RELEASE_DEBUG_INFO "Emit debug info for non-Debug MSVC builds" OFF)
+option(ORION2RE_RELEASE_DEBUG_INFO "Generate a PDB for the MSVC Release game build" OFF)
 if(APPLE AND ORION2RE_BUILD_TESTS AND NOT ORION2RE_ENABLE_ASAN)
     message(FATAL_ERROR
         "macOS tests require ASan and UBSan. Configure a Debug build with "
@@ -521,14 +532,37 @@ if((ORION2RE_BUILD_GAME OR ORION2RE_BUILD_TESTS OR ORION2RE_BUILD_CONFIG_TOOL) A
     )
 endif()
 
-if(NOT ORION2RE_USE_SYSTEM_LIBSMACKER AND
+if(ORION2RE_USE_FFMPEG_SMACKER AND ORION2RE_USE_SYSTEM_LIBSMACKER)
+    message(FATAL_ERROR
+        "ORION2RE_USE_FFMPEG_SMACKER and ORION2RE_USE_SYSTEM_LIBSMACKER select different Smacker decoders; enable only one."
+    )
+endif()
+
+if(NOT ORION2RE_USE_SYSTEM_LIBSMACKER AND NOT ORION2RE_USE_FFMPEG_SMACKER AND
    NOT EXISTS "${ORION2RE_VENDORED_LIBSMACKER_DIR}/smacker.c")
     message(FATAL_ERROR
         "This project requires libsmacker sources at vendors/libsmacker."
     )
 endif()
 
-if(ORION2RE_USE_SYSTEM_LIBSMACKER)
+# The libsmacker API implemented with FFmpeg. It is built apart from the
+# game sources, which keep including "smacker.h".
+set(ORION2RE_SMACKER_FFMPEG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/game/smacker_ffmpeg")
+set(ORION2RE_SMACKER_FFMPEG_SOURCES "${ORION2RE_SMACKER_FFMPEG_DIR}/smacker_ffmpeg.cpp")
+
+if(ORION2RE_USE_FFMPEG_SMACKER)
+    # FFmpeg 4.4 (libavformat 58.76) is the first whose Smacker demuxer
+    # returns the audio packets of a frame before its video packet.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(ORION2RE_FFMPEG REQUIRED IMPORTED_TARGET
+        libavformat>=58.76 libavcodec libavutil)
+    add_library(orion2re_smacker_ffmpeg STATIC ${ORION2RE_SMACKER_FFMPEG_SOURCES})
+    target_compile_features(orion2re_smacker_ffmpeg PRIVATE cxx_std_20)
+    target_link_libraries(orion2re_smacker_ffmpeg PRIVATE PkgConfig::ORION2RE_FFMPEG)
+    set(ORION2RE_LIBSMACKER_LIBRARY orion2re_smacker_ffmpeg)
+    set(ORION2RE_LIBSMACKER_INCLUDE_DIRS "${ORION2RE_SMACKER_FFMPEG_DIR}")
+    set(ORION2RE_LIBSMACKER_SOURCES "")
+elseif(ORION2RE_USE_SYSTEM_LIBSMACKER)
     find_library(ORION2RE_LIBSMACKER_LIBRARY NAMES smacker REQUIRED)
     find_path(ORION2RE_LIBSMACKER_INCLUDE_DIR NAMES smacker.h REQUIRED)
     set(ORION2RE_LIBSMACKER_INCLUDE_DIRS "${ORION2RE_LIBSMACKER_INCLUDE_DIR}")
@@ -700,8 +734,12 @@ if(ORION2RE_BUILD_GAME OR ORION2RE_BUILD_CONFIG_TOOL)
 
     list(REMOVE_ITEM ORION2RE_SOURCES ${ORION2RE_CONFIG_GENERATED_FILES})
     list(REMOVE_ITEM ORION2RE_SOURCES ${ORION2RE_SCALER_SOURCES})
+    list(REMOVE_ITEM ORION2RE_SOURCES ${ORION2RE_SMACKER_FFMPEG_SOURCES})
     list(APPEND ORION2RE_SOURCES ${ORION2RE_CONFIG_GENERATED_FILES})
-    list(REMOVE_ITEM ORION2RE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+    list(REMOVE_ITEM ORION2RE_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/windows_crash_dump.cpp"
+    )
     # imgui_stb.cpp is compiled by the orion2re_imgui OBJECT library when
     # the prebuilt system library is used; keep it out of the game
     # objects or the stb symbols would be defined twice. When the
@@ -855,6 +893,16 @@ if(ORION2RE_BUILD_GAME)
         ${ORION2RE_LIBSMACKER_SOURCES}
         ${ORION2RE_YYJSON_SOURCES}
     )
+    if(WIN32)
+        set_source_files_properties(src/windows_crash_dump.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+        target_sources(orion2re PRIVATE src/windows_crash_dump.cpp)
+        target_link_libraries(orion2re PRIVATE dbghelp)
+
+        add_executable(test_windows_crash_dump EXCLUDE_FROM_ALL
+            tests/windows/crash_dump_smoke.cpp src/windows_crash_dump.cpp)
+        target_include_directories(test_windows_crash_dump PRIVATE src)
+        target_link_libraries(test_windows_crash_dump PRIVATE dbghelp)
+    endif()
 
     if(ORION2RE_EXCLUDE_RUNTIME_FROM_ALL)
         set_target_properties(orion2re PROPERTIES EXCLUDE_FROM_ALL YES)
@@ -888,7 +936,7 @@ if(ORION2RE_BUILD_GAME)
     if(ORION2RE_USE_SYSTEM_YYJSON)
         target_link_libraries(orion2re PRIVATE PkgConfig::yyjson)
     endif()
-    if(ORION2RE_USE_SYSTEM_LIBSMACKER)
+    if(ORION2RE_USE_SYSTEM_LIBSMACKER OR ORION2RE_USE_FFMPEG_SMACKER)
         target_link_libraries(orion2re PRIVATE ${ORION2RE_LIBSMACKER_LIBRARY})
     endif()
     add_executable(config-load-benchmark EXCLUDE_FROM_ALL
@@ -907,7 +955,7 @@ if(ORION2RE_BUILD_GAME)
     if(ORION2RE_USE_SYSTEM_YYJSON)
         target_link_libraries(config-load-benchmark PRIVATE PkgConfig::yyjson)
     endif()
-    if(ORION2RE_USE_SYSTEM_LIBSMACKER)
+    if(ORION2RE_USE_SYSTEM_LIBSMACKER OR ORION2RE_USE_FFMPEG_SMACKER)
         target_link_libraries(config-load-benchmark PRIVATE ${ORION2RE_LIBSMACKER_LIBRARY})
     endif()
     if(MSVC)
@@ -929,7 +977,7 @@ if(ORION2RE_BUILD_GAME)
     if(ORION2RE_USE_SYSTEM_YYJSON)
         target_link_libraries(turn-benchmark PRIVATE PkgConfig::yyjson)
     endif()
-    if(ORION2RE_USE_SYSTEM_LIBSMACKER)
+    if(ORION2RE_USE_SYSTEM_LIBSMACKER OR ORION2RE_USE_FFMPEG_SMACKER)
         target_link_libraries(turn-benchmark PRIVATE ${ORION2RE_LIBSMACKER_LIBRARY})
     endif()
     if(MSVC)
@@ -1017,7 +1065,7 @@ if(ORION2RE_BUILD_CONFIG_TOOL)
     if(ORION2RE_USE_SYSTEM_YYJSON)
         target_link_libraries(config-tool PRIVATE PkgConfig::yyjson)
     endif()
-    if(ORION2RE_USE_SYSTEM_LIBSMACKER)
+    if(ORION2RE_USE_SYSTEM_LIBSMACKER OR ORION2RE_USE_FFMPEG_SMACKER)
         target_link_libraries(config-tool PRIVATE ${ORION2RE_LIBSMACKER_LIBRARY})
     endif()
 
@@ -1253,8 +1301,11 @@ if(ORION2RE_GAME_DIR AND TARGET orion2re)
 endif()
 
 if(MSVC)
+    # Keep debug info with the objects until the game links its final PDB.
+    set(ORION2RE_RELEASE_DEBUG_COMPILE_OPTION
+        $<$<AND:$<CONFIG:Release>,$<BOOL:${ORION2RE_RELEASE_DEBUG_INFO}>>:/Z7>)
     if(TARGET orion2re)
-        target_compile_options(orion2re PRIVATE /W3 /permissive-)
+        target_compile_options(orion2re PRIVATE /W3 /permissive- ${ORION2RE_RELEASE_DEBUG_COMPILE_OPTION})
     endif()
     target_compile_options(orion2re-router PRIVATE /W3 /permissive-)
     if(TARGET config-tool)
@@ -1264,7 +1315,7 @@ if(MSVC)
         target_compile_options(config-generator PRIVATE /W3 /permissive-)
     endif()
     if(TARGET orion2re_game_objects)
-        target_compile_options(orion2re_game_objects PRIVATE /W3 /permissive-)
+        target_compile_options(orion2re_game_objects PRIVATE /W3 /permissive- ${ORION2RE_RELEASE_DEBUG_COMPILE_OPTION})
         target_compile_definitions(orion2re_game_objects PRIVATE
             WIN32
             _CRT_SECURE_NO_DEPRECATE
@@ -1296,16 +1347,14 @@ if(MSVC)
             $<$<CONFIG:Release>:/Gy>
             $<$<CONFIG:Release>:/Oi>
             $<$<CONFIG:Release>:/GS>
-            $<$<AND:$<CONFIG:Release>,$<BOOL:${ORION2RE_RELEASE_DEBUG_INFO}>>:/Zi>
-            $<$<AND:$<CONFIG:Release>,$<BOOL:${ORION2RE_RELEASE_DEBUG_INFO}>>:/Zo>
         )
 
         target_link_options(orion2re PRIVATE
             /DYNAMICBASE
             /NXCOMPAT
+            $<$<AND:$<CONFIG:Release>,$<BOOL:${ORION2RE_RELEASE_DEBUG_INFO}>>:/DEBUG:FULL>
             $<$<CONFIG:Release>:/OPT:REF>
             $<$<CONFIG:Release>:/OPT:ICF>
-            $<$<AND:$<CONFIG:Release>,$<BOOL:${ORION2RE_RELEASE_DEBUG_INFO}>>:/DEBUG>
         )
     endif()
     if(TARGET config-tool)

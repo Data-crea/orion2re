@@ -111,7 +111,7 @@ function(orion2re_add_unit_test TARGET_NAME)
     if(ORION2RE_USE_SYSTEM_YYJSON)
         target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::yyjson)
     endif()
-    if(ORION2RE_USE_SYSTEM_LIBSMACKER)
+    if(ORION2RE_USE_SYSTEM_LIBSMACKER OR ORION2RE_USE_FFMPEG_SMACKER)
         target_link_libraries(${TARGET_NAME} PRIVATE ${ORION2RE_LIBSMACKER_LIBRARY})
     endif()
 
@@ -229,6 +229,10 @@ orion2re_add_unit_test(test_score
 
 orion2re_add_game_test(test_resource_reload
     tests/unit/resource_reload_test.cpp
+)
+
+orion2re_add_game_test(test_original_game_assets
+    tests/unit/original_game_assets_test.cpp
 )
 
 
@@ -895,6 +899,7 @@ orion2re_add_unit_test(test_nextturn_order
         src/game/random.cpp
     FAKE_SOURCES
         tests/fakes/fake_nextturn_runtime.cpp
+    LINK_SDL
 )
 
 orion2re_add_game_test(test_nonplayer_spawn
@@ -1333,10 +1338,18 @@ target_compile_definitions(test_savegame PRIVATE
     TEST_CONFIG_RUNTIME_EXTERNAL_SHIPS
 )
 
+orion2re_add_game_test(test_savegame_compatibility
+    tests/unit/savegame_compatibility_test.cpp
+)
+target_compile_definitions(test_savegame_compatibility PRIVATE
+    SAVEGAME_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data"
+)
+
 orion2re_add_unit_test(test_netturn_host_selection
     SOURCES
         tests/unit/netturn_test.cpp
     PRODUCTION_SOURCES
+        src/game/legacy_world.cpp
         src/game/mainscr_network.cpp
         src/game/netturn.cpp
         src/game/netmox.cpp
@@ -1360,6 +1373,7 @@ orion2re_add_unit_test(test_netmox_packet_limits
     SOURCES
         tests/unit/netmox_test.cpp
     PRODUCTION_SOURCES
+        src/game/legacy_world.cpp
         src/game/netmox.cpp
         src/game/netproto.cpp
         src/game/random.cpp

@@ -27,7 +27,7 @@ namespace MOX2 {
     uint8_t Ext_Language_(uint8_t fallback);  // OrionLayer, open fix 70.
 #endif
 
-    /** Loads the alternate data path from orioncd.ini and verifies required assets are reachable. */
+    /** Reads an optional CD fallback path from orioncd.ini and checks for DIPLOMAT.LBX. */
     void __cdecl Set_Mox_Alt_Path();
 
     /** Runs the main screen-dispatch loop until the exit screen is selected. */
