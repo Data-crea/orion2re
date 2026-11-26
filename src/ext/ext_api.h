@@ -492,7 +492,10 @@ extern int16_t g_activated_input;
 /// pumped. Sync_Mouse_State_From_SDL stands aside while this is
 /// set, so the injected position survives to whoever reads
 /// mouse::Pointer_X(). Cleared by Pump_Game_Input_Queue().
-extern bool g_injected_mouse_pending;
+/// OrionLayer, open fix 124. Atomic: the game thread sets it (ProcessInput)
+/// and clears it (Pump_Game_Input_Queue), the main thread's SDL event loop
+/// reads it (Sync_Mouse_State_From_SDL).
+extern std::atomic<bool> g_injected_mouse_pending;
 
 /// OrionLayer, open fix 71. True when timer::Release_Time may return at once:
 /// a battle is live, the engine's window is hidden (open fix 43), a client is

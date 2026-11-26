@@ -26,7 +26,7 @@ int16_t g_activated_input = 0;
 // OrionLayer, open fix 62. The rect the client saw at the pending index (x, y, x_end, y_end), when it sent one.
 static bool g_pending_checked = false;
 static int16_t g_pending_rect[4] = {0, 0, 0, 0};
-bool g_injected_mouse_pending = false;
+std::atomic<bool> g_injected_mouse_pending{false};  // OrionLayer, open fix 124.
 // OrionLayer, open fix 112. An injected click's release, held while a film plays (FilmGuard).
 static SDL_Event g_film_release{};
 static bool g_film_release_pending = false;
