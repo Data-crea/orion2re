@@ -36,6 +36,10 @@ void Hold_Real_Mouse_() {
     g_injected_mouse_hold_until = (uint32_t)SDL_GetTicks() + k_injected_mouse_hold_ms;
 }
 
+// OrionLayer, open fix 130. See ext_api.h. One direct click per Tick: a second one in the same drain would share the read with the first.
+bool g_click_direct_ok = false;
+static bool g_click_direct_used = false;
+
 bool Real_Mouse_Held() {
     if (g_injected_mouse_pending) {
         return true;
@@ -3828,6 +3832,20 @@ static void ProcessInput() {
                 // space" and until now that was a promise the code
                 // did not keep: the point was pushed raw and read
                 // back as a WINDOW coordinate.
+                // OrionLayer, open fix 130. In Get_Input's own Tick the click
+                // is put into the game's input queue right here, and the same
+                // call reads it. Through the SDL thread (below) the DOWN could
+                // be pumped by the game's own Clear_Fields_Above() (the
+                // galaxy map calls it every pass; its Mouse_Buffer() pumps
+                // the queue and then clears the flag the pump just set), and
+                // the click was lost, about 1 in 100 to 1 in 200 under load
+                // with the window shown (WO 438).
+                if (g_click_direct_ok && !g_click_direct_used && !g_film.active) {
+                    g_click_direct_used = true;
+                    platform::Inject_Game_Click((int16_t)cmd.param1, (int16_t)cmd.param2);
+                    break;
+                }
+
                 float wx = 0.0f;
                 float wy = 0.0f;
                 Game_Point_To_Window_Point_((float)cmd.param1,
@@ -4553,6 +4571,7 @@ void Tick(int16_t current_screen) {
     }
 
     // Process queued input commands
+    g_click_direct_used = false;
     ProcessInput();
 
     // OrionLayer, open fix 62. A pending activation is taken by the NEXT

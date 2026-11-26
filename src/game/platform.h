@@ -85,6 +85,9 @@ namespace platform {
     bool Create_Video_Buffers(int16_t video_mode);
     void __cdecl Service_Pending_Window_Events();
     void __cdecl Pump_Game_Input_Queue();
+#ifdef ORION2RE_EXT
+    void Inject_Game_Click(int16_t x, int16_t y);
+#endif
     int16_t __cdecl Get_Mouse_X();
     int16_t __cdecl Get_Mouse_Y();
     void __cdecl Set_Logical_Mouse_Position(int16_t x, int16_t y);

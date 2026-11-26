@@ -1841,6 +1841,17 @@ namespace platform {
 #endif
     }
 
+#ifdef ORION2RE_EXT
+    // OrionLayer, open fix 130. An injected left click put straight into the game's input queue from the game thread
+    // (DOWN, then UP, as two entries: their button states differ, so Enqueue_Mouse_Input_Event does not coalesce them).
+    // The SDL thread is not involved, so no flush by the game's own Mouse_Buffer() pumps can fall between the two halves.
+    void Inject_Game_Click(int16_t x, int16_t y) {
+        Enqueue_Mouse_Input_Event(x, y, 1);
+        Enqueue_Mouse_Input_Event(x, y, 0);
+        Set_Present_Mouse_Position(x, y);
+    }
+#endif
+
     void __cdecl Update_Cursor_Image() {
         if (cursor_surface == nullptr || g_present_cursor_mutex == nullptr) {
             return;

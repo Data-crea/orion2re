@@ -508,6 +508,14 @@ extern std::atomic<bool> g_injected_mouse_pending;
 void Hold_Real_Mouse_();
 bool Real_Mouse_Held();
 
+/// OrionLayer, open fix 130. True only while fields::Get_Input runs its own
+/// Tick, right before it reads the mouse (Interpret_Mouse_Input). An
+/// INJECT_CLICK drained there goes straight into the game's input queue
+/// (platform::Inject_Game_Click) and is read in the same call. Anywhere else
+/// (the input delay's Tick, the screen loop's Tick, a film) it takes the SDL
+/// path as before. The flag is set and cleared by Get_Input, game thread only.
+extern bool g_click_direct_ok;
+
 /// OrionLayer, open fix 71. True when timer::Release_Time may return at once:
 /// a battle is live, the engine's window is hidden (open fix 43), a client is
 /// connected to draw it, and no input poll (Tick) came since the last wait —

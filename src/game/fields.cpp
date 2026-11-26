@@ -223,7 +223,9 @@ namespace fields {
         }
 
 #ifdef ORION2RE_EXT
+        ext::g_click_direct_ok = true;  // OrionLayer, open fix 130: an injected click drained by THIS Tick is read by this call
         ext::Tick(MOX::current_screen);
+        ext::g_click_direct_ok = false;
         // Whatever this call returns from here on, it is the mouse's
         // until the early return below says otherwise. Cleared per call
         // rather than per frame, so a handler reading it can only ever
