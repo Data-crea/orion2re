@@ -1054,7 +1054,7 @@ namespace platform {
             // over the injected release (same button state), pulling
             // the pointer back to the physical mouse. Stand aside
             // until the queue has been pumped.
-            if (ext::g_injected_mouse_pending) {
+            if (ext::Real_Mouse_Held()) {
                 return;
             }
 #endif
@@ -1401,6 +1401,13 @@ namespace platform {
             }
 
             if (event.type == SDL_EVENT_MOUSE_MOTION) {
+#ifdef ORION2RE_EXT
+                // OrionLayer, open fix 129. A real pointer move while an injected click is being delivered would
+                // coalesce over its release (Enqueue_Mouse_Input_Event) or move the pointer before the click is read.
+                if (ext::Real_Mouse_Held()) {
+                    continue;
+                }
+#endif
                 int16_t mouse_x = 0;
                 int16_t mouse_y = 0;
                 Map_Window_Point_To_Game_Point(event.motion.x, event.motion.y, &mouse_x, &mouse_y);

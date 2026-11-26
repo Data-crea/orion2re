@@ -497,6 +497,17 @@ extern int16_t g_activated_input;
 /// reads it (Sync_Mouse_State_From_SDL).
 extern std::atomic<bool> g_injected_mouse_pending;
 
+/// OrionLayer, open fix 129. Holds the real mouse off for a fixed time after
+/// an injected click, instead of until the first Pump_Game_Input_Queue():
+/// the game thread pumps (and cleared the flag) before the SDL thread had
+/// even turned the injected DOWN/UP into queue events, and the right click's
+/// help box reads the pointer AT THE TIME OF THE CHECK (fields.cpp
+/// Check_Help_List), so one real SDL_EVENT_MOUSE_MOTION between the injected
+/// release and that check moved the pointer off the field. Set by every
+/// injection (Hold_Real_Mouse_), read by Real_Mouse_Held() on the SDL thread.
+void Hold_Real_Mouse_();
+bool Real_Mouse_Held();
+
 /// OrionLayer, open fix 71. True when timer::Release_Time may return at once:
 /// a battle is live, the engine's window is hidden (open fix 43), a client is
 /// connected to draw it, and no input poll (Tick) came since the last wait —

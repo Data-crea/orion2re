@@ -27,6 +27,22 @@ int16_t g_activated_input = 0;
 static bool g_pending_checked = false;
 static int16_t g_pending_rect[4] = {0, 0, 0, 0};
 std::atomic<bool> g_injected_mouse_pending{false};  // OrionLayer, open fix 124.
+// OrionLayer, open fix 129. SDL_GetTicks() until which the real mouse stays held off after an injected click.
+static std::atomic<uint32_t> g_injected_mouse_hold_until{0};
+static constexpr uint32_t k_injected_mouse_hold_ms = 300;
+
+void Hold_Real_Mouse_() {
+    g_injected_mouse_pending = true;
+    g_injected_mouse_hold_until = (uint32_t)SDL_GetTicks() + k_injected_mouse_hold_ms;
+}
+
+bool Real_Mouse_Held() {
+    if (g_injected_mouse_pending) {
+        return true;
+    }
+    // Signed difference: still right after SDL_GetTicks() wraps.
+    return (int32_t)(g_injected_mouse_hold_until.load() - (uint32_t)SDL_GetTicks()) > 0;
+}
 // OrionLayer, open fix 112. An injected click's release, held while a film plays (FilmGuard).
 static SDL_Event g_film_release{};
 static bool g_film_release_pending = false;
@@ -3806,7 +3822,7 @@ static void ProcessInput() {
                 // coalescing rewrites the injected RELEASE to the
                 // physical mouse position, and the pointer has walked
                 // away before the game reads it.
-                g_injected_mouse_pending = true;
+                Hold_Real_Mouse_();
 
                 // The comment above has always said "in 640x480
                 // space" and until now that was a promise the code
@@ -3884,7 +3900,7 @@ static void ProcessInput() {
                 // CANCEL_FIELD right-clicks a field's CENTRE, which is
                 // the whole answer for a button and the wrong one for a
                 // grid field: the game reads xpos/ypos from the point.
-                g_injected_mouse_pending = true;
+                Hold_Real_Mouse_();
                 float wx = 0.0f;
                 float wy = 0.0f;
                 Game_Point_To_Window_Point_((float)cmd.param1,
@@ -3958,7 +3974,7 @@ static void ProcessInput() {
                 // mouse as the other two injections (INJECT_CLICK,
                 // INJECT_RIGHT_CLICK): without it the physical mouse
                 // rewrote this right click's release (open fix 3).
-                g_injected_mouse_pending = true;
+                Hold_Real_Mouse_();
                 float cx = 0.0f;
                 float cy = 0.0f;
                 Game_Point_To_Window_Point_(
@@ -4034,7 +4050,7 @@ FilmGuard::FilmGuard(const char* name)
 FilmGuard::~FilmGuard() {
     if (g_film_release_pending) {
         g_film_release_pending = false;
-        g_injected_mouse_pending = true;
+        Hold_Real_Mouse_();
         SDL_PushEvent(&g_film_release);
     }
     g_film = previous;
