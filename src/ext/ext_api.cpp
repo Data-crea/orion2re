@@ -3954,6 +3954,11 @@ static void ProcessInput() {
                 // The field rect is in game space, so this centre
                 // needs the same conversion as an injected click —
                 // it is the same defect reached by a different door.
+                // OrionLayer, open fix 125. The same hold on the real
+                // mouse as the other two injections (INJECT_CLICK,
+                // INJECT_RIGHT_CLICK): without it the physical mouse
+                // rewrote this right click's release (open fix 3).
+                g_injected_mouse_pending = true;
                 float cx = 0.0f;
                 float cy = 0.0f;
                 Game_Point_To_Window_Point_(
