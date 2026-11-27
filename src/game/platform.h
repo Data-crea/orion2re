@@ -87,6 +87,7 @@ namespace platform {
     void __cdecl Pump_Game_Input_Queue();
 #ifdef ORION2RE_EXT
     void Inject_Game_Click(int16_t x, int16_t y);
+    void Inject_Game_Wheel(int16_t x, int16_t y, int16_t notches);  // OrionLayer, open fix 132
 #endif
     int16_t __cdecl Get_Mouse_X();
     int16_t __cdecl Get_Mouse_Y();

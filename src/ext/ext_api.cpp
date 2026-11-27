@@ -3804,6 +3804,17 @@ static void ProcessInput() {
             }
             break;
 
+        case MSG_INJECT_WHEEL:
+            // OrionLayer, open fix 132. The event goes straight into the game's own queue (no window mapping, no
+            // real-mouse hold: a wheel has no button state for the real mouse to rewrite). Dropped while a film
+            // plays, as fix 130's direct click is not taken there: a film reads no wheel. Clamped, so a wild
+            // client cannot park a huge step in the queue.
+            if (!g_film.active && cmd.param3 != 0) {
+                const int16_t notches = (int16_t)std::clamp<int>(cmd.param3, -64, 64);
+                platform::Inject_Game_Wheel((int16_t)cmd.param1, (int16_t)cmd.param2, notches);
+            }
+            break;
+
         case MSG_INJECT_KEY:
             // Push a keyboard scancode into the SDL event queue
             {

@@ -1850,6 +1850,12 @@ namespace platform {
         Enqueue_Mouse_Input_Event(x, y, 0);
         Set_Present_Mouse_Position(x, y);
     }
+
+    // OrionLayer, open fix 132. A wheel event for the game's own queue, as the SDL path (SDL_EVENT_MOUSE_WHEEL above) puts it:
+    // wheel_x 0, wheel_y = notches (positive = up). x, y are game space already.
+    void Inject_Game_Wheel(int16_t x, int16_t y, int16_t notches) {
+        Enqueue_Wheel_Input_Event(x, y, 0.0f, (float)notches);
+    }
 #endif
 
     void __cdecl Update_Cursor_Image() {

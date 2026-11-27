@@ -34,6 +34,8 @@ constexpr uint16_t MSG_LAYOUT        = 0x15;
 constexpr uint16_t CAP_LAYOUT        = 0x0001;
 // OrionLayer, open fix 111. The server takes MSG_DEMOLISH; a client offers the demolish only then.
 constexpr uint16_t CAP_DEMOLISH      = 0x0002;
+// OrionLayer, open fix 132. The server takes MSG_INJECT_WHEEL; a client sends a wheel only then.
+constexpr uint16_t CAP_WHEEL         = 0x0004;
 
 // Client → Server message types
 constexpr uint16_t MSG_HELLO         = 0x01;
@@ -64,6 +66,9 @@ constexpr uint16_t MSG_INJECT_RAW_KEY = 0x8A;
 constexpr uint16_t MSG_SETTLE_POPS = 0x8B;
 // OrionLayer, open fix 111. Demolish one building of the colony the colony screen shows, through the original's own click on it: int16 colony, int16 building id. The game's refusals, its confirmation box and its refund stay its own (colony.cpp:1563-1589, :1932-1971); a command whose colony or building is not on screen writes nothing.
 constexpr uint16_t MSG_DEMOLISH = 0x8C;
+// OrionLayer, open fix 132: a mouse wheel event into the game's own queue. int16 x, int16 y (game space 640x480),
+// int16 notches (signed, positive = up, as Handle_Mouse_Wheel reads wheel_y). See doc/ext_inject_wheel.patch.
+constexpr uint16_t MSG_INJECT_WHEEL = 0x8D;
 
 // Subscription flags (bitmask)
 constexpr uint16_t SUB_STATE         = 0x01;
@@ -82,6 +87,7 @@ struct InputCommand {
     uint16_t type;     // MSG_ACTIVATE, MSG_INJECT_KEY, etc.
     int16_t  param1;   // field_id or keysym or x or colony_idx
     int16_t  param2;   // 0 or y or pop count
+    int16_t  param3 = 0;  // OrionLayer, open fix 132: MSG_INJECT_WHEEL notches only
     // MSG_SET_JOBS only: count x (pop_idx, new_job) byte pairs.
     // Empty for every other command, which keeps all of those on
     // the two fixed fields exactly as before.
