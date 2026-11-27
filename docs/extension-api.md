@@ -5,7 +5,10 @@ read the running game's state and send it input, over a local TCP socket.
 It is built only when the build is configured with `-DORION2RE_EXT=ON`;
 without it, not one line of it is compiled.
 
-- Port: `localhost:17362`, TCP, no encryption. Only local clients.
+- Port: `localhost:17362`, TCP, no encryption. Only local clients. OrionLayer, open fix 133: the environment
+  variable `ORION2RE_EXT_PORT` (decimal, 1024-65535) names another port, read once in `ext::Init`, so several
+  engines can run at once; unset keeps 17362, any other value is ignored with one log line. A port already taken
+  makes the bind fail: the server does not start (log line `ext: failed to start server`), the game itself goes on.
 - Byte order: little-endian everywhere.
 - Protocol version: **1** (`PROTO_VERSION`). Capabilities beyond it are
   announced in `HELLO_REPLY` (see below), so an older client keeps working
