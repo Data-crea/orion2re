@@ -4039,6 +4039,20 @@ bool Init(uint16_t port) {
     g_last_stardate = -1;
     g_last_fields_count = -1;
 
+    // OrionLayer, open fix 133. ORION2RE_EXT_PORT names the port (decimal 1024-65535) so several engines can run side by
+    // side on one machine; unset keeps the argument (17362), and any other value is ignored with one log line.
+    if (const char* env_port = std::getenv("ORION2RE_EXT_PORT")) {
+        char* end = nullptr;
+        const long value = std::strtol(env_port, &end, 10);
+        if (end != env_port && *end == '\0' && value >= 1024 && value <= 65535) {
+            port = (uint16_t)value;
+        } else {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "ext: ORION2RE_EXT_PORT=\"%s\" is not a port in 1024-65535, ignored (port stays %d)",
+                        env_port, port);
+        }
+    }
+
     bool ok = g_server.Start(port);
     if (ok) {
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
