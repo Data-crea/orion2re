@@ -1851,6 +1851,13 @@ namespace platform {
         Set_Present_Mouse_Position(x, y);
     }
 
+    // OrionLayer, open fix 134. The same for the right button (mouse_buttons bit 1, value 2, as Forward_Game_Mouse_State gets it from the SDL path).
+    void Inject_Game_Right_Click(int16_t x, int16_t y) {
+        Enqueue_Mouse_Input_Event(x, y, 2);
+        Enqueue_Mouse_Input_Event(x, y, 0);
+        Set_Present_Mouse_Position(x, y);
+    }
+
     // OrionLayer, open fix 132. A wheel event for the game's own queue, as the SDL path (SDL_EVENT_MOUSE_WHEEL above) puts it:
     // wheel_x 0, wheel_y = notches (positive = up). x, y are game space already.
     void Inject_Game_Wheel(int16_t x, int16_t y, int16_t notches) {

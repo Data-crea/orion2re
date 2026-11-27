@@ -3930,6 +3930,15 @@ static void ProcessInput() {
                 // the whole answer for a button and the wrong one for a
                 // grid field: the game reads xpos/ypos from the point.
                 Hold_Real_Mouse_();
+                // OrionLayer, open fix 134. The right button gets the same direct path as the left one (open fix 130): in
+                // Get_Input's own Tick DOWN and UP go into the game's input queue here and are read by the same call, so
+                // the game's Clear_Fields_Above() pump cannot fall between the SDL thread's two halves (4 of about 800
+                // injected right clicks were lost with the window shown, WO 444). One direct click per Tick, left or right.
+                if (g_click_direct_ok && !g_click_direct_used && !g_film.active) {
+                    g_click_direct_used = true;
+                    platform::Inject_Game_Right_Click((int16_t)cmd.param1, (int16_t)cmd.param2);
+                    break;
+                }
                 float wx = 0.0f;
                 float wy = 0.0f;
                 Game_Point_To_Window_Point_((float)cmd.param1,

@@ -511,7 +511,7 @@ bool Real_Mouse_Held();
 /// OrionLayer, open fix 130. True only while fields::Get_Input runs its own
 /// Tick, right before it reads the mouse (Interpret_Mouse_Input). An
 /// INJECT_CLICK drained there goes straight into the game's input queue
-/// (platform::Inject_Game_Click) and is read in the same call. Anywhere else
+/// (platform::Inject_Game_Click) and is read in the same call; an INJECT_RIGHT_CLICK likewise (open fix 134, platform::Inject_Game_Right_Click). Anywhere else
 /// (the input delay's Tick, the screen loop's Tick, a film) it takes the SDL
 /// path as before. The flag is set and cleared by Get_Input, game thread only.
 extern bool g_click_direct_ok;
